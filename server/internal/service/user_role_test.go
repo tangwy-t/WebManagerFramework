@@ -1,0 +1,114 @@
+package service
+
+import (
+	"context"
+	"testing"
+	"time"
+
+	"github.com/tangwy-t/webmanager-server/internal/pkg/apperror"
+	"github.com/tangwy-t/webmanager-server/internal/pkg/logger"
+
+	"gorm.io/gorm"
+)
+
+// stubSessionStore 满足 SessionStoreInterface 的最小替身,
+// 只关心 RevokePerms 的调用记录(role_update_status_test.go 复用)。
+type stubSessionStore struct {
+	revoked []uint64
+}
+
+func (s *stubSessionStore) StoreAccess(context.Context, string, uint64, time.Duration) error {
+	return nil
+}
+func (s *stubSessionStore) StoreRefresh(context.Context, uint64, string, time.Duration) error {
+	return nil
+}
+func (s *stubSessionStore) StorePerms(context.Context, uint64, []string, time.Duration) error {
+	return nil
+}
+func (s *stubSessionStore) RevokeAll(context.Context, uint64, string) error { return nil }
+func (s *stubSessionStore) GetRefresh(context.Context, uint64) (string, error) {
+	return "", nil
+}
+func (s *stubSessionStore) DeleteRefresh(context.Context, uint64) error { return nil }
+func (s *stubSessionStore) RevokePerms(ctx context.Context, userID uint64) error {
+	s.revoked = append(s.revoked, userID)
+	return nil
+}
+func (s *stubSessionStore) RevokeAllPerms(context.Context) error { return nil }
+
+// newTestUserServiceWithSession 构造带 sessionStore 的 UserService(角色成员测试用)
+func newTestUserServiceWithSession(repo UserRepositoryInterface, ss SessionStoreInterface) *UserService {
+	return NewUserService(repo, logger.NewNop(), ss)
+}
+
+// ── AddRoleUsers ────────────────────────────────────────────────────
+
+func TestAddRoleUsers_AdminRoleBlocked(t *testing.T) {
+	repo := &stubUserRepo{findRoleCode: "admin"}
+	svc := newTestUserServiceWithSession(repo, &stubSessionStore{})
+	err := svc.AddRoleUsers(context.Background(), 1, []uint64{10})
+	assertCode(t, err, apperror.CodeBadRequest)
+	if len(repo.addUserIDs) != 0 {
+		t.Fatalf("AddUsersToRole should not be called, got %v", repo.addUserIDs)
+	}
+}
+
+func TestAddRoleUsers_RoleNotFound(t *testing.T) {
+	repo := &stubUserRepo{findRoleCodeErr: gorm.ErrRecordNotFound}
+	svc := newTestUserServiceWithSession(repo, &stubSessionStore{})
+	err := svc.AddRoleUsers(context.Background(), 999, []uint64{10})
+	assertCode(t, err, apperror.CodeNotFound)
+}
+
+func TestAddRoleUsers_Success_RevokesPerms(t *testing.T) {
+	repo := &stubUserRepo{findRoleCode: "dev"}
+	ss := &stubSessionStore{}
+	svc := newTestUserServiceWithSession(repo, ss)
+	if err := svc.AddRoleUsers(context.Background(), 2, []uint64{10, 11}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if repo.addRoleID != 2 || len(repo.addUserIDs) != 2 || repo.addUserIDs[0] != 10 || repo.addUserIDs[1] != 11 {
+		t.Fatalf("unexpected add args: role=%d users=%v", repo.addRoleID, repo.addUserIDs)
+	}
+	if len(ss.revoked) != 2 || ss.revoked[0] != 10 || ss.revoked[1] != 11 {
+		t.Fatalf("expected RevokePerms for [10 11], got %v", ss.revoked)
+	}
+}
+
+// ── RemoveRoleUsers ─────────────────────────────────────────────────
+
+func TestRemoveRoleUsers_AdminRoleBlocked(t *testing.T) {
+	repo := &stubUserRepo{findRoleCode: "admin"}
+	svc := newTestUserServiceWithSession(repo, &stubSessionStore{})
+	err := svc.RemoveRoleUsers(context.Background(), 1, []uint64{10})
+	assertCode(t, err, apperror.CodeBadRequest)
+	if len(repo.removeUserIDs) != 0 {
+		t.Fatalf("RemoveUsersFromRole should not be called, got %v", repo.removeUserIDs)
+	}
+}
+
+func TestRemoveRoleUsers_Success_RevokesPerms(t *testing.T) {
+	repo := &stubUserRepo{findRoleCode: "dev"}
+	ss := &stubSessionStore{}
+	svc := newTestUserServiceWithSession(repo, ss)
+	if err := svc.RemoveRoleUsers(context.Background(), 2, []uint64{11}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if repo.removeRoleID != 2 || len(repo.removeUserIDs) != 1 || repo.removeUserIDs[0] != 11 {
+		t.Fatalf("unexpected remove args: role=%d users=%v", repo.removeRoleID, repo.removeUserIDs)
+	}
+	if len(ss.revoked) != 1 || ss.revoked[0] != 11 {
+		t.Fatalf("expected RevokePerms for [11], got %v", ss.revoked)
+	}
+}
+
+// ── AddRoleUsers 无 sessionStore 时不应 panic ───────────────────────
+
+func TestAddRoleUsers_NilSessionStore_NoPanic(t *testing.T) {
+	repo := &stubUserRepo{findRoleCode: "dev"}
+	svc := newTestUserServiceWithSession(repo, nil)
+	if err := svc.AddRoleUsers(context.Background(), 2, []uint64{10}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}

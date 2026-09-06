@@ -1,0 +1,14 @@
+node_modules
+# pnpm 沙箱内本地内容存储(sandbox 模式下 pnpm 的全局 store 不可写,重定向到工作区内)
+.pnpm-store
+.DS_Store
+dist
+dist-ssr
+*.local
+.cursorrules
+tsc-errors.log
+# IDE 配置
+.idea/
+
+# Auto-generated (eslint globals only)
+.auto-import.json

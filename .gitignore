@@ -1,0 +1,61 @@
+# ── 依赖与构建产物 ──
+node_modules/
+dist/
+dist-ssr/
+bin/
+
+# ── 第三方只读参考工程(asset-design-pro,不入库) ──
+reference/
+
+# ── AI 生成的设计稿 / 过程文档(不入库) ──
+design-system/
+server/docs/superpowers/
+web/docs/superpowers/
+
+# ── 代码索引缓存(CodeGraph,按需重建) ──
+.codegraph/
+
+# ── 运行时数据:上传文件不入库,目录结构保留 ──
+data/uploads/*
+!data/uploads/.gitkeep
+
+# ── 会话调试/临时文件 ──
+.ppshot/
+.pnpm-cache-tmp/
+.pnpm-store-tmp/
+.docker-config/
+.docker-state/
+.tmp-*/
+.scratch-lock/
+.diag.mjs
+.diag2.mjs
+.nest-test.mjs
+.css-dump.css
+.buildlog-*
+
+# ── Go 构建与缓存 ──
+.gocache/
+.gomodcache/
+.gopath/
+
+# ── 日志 / 本地覆盖 ──
+*.log
+logs/
+
+# ── 环境配置文件(只提交 .env.example 模板) ──
+.env
+.env.*
+!.env.example
+server/configs/config.yaml
+server/configs/config.docker.yaml
+
+# ── pnpm 本地内容存储 ──
+.pnpm-store/
+
+# ── 自动生成(.auto-import.json 由 eslint globals 生成) ──
+.auto-import.json
+
+# ── IDE 配置 ──
+.idea/
+.vscode/
+*.iml

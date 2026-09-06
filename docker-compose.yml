@@ -1,0 +1,85 @@
+# ============================================================
+# web-manager-framework — web + server 容器编排
+# mysql / redis 使用宿主机现存实例（经 host.docker.internal 访问），
+# 不在 compose 中启动数据库服务。
+#
+# 用法：
+#   docker compose up -d --build     构建并启动
+#   docker compose logs -f server    查看后端日志
+#   docker compose down              停止并移除容器
+#
+# 可覆盖项（通过同目录 .env 或 shell 环境变量注入，见 .env.example）：
+#   DATABASE_PASSWORD   MySQL 密码（默认 password，与 config.docker.yaml 一致）
+#   DATABASE_HOST       MySQL 地址（默认 host.docker.internal）
+#   DATABASE_DBNAME     数据库名（默认 web_manager_framework）
+#   REDIS_ADDR          Redis 地址（默认 host.docker.internal:6379）
+#   SERVER_PORT         后端映射端口（默认 8088）
+#   WEB_PORT            前端映射端口（默认 80）
+# ============================================================
+
+name: web-manager-framework
+
+services:
+  # ── Go 后端 ─────────────────────────────────────────────────
+  server:
+    build:
+      context: ./server
+      # Go 模块代理用代理源 goproxy.cn（proxy.golang.org 在本环境不可达）；
+      # 如需官方源可在构建时覆盖：docker compose build --build-arg GOPROXY=https://proxy.golang.org,direct
+      args:
+        GOPROXY: ${GOPROXY:-https://goproxy.cn,direct}
+        # 版本信息注入（监控页「构建时间/提交 Hash」数据源）：
+        # 从 shell 环境或 .env 透传；留空时 Dockerfile 内兜底 ——
+        # BUILD_TIME 自动取构建时刻，VERSION=docker，COMMIT_HASH=unknown。
+        # 推荐入口：server/ 下 `make docker-build`（自动计算三值并传参）。
+        VERSION: ${VERSION:-}
+        BUILD_TIME: ${BUILD_TIME:-}
+        COMMIT_HASH: ${COMMIT_HASH:-}
+    container_name: wmf-server
+    restart: unless-stopped
+    # 环境变量覆盖配置键（viper 点号→下划线，优先级高于配置文件）
+    environment:
+      # 容器默认 UTC，会与宿主机（Asia/Shanghai）及宿主 MySQL 差 8 小时；
+      # 设置 TZ 后 time.Now() 与 DSN 的 loc=Local 都对齐到 CST。
+      TZ: Asia/Shanghai
+      SERVER_PORT: ${SERVER_PORT:-8088}
+      DATABASE_HOST: ${DATABASE_HOST:-host.docker.internal}
+      DATABASE_PORT: ${DATABASE_PORT:-3306}
+      DATABASE_USER: ${DATABASE_USER:-root}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:-password}
+      DATABASE_DBNAME: ${DATABASE_DBNAME:-web_manager_framework}
+      REDIS_ADDR: ${REDIS_ADDR:-host.docker.internal:6379}
+      # REDIS_PASSWORD 留空时不覆盖文件配置（viper 忽略空环境变量）
+      LOG_OUTPUT: stdout
+    volumes:
+      # docker 专用配置（DB/Redis 走宿主机、日志走 stdout）
+      - ./server/configs/config.docker.yaml:/app/configs/config.yaml:ro
+      # 上传文件持久化:挂到宿主机目录,容器重建/升级不丢数据
+      - ./data/uploads:/app/uploads
+    extra_hosts:
+      # Linux 上让容器内的 host.docker.internal 解析到宿主机
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "${SERVER_PORT:-8088}:8088"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8088/api/v1/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+
+  # ── Vue 3 前端（nginx 托管 dist + /api 反代到 server）──────
+  web:
+    build:
+      context: ./web
+      args:
+        NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmmirror.com}
+    container_name: wmf-web
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Shanghai  # 与宿主机时区对齐，nginx 日志时间戳一致
+    depends_on:
+      server:
+        condition: service_healthy
+    ports:
+      - "${WEB_PORT:-80}:80"

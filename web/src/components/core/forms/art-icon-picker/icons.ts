@@ -1,0 +1,258 @@
+/**
+ * 菜单图标选择器的精选 Remix Icon 清单。
+ *
+ * 仅收录「菜单/导航」场景常用的线型图标（与全局 ri: 图标同源），
+ * 按语义分组，供图标选择器离线渲染与搜索，不依赖 Iconify API。
+ */
+export interface IconGroup {
+  label: string
+  icons: string[]
+}
+
+export const MENU_ICON_GROUPS: IconGroup[] = [
+  {
+    label: '通用 / 导航',
+    icons: [
+      'ri:home-line',
+      'ri:home-5-line',
+      'ri:menu-line',
+      'ri:menu-2-line',
+      'ri:apps-line',
+      'ri:apps-2-line',
+      'ri:dashboard-line',
+      'ri:layout-grid-line',
+      'ri:layout-masonry-line',
+      'ri:grid-line',
+      'ri:compass-3-line',
+      'ri:map-pin-line',
+      'ri:map-2-line',
+      'ri:navigation-line',
+      'ri:route-line',
+      'ri:send-plane-line',
+      'ri:compass-line'
+    ]
+  },
+  {
+    label: '用户 / 权限',
+    icons: [
+      'ri:user-line',
+      'ri:user-3-line',
+      'ri:user-4-line',
+      'ri:team-line',
+      'ri:group-line',
+      'ri:group-2-line',
+      'ri:contacts-line',
+      'ri:contacts-book-line',
+      'ri:shield-user-line',
+      'ri:shield-line',
+      'ri:shield-keyhole-line',
+      'ri:key-2-line',
+      'ri:key-line',
+      'ri:lock-line',
+      'ri:lock-2-line',
+      'ri:lock-unlock-line',
+      'ri:user-settings-line',
+      'ri:user-add-line',
+      'ri:id-card-line',
+      'ri:fingerprint-line',
+      'ri:eye-line',
+      'ri:eye-off-line'
+    ]
+  },
+  {
+    label: '数据 / 业务',
+    icons: [
+      'ri:database-2-line',
+      'ri:database-line',
+      'ri:bar-chart-line',
+      'ri:bar-chart-2-line',
+      'ri:bar-chart-box-line',
+      'ri:line-chart-line',
+      'ri:pie-chart-line',
+      'ri:pie-chart-2-line',
+      'ri:donut-chart-line',
+      'ri:funds-line',
+      'ri:file-chart-line',
+      'ri:file-chart-2-line',
+      'ri:table-line',
+      'ri:table-alt-line',
+      'ri:numbers-line',
+      'ri:percent-line',
+      'ri:calculator-line',
+      'ri:coins-line',
+      'ri:money-cny-circle-line',
+      'ri:wallet-3-line',
+      'ri:barcode-line',
+      'ri:qr-code-line'
+    ]
+  },
+  {
+    label: '文件 / 内容',
+    icons: [
+      'ri:file-list-3-line',
+      'ri:file-list-2-line',
+      'ri:file-copy-line',
+      'ri:file-2-line',
+      'ri:file-text-line',
+      'ri:file-edit-line',
+      'ri:file-paper-line',
+      'ri:file-download-line',
+      'ri:file-upload-line',
+      'ri:folder-3-line',
+      'ri:folder-2-line',
+      'ri:folder-open-line',
+      'ri:folders-line',
+      'ri:article-line',
+      'ri:book-2-line',
+      'ri:book-3-line',
+      'ri:book-open-line',
+      'ri:newspaper-line',
+      'ri:sticky-note-line',
+      'ri:clipboard-line',
+      'ri:list-check-3',
+      'ri:list-unordered',
+      'ri:task-line',
+      'ri:archive-line',
+      'ri:inbox-line'
+    ]
+  },
+  {
+    label: '系统 / 工具',
+    icons: [
+      'ri:settings-line',
+      'ri:settings-3-line',
+      'ri:settings-4-line',
+      'ri:tools-line',
+      'ri:terminal-box-line',
+      'ri:terminal-line',
+      'ri:server-line',
+      'ri:cloud-line',
+      'ri:cloud-off-line',
+      'ri:cpu-line',
+      'ri:computer-line',
+      'ri:hard-drive-2-line',
+      'ri:hard-drive-line',
+      'ri:save-3-line',
+      'ri:restart-line',
+      'ri:refresh-line',
+      'ri:loader-4-line',
+      'ri:timer-line',
+      'ri:timer-2-line',
+      'ri:time-line',
+      'ri:history-line',
+      'ri:bug-line',
+      'ri:shield-flash-line',
+      'ri:function-line',
+      'ri:code-s-slash-line',
+      'ri:braces-line',
+      'ri:git-branch-line',
+      'ri:git-commit-line',
+      'ri:organization-chart'
+    ]
+  },
+  {
+    label: '通信 / 通知',
+    icons: [
+      'ri:mail-line',
+      'ri:mail-send-line',
+      'ri:mail-check-line',
+      'ri:message-2-line',
+      'ri:message-3-line',
+      'ri:chat-3-line',
+      'ri:notification-2-line',
+      'ri:notification-3-line',
+      'ri:notification-4-line',
+      'ri:bell-line',
+      'ri:megaphone-line',
+      'ri:speaker-3-line',
+      'ri:phone-line',
+      'ri:send-plane-2-line',
+      'ri:links-line',
+      'ri:share-line',
+      'ri:exchange-line',
+      'ri:translate-2',
+      'ri:global-line'
+    ]
+  },
+  {
+    label: '媒体 / 图形',
+    icons: [
+      'ri:image-line',
+      'ri:image-2-line',
+      'ri:image-add-line',
+      'ri:gallery-line',
+      'ri:video-line',
+      'ri:movie-line',
+      'ri:music-2-line',
+      'ri:camera-line',
+      'ri:palette-line',
+      'ri:brush-line',
+      'ri:mark-pen-line',
+      'ri:shapes-line',
+      'ri:shape-2-line',
+      'ri:drag-move-2-line',
+      'ri:flickr-line'
+    ]
+  },
+  {
+    label: '电商 / 通用对象',
+    icons: [
+      'ri:shopping-cart-line',
+      'ri:shopping-bag-3-line',
+      'ri:shopping-basket-2-line',
+      'ri:gift-line',
+      'ri:coupon-2-line',
+      'ri:price-tag-line',
+      'ri:price-tag-3-line',
+      'ri:store-2-line',
+      'ri:store-3-line',
+      'ri:box-1-line',
+      'ri:box-3-line',
+      'ri:package-line',
+      'ri:truck-line',
+      'ri:bank-card-line',
+      'ri:calendar-line',
+      'ri:calendar-check-line',
+      'ri:calendar-2-line',
+      'ri:heart-3-line',
+      'ri:star-line',
+      'ri:fire-line',
+      'ri:flag-line',
+      'ri:trophy-line',
+      'ri:medal-line'
+    ]
+  },
+  {
+    label: '箭头 / 动作',
+    icons: [
+      'ri:arrow-left-line',
+      'ri:arrow-right-line',
+      'ri:arrow-up-line',
+      'ri:arrow-down-line',
+      'ri:arrow-left-right-line',
+      'ri:arrow-up-down-line',
+      'ri:add-line',
+      'ri:add-circle-line',
+      'ri:subtract-line',
+      'ri:close-line',
+      'ri:close-circle-line',
+      'ri:check-line',
+      'ri:check-circle-line',
+      'ri:edit-line',
+      'ri:pencil-line',
+      'ri:delete-bin-line',
+      'ri:delete-bin-5-line',
+      'ri:search-line',
+      'ri:filter-3-line',
+      'ri:sort-asc',
+      'ri:sort-desc',
+      'ri:download-2-line',
+      'ri:upload-2-line',
+      'ri:play-circle-line',
+      'ri:pause-circle-line',
+      'ri:link-line',
+      'ri:link-unlink',
+      'ri:more-2-line'
+    ]
+  }
+]

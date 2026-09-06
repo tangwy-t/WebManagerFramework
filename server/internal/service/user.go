@@ -1,0 +1,330 @@
+package service
+
+import (
+	"context"
+	"strconv"
+	"time"
+
+	"github.com/tangwy-t/webmanager-server/internal/model/dto/request"
+	"github.com/tangwy-t/webmanager-server/internal/model/dto/response"
+	"github.com/tangwy-t/webmanager-server/internal/model/entity"
+	"github.com/tangwy-t/webmanager-server/internal/pkg/app"
+	"github.com/tangwy-t/webmanager-server/internal/pkg/apperror"
+	"github.com/tangwy-t/webmanager-server/internal/pkg/contextkeys"
+	"github.com/tangwy-t/webmanager-server/internal/pkg/crypto"
+	"github.com/tangwy-t/webmanager-server/internal/pkg/database"
+	"github.com/tangwy-t/webmanager-server/internal/pkg/logger"
+	"github.com/tangwy-t/webmanager-server/internal/pkg/util"
+
+	"go.uber.org/zap"
+	"golang.org/x/crypto/bcrypt"
+)
+
+// SessionStoreInterface 由 service/interface.go 迁移至此:接口定义在消费方,
+// 不再维护包级中央接口文件。
+type SessionStoreInterface interface {
+	StoreAccess(ctx context.Context, token string, userID uint64, ttl time.Duration) error
+	StoreRefresh(ctx context.Context, userID uint64, token string, ttl time.Duration) error
+	StorePerms(ctx context.Context, userID uint64, perms []string, ttl time.Duration) error
+	RevokeAll(ctx context.Context, userID uint64, token string) error
+	GetRefresh(ctx context.Context, userID uint64) (string, error)
+	DeleteRefresh(ctx context.Context, userID uint64) error
+	RevokePerms(ctx context.Context, userID uint64) error
+	RevokeAllPerms(ctx context.Context) error
+}
+
+// UserRepositoryInterface 由 service/interface.go 迁移至此:接口定义在消费方,
+// 不再维护包级中央接口文件。
+// UserRepositoryInterface defines the data-access contract for user management operations.
+type UserRepositoryInterface interface {
+	// FindPage returns a paginated list of users matching the given query, along with the total count.
+	FindPage(ctx context.Context, query *request.UserQuery) ([]entity.SysUser, int64, error)
+	// FindByID returns a single user (with Dept and Roles preloaded) by primary key.
+	FindByID(ctx context.Context, id uint64) (*entity.SysUser, error)
+	// FindByUsername returns a user by username, used for uniqueness checks.
+	FindByUsername(ctx context.Context, username string) (*entity.SysUser, error)
+	// CreateWithRoles creates a user and associates the given role IDs in a single transaction.
+	CreateWithRoles(ctx context.Context, user *entity.SysUser, roleIDs []uint64) error
+	// Delete performs a soft-delete on the user with the given ID.
+	Delete(ctx context.Context, id uint64) error
+	// UpdateStatus sets the status field for the given user ID.
+	UpdateStatus(ctx context.Context, id uint64, status int8) error
+	// UpdatePassword sets the password field for the given user ID.
+	UpdatePassword(ctx context.Context, id uint64, password string, salt *string) error
+	// Update updates basic user fields without touching role associations.
+	Update(ctx context.Context, user *entity.SysUser) error
+	// ReplaceRoles replaces all role associations for the given user ID in a single transaction.
+	ReplaceRoles(ctx context.Context, id uint64, roleIDs []uint64) error
+	// FindRoleCodeByID returns a role's code, used by role-membership guards.
+	FindRoleCodeByID(ctx context.Context, roleID uint64) (string, error)
+	// AddUsersToRole appends the given users to a role (idempotent per user).
+	AddUsersToRole(ctx context.Context, roleID uint64, userIDs []uint64) error
+	// RemoveUsersFromRole removes the given users from a role.
+	RemoveUsersFromRole(ctx context.Context, roleID uint64, userIDs []uint64) error
+}
+
+type UserService struct {
+	repo         UserRepositoryInterface
+	logger       logger.LoggerInterface
+	sessionStore SessionStoreInterface
+}
+
+// NewUserService constructs a UserService with the given dependencies.
+// Snowflake ID generation is handled by GORM callbacks (database.RegisterIDCallback).
+func NewUserService(repo UserRepositoryInterface, logger logger.LoggerInterface, tokenStore SessionStoreInterface) *UserService {
+	return &UserService{repo: repo, logger: logger, sessionStore: tokenStore}
+}
+
+func (s *UserService) FindPage(ctx context.Context, query *request.UserQuery) (*app.PageResponse, error) {
+	users, total, err := s.repo.FindPage(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	list := make([]response.UserResp, 0, len(users))
+	for i := range users {
+		list = append(list, s.toUserResp(&users[i]))
+	}
+	return app.NewPageResponse(list, total, query.GetPage(), query.GetPageSize()), nil
+}
+
+func (s *UserService) FindByID(ctx context.Context, id uint64) (*response.UserResp, error) {
+	user, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		return nil, translateNotFound(err, "用户不存在")
+	}
+	resp := s.toUserResp(user)
+	return &resp, nil
+}
+
+// toUserResp 统一 UserResp 的组装:copier 拷贝同名字段后,补上跨表
+// 关联字段(DeptName/RoleNames)。此前 FindPage 与 FindByID 各写一份,
+// 新增关联字段时极易只改一处。
+func (s *UserService) toUserResp(user *entity.SysUser) response.UserResp {
+	resp := util.MapEntity[response.UserResp](user, s.logger)
+	if user.Dept != nil {
+		resp.DeptName = user.Dept.Name
+	}
+	roleNames := make([]string, 0, len(user.Roles))
+	roleIDs := make([]string, 0, len(user.Roles))
+	for _, role := range user.Roles {
+		roleNames = append(roleNames, role.Name)
+		roleIDs = append(roleIDs, strconv.FormatUint(role.ID, 10))
+	}
+	resp.RoleNames = roleNames
+	resp.RoleIDs = roleIDs
+	return resp
+}
+
+func (s *UserService) Create(ctx context.Context, req *request.CreateUserReq) (uint64, error) {
+	hashed, salt, err := crypto.HashPassword(req.Password, bcrypt.DefaultCost)
+	if err != nil {
+		return 0, apperror.Internal("密码加密失败", err)
+	}
+
+	// ID is auto-generated by the GORM BeforeCreate callback (database.RegisterIDCallback).
+	user := &entity.SysUser{}
+	// DeptID is *util.JsonUint64 in the request to preserve snowflake-ID
+	// precision; copier converts it to the entity's *uint64 automatically
+	// (behavior locked by util.TestCopyEntityJsonUint64Pointer).
+	util.CopyEntity(user, req, s.logger)
+	user.Password = hashed
+	user.PasswordSalt = &salt
+
+	// Default status to enabled if not provided.
+	if user.Status == nil {
+		enabled := entity.UserStatusEnabled
+		user.Status = &enabled
+	}
+
+	if err := s.repo.CreateWithRoles(ctx, user, []uint64(req.RoleIDs)); err != nil {
+		if database.IsDuplicateKey(err) {
+			return 0, apperror.Conflict("用户名已存在")
+		}
+		s.logger.Warn("failed to create user", zap.String("username", req.Username), zap.Error(err))
+		return 0, err
+	}
+	s.logger.Info("user created", zap.Uint64("userId", user.ID), zap.String("username", user.Username))
+	return user.ID, nil
+}
+
+// UpdateUserInfo updates a user's basic fields only. It does not modify roles
+// or status. Status changes must go through Enable/Disable (self-guarded).
+func (s *UserService) UpdateUserInfo(ctx context.Context, req *request.UpdateUserReq) error {
+	user, err := s.repo.FindByID(ctx, req.ID)
+	if err != nil {
+		return translateNotFound(err, "用户不存在")
+	}
+
+	// DeptID is *util.JsonUint64 in the request to preserve snowflake-ID
+	// precision; copier converts it to the entity's *uint64 automatically
+	// (behavior locked by util.TestCopyEntityJsonUint64Pointer).
+	util.CopyEntity(user, req, s.logger)
+
+	if err := s.repo.Update(ctx, user); err != nil {
+		s.logger.Warn("failed to update user info", zap.Uint64("userId", req.ID), zap.Error(err))
+		return err
+	}
+	s.logger.Info("user info updated", zap.Uint64("userId", req.ID))
+	return nil
+}
+
+// isSelf reports whether the operator in ctx targets themselves. Absent
+// operator context (internal/system calls) returns false — self-guards only
+// apply to human operators.
+func isSelf(ctx context.Context, id uint64) bool {
+	operatorID, ok := contextkeys.UserIDFromCtx(ctx)
+	return ok && id == operatorID
+}
+
+// AssignRoles replaces the target user's roles. The operator cannot modify
+// their own roles (admin is not exempt), matching the Disable self-guard.
+func (s *UserService) AssignRoles(ctx context.Context, id uint64, roleIDs []uint64) error {
+	if isSelf(ctx, id) {
+		return apperror.BadRequest("不能修改自己的角色")
+	}
+	if _, err := s.repo.FindByID(ctx, id); err != nil {
+		return translateNotFound(err, "用户不存在")
+	}
+	if roleIDs == nil {
+		roleIDs = []uint64{} // 空=清空全部角色
+	}
+	if err := s.repo.ReplaceRoles(ctx, id, roleIDs); err != nil {
+		s.logger.Warn("failed to assign roles", zap.Uint64("userId", id), zap.Error(err))
+		return err
+	}
+	// 角色变更立即失效该用户的权限缓存:否则被收回的权限最长延迟
+	// accessExpire(默认 2h)才生效(PermissionGuard 缓存 TTL 与之同长)。
+	if s.sessionStore != nil {
+		if err := s.sessionStore.RevokePerms(ctx, id); err != nil {
+			// Error:旧权限在 Redis 残留至 TTL(默认最长 2h),
+			// 该窗口内角色变更不生效,运维必须可见。
+			s.logger.Error("failed to revoke perms cache after role change",
+				zap.Uint64("userId", id), zap.Error(err))
+		}
+	}
+	s.logger.Info("user roles assigned", zap.Uint64("userId", id), zap.Int("count", len(roleIDs)))
+	return nil
+}
+
+// guardRoleMembershipEditable blocks membership edits on the built-in admin
+// role: its member set is fixed (removing admin would lock the system out).
+func (s *UserService) guardRoleMembershipEditable(ctx context.Context, roleID uint64) error {
+	code, err := s.repo.FindRoleCodeByID(ctx, roleID)
+	if err != nil {
+		return translateNotFound(err, "角色不存在")
+	}
+	if code == "admin" {
+		return apperror.BadRequest("内置管理员角色不允许调整成员")
+	}
+	return nil
+}
+
+// revokePermsForUsers invalidates the permission cache of affected users.
+// Failures are logged but not returned: the membership change has already
+// been committed, so failing the request would only produce misleading
+// "failed" feedback for a change that actually succeeded (same as AssignRoles).
+func (s *UserService) revokePermsForUsers(ctx context.Context, userIDs []uint64) {
+	if s.sessionStore == nil {
+		return
+	}
+	for _, uid := range userIDs {
+		if err := s.sessionStore.RevokePerms(ctx, uid); err != nil {
+			// Error:已变更的权限在 Redis 缓存残留至 TTL(最长 2h),
+			// 该窗口内旧权限仍生效,运维必须可见。
+			s.logger.Error("failed to revoke perms cache after role member change",
+				zap.Uint64("userId", uid), zap.Error(err))
+		}
+	}
+}
+
+// AddRoleUsers appends users to a role (角色管理-分配用户). Idempotent per
+// user: users already assigned are skipped by the repository.
+func (s *UserService) AddRoleUsers(ctx context.Context, roleID uint64, userIDs []uint64) error {
+	if err := s.guardRoleMembershipEditable(ctx, roleID); err != nil {
+		return err
+	}
+	if err := s.repo.AddUsersToRole(ctx, roleID, userIDs); err != nil {
+		s.logger.Warn("failed to add users to role", zap.Uint64("roleId", roleID), zap.Error(err))
+		return err
+	}
+	s.revokePermsForUsers(ctx, userIDs)
+	s.logger.Info("users added to role", zap.Uint64("roleId", roleID), zap.Int("count", len(userIDs)))
+	return nil
+}
+
+// RemoveRoleUsers removes users from a role (角色管理-分配用户).
+func (s *UserService) RemoveRoleUsers(ctx context.Context, roleID uint64, userIDs []uint64) error {
+	if err := s.guardRoleMembershipEditable(ctx, roleID); err != nil {
+		return err
+	}
+	if err := s.repo.RemoveUsersFromRole(ctx, roleID, userIDs); err != nil {
+		s.logger.Warn("failed to remove users from role", zap.Uint64("roleId", roleID), zap.Error(err))
+		return err
+	}
+	s.revokePermsForUsers(ctx, userIDs)
+	s.logger.Info("users removed from role", zap.Uint64("roleId", roleID), zap.Int("count", len(userIDs)))
+	return nil
+}
+
+func (s *UserService) Delete(ctx context.Context, id uint64) error {
+	if isSelf(ctx, id) {
+		return apperror.BadRequest("不能删除自己")
+	}
+	if err := s.repo.Delete(ctx, id); err != nil {
+		s.logger.Warn("failed to delete user", zap.Uint64("userId", id), zap.Error(err))
+		return err
+	}
+	// Revoke all sessions for the deleted user so their tokens are invalidated.
+	if err := s.sessionStore.RevokeAll(ctx, id, ""); err != nil {
+		// Error:已删用户的 token 在白名单残留至 TTL,该窗口内仍可访问。
+		s.logger.Error("failed to revoke sessions after user deletion", zap.Uint64("userId", id), zap.Error(err))
+	}
+	s.logger.Info("user deleted", zap.Uint64("userId", id))
+	return nil
+}
+
+func (s *UserService) Enable(ctx context.Context, id uint64) error {
+	if isSelf(ctx, id) {
+		return apperror.BadRequest("不能修改自己的状态")
+	}
+	if err := s.repo.UpdateStatus(ctx, id, entity.UserStatusEnabled); err != nil {
+		s.logger.Warn("failed to enable user", zap.Uint64("userId", id), zap.Error(err))
+		return err
+	}
+	s.logger.Info("user enabled", zap.Uint64("userId", id))
+	return nil
+}
+
+func (s *UserService) Disable(ctx context.Context, id uint64) error {
+	if isSelf(ctx, id) {
+		return apperror.BadRequest("不能修改自己的状态")
+	}
+	if err := s.repo.UpdateStatus(ctx, id, entity.UserStatusDisabled); err != nil {
+		s.logger.Warn("failed to disable user", zap.Uint64("userId", id), zap.Error(err))
+		return err
+	}
+	// Revoke all sessions when user is disabled.
+	if err := s.sessionStore.RevokeAll(ctx, id, ""); err != nil {
+		// Error:禁用用户旧 token 在白名单残留至 TTL,禁用效果延迟生效。
+		s.logger.Error("failed to revoke sessions for disabled user", zap.Uint64("userId", id), zap.Error(err))
+	}
+	s.logger.Info("user disabled", zap.Uint64("userId", id))
+	return nil
+}
+
+func (s *UserService) ResetPassword(ctx context.Context, id uint64, req *request.ResetPasswordReq) error {
+	hashed, salt, err := crypto.HashPassword(req.NewPassword, bcrypt.DefaultCost)
+	if err != nil {
+		return apperror.Internal("密码加密失败", err)
+	}
+	if err := s.repo.UpdatePassword(ctx, id, hashed, &salt); err != nil {
+		s.logger.Warn("failed to reset password", zap.Uint64("userId", id), zap.Error(err))
+		return err
+	}
+	// Revoke all sessions after password reset.
+	if err := s.sessionStore.RevokeAll(ctx, id, ""); err != nil {
+		// Error:重置密码后旧 token 残留,疑似泄露的凭证窗口内仍有效。
+		s.logger.Error("failed to revoke sessions after password reset", zap.Uint64("userId", id), zap.Error(err))
+	}
+	return nil
+}

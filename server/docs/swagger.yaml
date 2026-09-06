@@ -1,0 +1,5893 @@
+basePath: /api/v1
+definitions:
+  app.PageResponse:
+    properties:
+      list: {}
+      page:
+        type: integer
+      pageSize:
+        type: integer
+      total:
+        type: integer
+    type: object
+  app.Response:
+    properties:
+      code:
+        type: integer
+      data: {}
+      msg:
+        type: string
+    type: object
+  cache.Stats:
+    properties:
+      hit_rate:
+        type: number
+      keyspace_hits:
+        type: integer
+      keyspace_misses:
+        type: integer
+    type: object
+  captcha.Result:
+    properties:
+      captchaImage:
+        description: data:image/png;base64,...
+        type: string
+      captchaKey:
+        type: string
+    type: object
+  database.DimSnapshot:
+    properties:
+      avg_ms:
+        type: number
+      count:
+        type: integer
+      max_ms:
+        type: number
+      min_ms:
+        type: number
+      p50_ms:
+        type: number
+      p95_ms:
+        type: number
+      p99_ms:
+        type: number
+    type: object
+  database.GlobalSnapshot:
+    properties:
+      avg_ms:
+        type: number
+      count:
+        type: integer
+      error_count:
+        type: integer
+      max_ms:
+        type: number
+      min_ms:
+        type: number
+      p50_ms:
+        type: number
+      p95_ms:
+        type: number
+      p99_ms:
+        type: number
+      slow_count:
+        type: integer
+      slow_threshold_ms:
+        type: integer
+    type: object
+  database.HistoryPoint:
+    properties:
+      avg_ms:
+        type: number
+      count:
+        type: integer
+      error_count:
+        type: integer
+      max_ms:
+        type: number
+      p50_ms:
+        type: number
+      p95_ms:
+        type: number
+      p99_ms:
+        type: number
+      qps:
+        type: number
+      slow_count:
+        type: integer
+      timestamp:
+        type: string
+    type: object
+  database.HistorySnapshot:
+    properties:
+      buckets:
+        items:
+          $ref: '#/definitions/database.HistoryPoint'
+        type: array
+      recent_qps:
+        type: number
+      slow_threshold_ms:
+        type: integer
+      step_seconds:
+        type: integer
+      window_seconds:
+        type: integer
+    type: object
+  database.QueryEntry:
+    properties:
+      duration_ms:
+        type: number
+      is_error:
+        type: boolean
+      is_slow:
+        type: boolean
+      operation:
+        type: string
+      sql:
+        type: string
+      table:
+        type: string
+      timestamp:
+        type: string
+    type: object
+  database.StatsSnapshot:
+    properties:
+      by_operation:
+        additionalProperties:
+          $ref: '#/definitions/database.DimSnapshot'
+        type: object
+      by_table:
+        additionalProperties:
+          $ref: '#/definitions/database.DimSnapshot'
+        type: object
+      global:
+        $ref: '#/definitions/database.GlobalSnapshot'
+      slow_queries:
+        items:
+          $ref: '#/definitions/database.QueryEntry'
+        type: array
+    type: object
+  request.AssignRolesReq:
+    properties:
+      roleIds:
+        items:
+          type: integer
+        type: array
+    type: object
+  request.ChangePasswordReq:
+    properties:
+      newPassword:
+        maxLength: 64
+        minLength: 6
+        type: string
+      oldPassword:
+        type: string
+    required:
+    - newPassword
+    - oldPassword
+    type: object
+  request.CreateConfigReq:
+    properties:
+      configKey:
+        maxLength: 128
+        type: string
+      configType:
+        enum:
+        - S
+        - "N"
+        - B
+        - J
+        type: string
+      configValue:
+        type: string
+      name:
+        maxLength: 64
+        type: string
+      remark:
+        type: string
+      status:
+        type: integer
+    required:
+    - configKey
+    - configType
+    - configValue
+    - name
+    type: object
+  request.CreateDeptReq:
+    properties:
+      email:
+        type: string
+      leader:
+        type: string
+      name:
+        maxLength: 64
+        minLength: 1
+        type: string
+      parentId:
+        type: integer
+      phone:
+        type: string
+      sort:
+        type: integer
+      status:
+        type: integer
+    required:
+    - name
+    type: object
+  request.CreateDictDataReq:
+    properties:
+      isDefault:
+        type: integer
+      label:
+        type: string
+      listClass:
+        enum:
+        - primary
+        - success
+        - info
+        - warning
+        - danger
+        type: string
+      remark:
+        type: string
+      sort:
+        type: integer
+      status:
+        type: integer
+      value:
+        type: string
+    required:
+    - label
+    - value
+    type: object
+  request.CreateDictTypeReq:
+    properties:
+      code:
+        type: string
+      name:
+        type: string
+      remark:
+        type: string
+      status:
+        type: integer
+    required:
+    - code
+    - name
+    type: object
+  request.CreateJobReq:
+    properties:
+      concurrent:
+        type: integer
+      cronExpression:
+        maxLength: 128
+        type: string
+      invokeParams:
+        type: string
+      invokeTarget:
+        maxLength: 256
+        type: string
+      jobGroup:
+        maxLength: 64
+        type: string
+      name:
+        maxLength: 64
+        type: string
+      remark:
+        type: string
+      retryCount:
+        type: integer
+      retryInterval:
+        type: integer
+      runAtStartup:
+        type: integer
+      status:
+        type: integer
+    required:
+    - cronExpression
+    - invokeTarget
+    - jobGroup
+    - name
+    type: object
+  request.CreateMenuReq:
+    properties:
+      component:
+        type: string
+      icon:
+        type: string
+      name:
+        maxLength: 64
+        minLength: 1
+        type: string
+      parentId:
+        type: integer
+      path:
+        type: string
+      perms:
+        type: string
+      sort:
+        type: integer
+      status:
+        type: integer
+      type:
+        enum:
+        - dir
+        - menu
+        - btn
+        type: string
+      visible:
+        type: integer
+    required:
+    - name
+    - type
+    type: object
+  request.CreateNoticeReq:
+    properties:
+      content:
+        type: string
+      noticeType:
+        type: integer
+      priority:
+        type: integer
+      publishType:
+        type: integer
+      targetIds:
+        type: string
+      targetType:
+        description: 接收范围(0=全体成员 1=指定角色 2=指定部门 3=指定个人)与对象 ID CSV
+        type: integer
+      title:
+        maxLength: 128
+        type: string
+    required:
+    - content
+    - title
+    type: object
+  request.CreateRoleReq:
+    properties:
+      code:
+        maxLength: 64
+        minLength: 1
+        type: string
+      dataScope:
+        type: integer
+      deptIds:
+        items:
+          type: integer
+        type: array
+      menuIds:
+        items:
+          type: integer
+        type: array
+      name:
+        maxLength: 64
+        minLength: 1
+        type: string
+      remark:
+        type: string
+      sort:
+        type: integer
+      status:
+        type: integer
+    required:
+    - code
+    - name
+    type: object
+  request.CreateUserReq:
+    properties:
+      deptId:
+        type: integer
+      email:
+        type: string
+      password:
+        maxLength: 64
+        minLength: 6
+        type: string
+      phone:
+        type: string
+      realName:
+        type: string
+      remark:
+        type: string
+      roleIds:
+        items:
+          type: integer
+        type: array
+      status:
+        type: integer
+      username:
+        maxLength: 64
+        minLength: 3
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  request.DeleteFilesReq:
+    properties:
+      ids:
+        items:
+          type: integer
+        maxItems: 200
+        minItems: 1
+        type: array
+    required:
+    - ids
+    type: object
+  request.DeptSortItem:
+    properties:
+      id:
+        type: integer
+      sort:
+        type: integer
+    required:
+    - id
+    type: object
+  request.LoginReq:
+    properties:
+      captchaCode:
+        description: optional
+        type: string
+      captchaKey:
+        description: optional
+        type: string
+      password:
+        type: string
+      username:
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  request.MenuSortItem:
+    properties:
+      id:
+        type: integer
+      sort:
+        type: integer
+    required:
+    - id
+    type: object
+  request.PublishNoticeReq:
+    properties:
+      deptIds:
+        items:
+          type: integer
+        type: array
+      roleIds:
+        items:
+          type: integer
+        type: array
+      userIds:
+        items:
+          type: integer
+        type: array
+    type: object
+  request.RefreshTokenReq:
+    properties:
+      refreshToken:
+        type: string
+    required:
+    - refreshToken
+    type: object
+  request.RenameFileReq:
+    properties:
+      name:
+        maxLength: 255
+        type: string
+    required:
+    - name
+    type: object
+  request.ResetPasswordReq:
+    properties:
+      newPassword:
+        maxLength: 64
+        minLength: 6
+        type: string
+    required:
+    - newPassword
+    type: object
+  request.RoleSortItem:
+    properties:
+      id:
+        type: integer
+      sort:
+        type: integer
+    required:
+    - id
+    type: object
+  request.RoleUsersReq:
+    properties:
+      userIds:
+        items:
+          type: integer
+        minItems: 1
+        type: array
+    required:
+    - userIds
+    type: object
+  request.UpdateConfigReq:
+    properties:
+      configType:
+        enum:
+        - S
+        - "N"
+        - B
+        - J
+        type: string
+      configValue:
+        type: string
+      name:
+        maxLength: 64
+        type: string
+      remark:
+        type: string
+      status:
+        type: integer
+    required:
+    - configType
+    - configValue
+    - name
+    type: object
+  request.UpdateDeptReq:
+    properties:
+      email:
+        type: string
+      leader:
+        type: string
+      name:
+        maxLength: 64
+        minLength: 1
+        type: string
+      parentId:
+        type: integer
+      phone:
+        type: string
+      sort:
+        type: integer
+      status:
+        type: integer
+    required:
+    - name
+    type: object
+  request.UpdateDeptSortReq:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/request.DeptSortItem'
+        minItems: 1
+        type: array
+    required:
+    - items
+    type: object
+  request.UpdateDictDataReq:
+    properties:
+      isDefault:
+        type: integer
+      label:
+        type: string
+      listClass:
+        enum:
+        - primary
+        - success
+        - info
+        - warning
+        - danger
+        type: string
+      remark:
+        type: string
+      sort:
+        type: integer
+      status:
+        type: integer
+      value:
+        type: string
+    required:
+    - label
+    - value
+    type: object
+  request.UpdateDictTypeReq:
+    properties:
+      code:
+        type: string
+      name:
+        type: string
+      remark:
+        type: string
+      status:
+        type: integer
+    required:
+    - code
+    - name
+    type: object
+  request.UpdateJobReq:
+    properties:
+      concurrent:
+        type: integer
+      cronExpression:
+        maxLength: 128
+        type: string
+      invokeParams:
+        type: string
+      invokeTarget:
+        maxLength: 256
+        type: string
+      remark:
+        type: string
+      retryCount:
+        type: integer
+      retryInterval:
+        type: integer
+      runAtStartup:
+        type: integer
+      status:
+        type: integer
+    required:
+    - cronExpression
+    - invokeTarget
+    type: object
+  request.UpdateMenuReq:
+    properties:
+      component:
+        type: string
+      icon:
+        type: string
+      name:
+        maxLength: 64
+        minLength: 1
+        type: string
+      parentId:
+        type: integer
+      path:
+        type: string
+      perms:
+        type: string
+      sort:
+        type: integer
+      status:
+        type: integer
+      type:
+        enum:
+        - dir
+        - menu
+        - btn
+        type: string
+      visible:
+        type: integer
+    required:
+    - name
+    - type
+    type: object
+  request.UpdateMenuSortReq:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/request.MenuSortItem'
+        minItems: 1
+        type: array
+    required:
+    - items
+    type: object
+  request.UpdateNoticeReq:
+    properties:
+      content:
+        type: string
+      noticeType:
+        type: integer
+      priority:
+        type: integer
+      publishType:
+        type: integer
+      targetIds:
+        type: string
+      targetType:
+        description: 接收范围(0=全体成员 1=指定角色 2=指定部门 3=指定个人)与对象 ID CSV
+        type: integer
+      title:
+        maxLength: 128
+        type: string
+    required:
+    - content
+    - title
+    type: object
+  request.UpdateProfileReq:
+    properties:
+      email:
+        type: string
+      phone:
+        maxLength: 20
+        minLength: 7
+        type: string
+      realName:
+        maxLength: 64
+        type: string
+    type: object
+  request.UpdateRoleReq:
+    properties:
+      code:
+        maxLength: 64
+        minLength: 1
+        type: string
+      dataScope:
+        type: integer
+      deptIds:
+        items:
+          type: integer
+        type: array
+      menuIds:
+        items:
+          type: integer
+        type: array
+      name:
+        maxLength: 64
+        minLength: 1
+        type: string
+      remark:
+        type: string
+      sort:
+        type: integer
+      status:
+        type: integer
+    required:
+    - code
+    - name
+    type: object
+  request.UpdateRoleSortReq:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/request.RoleSortItem'
+        minItems: 1
+        type: array
+    required:
+    - items
+    type: object
+  request.UpdateRoleStatusReq:
+    properties:
+      status:
+        enum:
+        - 0
+        - 1
+        type: integer
+    required:
+    - status
+    type: object
+  request.UpdateUserReq:
+    properties:
+      deptId:
+        type: integer
+      email:
+        type: string
+      phone:
+        maxLength: 20
+        minLength: 7
+        type: string
+      realName:
+        type: string
+      remark:
+        type: string
+    type: object
+  request.VerifyPasswordReq:
+    properties:
+      password:
+        type: string
+    required:
+    - password
+    type: object
+  response.AvatarUploadResp:
+    properties:
+      avatar:
+        type: string
+    type: object
+  response.CPUInfo:
+    properties:
+      error:
+        type: string
+      load:
+        $ref: '#/definitions/response.LoadInfo'
+      numCPU:
+        type: integer
+      perCore:
+        items:
+          type: number
+        type: array
+      usagePercent:
+        type: number
+    type: object
+  response.CacheKeyInfo:
+    properties:
+      key:
+        type: string
+      type:
+        type: string
+    type: object
+  response.CacheValuePage:
+    properties:
+      has_more:
+        type: boolean
+      key:
+        type: string
+      next_cursor:
+        example: "0"
+        type: string
+      start:
+        type: integer
+      total:
+        type: integer
+      truncated:
+        type: boolean
+      ttl:
+        type: integer
+      type:
+        type: string
+      value: {}
+    type: object
+  response.ConfigResp:
+    properties:
+      configKey:
+        type: string
+      configType:
+        type: string
+      configValue:
+        type: string
+      createdAt:
+        type: string
+      id:
+        example: "0"
+        type: string
+      name:
+        type: string
+      remark:
+        type: string
+      status:
+        type: integer
+      updatedAt:
+        type: string
+    type: object
+  response.DailyActivityResp:
+    properties:
+      date:
+        type: string
+      failed:
+        type: integer
+      success:
+        type: integer
+    type: object
+  response.DeleteKeysResponse:
+    properties:
+      deleted:
+        type: integer
+    type: object
+  response.DeptResp:
+    properties:
+      ancestors:
+        type: string
+      children:
+        items:
+          $ref: '#/definitions/response.DeptResp'
+        type: array
+      createdAt:
+        type: string
+      email:
+        type: string
+      id:
+        example: "0"
+        type: string
+      leader:
+        type: string
+      name:
+        type: string
+      parentId:
+        example: "0"
+        type: string
+      phone:
+        type: string
+      sort:
+        type: integer
+      status:
+        type: integer
+    type: object
+  response.DictDataResp:
+    properties:
+      createdAt:
+        type: string
+      id:
+        example: "0"
+        type: string
+      isDefault:
+        type: integer
+      label:
+        type: string
+      listClass:
+        type: string
+      remark:
+        type: string
+      sort:
+        type: integer
+      status:
+        type: integer
+      typeId:
+        example: "0"
+        type: string
+      updatedAt:
+        type: string
+      value:
+        type: string
+    type: object
+  response.DictItem:
+    properties:
+      is_default:
+        type: boolean
+      label:
+        type: string
+      list_class:
+        type: string
+      sort:
+        type: integer
+      value:
+        type: string
+    type: object
+  response.DictTypeResp:
+    properties:
+      code:
+        type: string
+      createdAt:
+        type: string
+      id:
+        example: "0"
+        type: string
+      name:
+        type: string
+      remark:
+        type: string
+      status:
+        type: integer
+      updatedAt:
+        type: string
+    type: object
+  response.DiskInfo:
+    properties:
+      error:
+        type: string
+      freeGB:
+        type: number
+      path:
+        type: string
+      totalGB:
+        type: number
+      usagePercent:
+        type: number
+      usedGB:
+        type: number
+    type: object
+  response.FileResp:
+    properties:
+      category:
+        type: string
+      createdAt:
+        type: string
+      createdBy:
+        example: "0"
+        type: string
+      ext:
+        type: string
+      id:
+        example: "0"
+        type: string
+      mimeType:
+        type: string
+      module:
+        type: string
+      moduleId:
+        example: "0"
+        type: string
+      name:
+        type: string
+      originalName:
+        type: string
+      size:
+        type: integer
+      storageType:
+        type: string
+      updatedAt:
+        type: string
+    type: object
+  response.FileStatsResp:
+    properties:
+      categoryCounts:
+        additionalProperties:
+          format: int64
+          type: integer
+        type: object
+      total:
+        type: integer
+      totalSize:
+        type: integer
+      weekUploads:
+        type: integer
+    type: object
+  response.FlameNode:
+    properties:
+      children:
+        items:
+          $ref: '#/definitions/response.FlameNode'
+        type: array
+      name:
+        type: string
+      value:
+        type: integer
+    type: object
+  response.GCInfo:
+    properties:
+      error:
+        type: string
+      lastPauseMs:
+        type: number
+      numGC:
+        type: integer
+      pauseTotalMs:
+        type: number
+    type: object
+  response.GoroutineInfo:
+    properties:
+      count:
+        type: integer
+      error:
+        type: string
+    type: object
+  response.HostInfo:
+    properties:
+      arch:
+        type: string
+      bootTime:
+        type: string
+      error:
+        type: string
+      goVersion:
+        type: string
+      hostname:
+        type: string
+      kernelArch:
+        type: string
+      kernelVersion:
+        type: string
+      os:
+        type: string
+      pid:
+        type: integer
+      platform:
+        type: string
+      platformVersion:
+        type: string
+      uptimeSeconds:
+        type: integer
+    type: object
+  response.JobResp:
+    properties:
+      concurrent:
+        type: integer
+      createdAt:
+        type: string
+      cronExpression:
+        type: string
+      id:
+        example: "0"
+        type: string
+      invokeParams:
+        type: string
+      invokeTarget:
+        type: string
+      jobGroup:
+        type: string
+      name:
+        type: string
+      nextRunTime:
+        type: string
+      remark:
+        type: string
+      retryCount:
+        type: integer
+      retryInterval:
+        type: integer
+      runAtStartup:
+        type: integer
+      status:
+        type: integer
+      updatedAt:
+        type: string
+    type: object
+  response.ListKeysResponse:
+    properties:
+      cursor:
+        example: "0"
+        type: string
+      keys:
+        items:
+          $ref: '#/definitions/response.CacheKeyInfo'
+        type: array
+    type: object
+  response.LoadInfo:
+    properties:
+      error:
+        type: string
+      load1:
+        type: number
+      load5:
+        type: number
+      load15:
+        type: number
+    type: object
+  response.LoginResp:
+    properties:
+      accessToken:
+        type: string
+      expiresIn:
+        type: integer
+      refreshToken:
+        type: string
+    type: object
+  response.LoginStatsResp:
+    properties:
+      failed30d:
+        description: 近 30 天失败尝试次数
+        type: integer
+      logins30d:
+        description: 近 30 天成功登录次数
+        type: integer
+      totalLogins:
+        description: 历史成功登录总次数
+        type: integer
+    type: object
+  response.MemoryInfo:
+    properties:
+      allocMB:
+        type: number
+      error:
+        type: string
+      heapAllocMB:
+        type: number
+      heapSysMB:
+        type: number
+      swap:
+        $ref: '#/definitions/response.SwapMemoryInfo'
+      sysMB:
+        type: number
+      system:
+        $ref: '#/definitions/response.SystemMemoryInfo'
+      totalAllocMB:
+        type: number
+    type: object
+  response.MenuResp:
+    properties:
+      children:
+        items:
+          $ref: '#/definitions/response.MenuResp'
+        type: array
+      component:
+        type: string
+      createdAt:
+        type: string
+      icon:
+        type: string
+      id:
+        example: "0"
+        type: string
+      name:
+        type: string
+      parentId:
+        example: "0"
+        type: string
+      path:
+        type: string
+      perms:
+        type: string
+      sort:
+        type: integer
+      status:
+        type: integer
+      type:
+        type: string
+      visible:
+        type: integer
+    type: object
+  response.NoticeMyItemResp:
+    properties:
+      content:
+        type: string
+      id:
+        example: "0"
+        type: string
+      isRead:
+        type: boolean
+      noticeType:
+        type: integer
+      priority:
+        type: integer
+      publishTime:
+        type: string
+      title:
+        type: string
+    type: object
+  response.NoticeMyListResp:
+    properties:
+      list:
+        items:
+          $ref: '#/definitions/response.NoticeMyItemResp'
+        type: array
+      unreadCount:
+        type: integer
+    type: object
+  response.NoticeResp:
+    properties:
+      content:
+        type: string
+      createBy:
+        description: 创建者登录名
+        type: string
+      createdAt:
+        type: string
+      id:
+        example: "0"
+        type: string
+      noticeType:
+        type: integer
+      priority:
+        type: integer
+      publishTime:
+        type: string
+      publishType:
+        type: integer
+      readStatus:
+        description: 当前用户阅读状态:仅"已发布"行有值(0 未读 / 1 已读;无关联行=0 未读),草稿/已撤回为 nil。
+        type: integer
+      status:
+        type: integer
+      targetDesc:
+        description: 展示文案,如 全体成员 / 指定角色（2个）
+        type: string
+      targetIds:
+        type: string
+      targetType:
+        description: 接收范围:0=全体成员 1=指定角色 2=指定部门 3=指定个人
+        type: integer
+      title:
+        type: string
+      updatedAt:
+        type: string
+    type: object
+  response.NoticeTargetUserResp:
+    properties:
+      id:
+        example: "0"
+        type: string
+      realName:
+        type: string
+      username:
+        type: string
+    type: object
+  response.PprofProfileEntry:
+    properties:
+      category:
+        description: snapshot | capture
+        type: string
+      count:
+        description: snapshot 类:当前采样记录条数；capture 类:0
+        type: integer
+      description:
+        type: string
+      name:
+        type: string
+      unit:
+        description: 主采样值单位（capture 类为空）
+        type: string
+    type: object
+  response.PprofProfileResponse:
+    properties:
+      flame:
+        $ref: '#/definitions/response.FlameNode'
+      name:
+        type: string
+      sampleCount:
+        type: integer
+      sampleType:
+        type: string
+      top:
+        items:
+          $ref: '#/definitions/response.PprofTopFunc'
+        type: array
+      totalValue:
+        type: integer
+      truncated:
+        description: 火焰树是否因深度/节点数限制被裁剪
+        type: boolean
+      unit:
+        type: string
+    type: object
+  response.PprofStatusResponse:
+    properties:
+      autoOffSeconds:
+        description: 0 表示不自动关闭
+        type: integer
+      enabled:
+        type: boolean
+      profiles:
+        items:
+          $ref: '#/definitions/response.PprofProfileEntry'
+        type: array
+      remainingSeconds:
+        description: '>0 时自动关闭倒计时生效'
+        type: integer
+    type: object
+  response.PprofTopFunc:
+    properties:
+      cum:
+        type: integer
+      file:
+        type: string
+      flat:
+        type: integer
+      fn:
+        description: 完整函数名
+        type: string
+      line:
+        type: integer
+      name:
+        description: 缩短展示名
+        type: string
+    type: object
+  response.RecentLoginResp:
+    properties:
+      browser:
+        type: string
+      code:
+        type: integer
+      ip:
+        type: string
+      msg:
+        type: string
+      os:
+        type: string
+      time:
+        type: string
+    type: object
+  response.RefreshTokenResp:
+    properties:
+      accessToken:
+        type: string
+      expiresIn:
+        type: integer
+      refreshToken:
+        type: string
+    type: object
+  response.RoleBriefResp:
+    properties:
+      code:
+        type: string
+      name:
+        type: string
+    type: object
+  response.RoleOptionResp:
+    properties:
+      code:
+        type: string
+      id:
+        example: "0"
+        type: string
+      name:
+        type: string
+      sort:
+        type: integer
+      status:
+        type: integer
+    type: object
+  response.RoleResp:
+    properties:
+      code:
+        type: string
+      createdAt:
+        type: string
+      dataScope:
+        type: integer
+      deptIds:
+        items:
+          type: integer
+        type: array
+      id:
+        example: "0"
+        type: string
+      menuIds:
+        items:
+          type: integer
+        type: array
+      name:
+        type: string
+      remark:
+        type: string
+      sort:
+        type: integer
+      status:
+        type: integer
+    type: object
+  response.ServerInfo:
+    properties:
+      buildTime:
+        type: string
+      commitHash:
+        type: string
+      error:
+        type: string
+      startTime:
+        type: string
+      uptime:
+        type: string
+      uptimeSeconds:
+        type: integer
+      version:
+        type: string
+    type: object
+  response.ServerMonitorResp:
+    properties:
+      cpu:
+        $ref: '#/definitions/response.CPUInfo'
+      disk:
+        $ref: '#/definitions/response.DiskInfo'
+      gc:
+        $ref: '#/definitions/response.GCInfo'
+      goroutines:
+        $ref: '#/definitions/response.GoroutineInfo'
+      host:
+        $ref: '#/definitions/response.HostInfo'
+      memory:
+        $ref: '#/definitions/response.MemoryInfo'
+      server:
+        $ref: '#/definitions/response.ServerInfo'
+    type: object
+  response.SwapMemoryInfo:
+    properties:
+      freeMB:
+        type: number
+      totalMB:
+        type: number
+      usedMB:
+        type: number
+      usedPercent:
+        type: number
+    type: object
+  response.SystemMemoryInfo:
+    properties:
+      availableMB:
+        type: number
+      totalMB:
+        type: number
+      usedMB:
+        type: number
+      usedPercent:
+        type: number
+    type: object
+  response.UploadFilesResp:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/response.FileResp'
+        type: array
+    type: object
+  response.UserInfoResp:
+    properties:
+      avatar:
+        type: string
+      dataScope:
+        description: 新增
+        type: integer
+      deptId:
+        description: 新增
+        example: "0"
+        type: string
+      email:
+        type: string
+      id:
+        example: "0"
+        type: string
+      permissions:
+        items:
+          type: string
+        type: array
+      phone:
+        type: string
+      realName:
+        type: string
+      roles:
+        items:
+          type: string
+        type: array
+      username:
+        type: string
+    type: object
+  response.UserOverviewResp:
+    properties:
+      avatar:
+        type: string
+      createdAt:
+        type: string
+      dailyActivity:
+        items:
+          $ref: '#/definitions/response.DailyActivityResp'
+        type: array
+      deptName:
+        type: string
+      email:
+        type: string
+      id:
+        example: "0"
+        type: string
+      lastLoginIp:
+        type: string
+      lastLoginTime:
+        type: string
+      phone:
+        type: string
+      realName:
+        type: string
+      recentLogins:
+        items:
+          $ref: '#/definitions/response.RecentLoginResp'
+        type: array
+      roles:
+        items:
+          $ref: '#/definitions/response.RoleBriefResp'
+        type: array
+      stats:
+        $ref: '#/definitions/response.LoginStatsResp'
+      username:
+        type: string
+    type: object
+  response.UserResp:
+    properties:
+      avatar:
+        type: string
+      createdAt:
+        type: string
+      deptId:
+        example: "0"
+        type: string
+      deptName:
+        type: string
+      email:
+        type: string
+      id:
+        example: "0"
+        type: string
+      lastLoginTime:
+        type: string
+      phone:
+        type: string
+      realName:
+        type: string
+      remark:
+        type: string
+      roleIds:
+        items:
+          type: string
+        type: array
+      roleNames:
+        items:
+          type: string
+        type: array
+      status:
+        type: integer
+      username:
+        type: string
+    type: object
+  serverstats.Bucket:
+    properties:
+      cpu:
+        type: number
+      disk:
+        type: number
+      gcNum:
+        type: integer
+      gcPauseMs:
+        type: number
+      goroutines:
+        type: number
+      heapAlloc:
+        type: number
+      load1:
+        type: number
+      memSys:
+        type: number
+      sysMem:
+        type: number
+      timestamp:
+        type: string
+      uptime:
+        type: integer
+    type: object
+  serverstats.Snapshot:
+    properties:
+      buckets:
+        items:
+          $ref: '#/definitions/serverstats.Bucket'
+        type: array
+      step_seconds:
+        type: integer
+      window_seconds:
+        type: integer
+    type: object
+info:
+  contact:
+    email: support@example.com
+    name: API Support
+  description: 企业级 RBAC 权限管理系统后端 API
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  termsOfService: http://swagger.io/terms/
+  title: RBAC Admin API
+  version: 1.0.0
+paths:
+  /captcha/generate:
+    post:
+      consumes:
+      - application/json
+      description: 生成数学题图片验证码，返回 captchaKey 和 base64 图片
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/captcha.Result'
+              type: object
+        "429":
+          description: 请求频率过高
+          schema:
+            $ref: '#/definitions/app.Response'
+        "500":
+          description: 服务内部错误
+          schema:
+            $ref: '#/definitions/app.Response'
+      summary: 获取验证码
+      tags:
+      - 认证
+  /configs:
+    get:
+      consumes:
+      - application/json
+      description: 分页查询参数配置列表，支持按配置键筛选
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: 每页条数
+        in: query
+        name: pageSize
+        type: integer
+      - description: 配置键(模糊查询)
+        in: query
+        name: configKey
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/app.PageResponse'
+              type: object
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 参数配置列表
+      tags:
+      - 参数配置
+    post:
+      consumes:
+      - application/json
+      description: 创建新的参数配置
+      parameters:
+      - description: 创建参数配置请求
+        in: body
+        name: req
+        required: true
+        schema:
+          $ref: '#/definitions/request.CreateConfigReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 创建成功
+          schema:
+            $ref: '#/definitions/app.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/app.Response'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 创建参数配置
+      tags:
+      - 参数配置
+  /configs/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 软删除指定参数配置
+      parameters:
+      - description: 配置ID
+        format: int64
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            $ref: '#/definitions/app.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/app.Response'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+        "404":
+          description: 参数配置不存在
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 删除参数配置
+      tags:
+      - 参数配置
+    get:
+      consumes:
+      - application/json
+      description: 根据配置 ID 查询参数配置详细信息
+      parameters:
+      - description: 配置ID
+        format: int64
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/response.ConfigResp'
+              type: object
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+        "404":
+          description: 参数配置不存在
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 参数配置详情
+      tags:
+      - 参数配置
+    put:
+      consumes:
+      - application/json
+      description: 更新指定参数配置的信息
+      parameters:
+      - description: 配置ID
+        format: int64
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新参数配置请求
+        in: body
+        name: req
+        required: true
+        schema:
+          $ref: '#/definitions/request.UpdateConfigReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            $ref: '#/definitions/app.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/app.Response'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+        "404":
+          description: 参数配置不存在
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 更新参数配置
+      tags:
+      - 参数配置
+  /configs/key/{key}:
+    get:
+      consumes:
+      - application/json
+      description: 根据配置键直接获取配置值
+      parameters:
+      - description: 配置键
+        in: path
+        name: key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.Response'
+            - properties:
+                data:
+                  type: string
+              type: object
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 按键获取配置
+      tags:
+      - 参数配置
+  /depts:
+    get:
+      consumes:
+      - application/json
+      description: 获取完整的部门树结构（支持名称模糊、状态精确筛选）
+      parameters:
+      - description: 部门名称（模糊）
+        in: query
+        name: name
+        type: string
+      - description: 状态（0停用 1启用）
+        format: int32
+        in: query
+        name: status
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/response.DeptResp'
+                  type: array
+              type: object
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 部门树
+      tags:
+      - 部门管理
+    post:
+      consumes:
+      - application/json
+      description: 创建新部门，自动维护 ancestors 字段
+      parameters:
+      - description: 创建部门请求
+        in: body
+        name: req
+        required: true
+        schema:
+          $ref: '#/definitions/request.CreateDeptReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 创建成功
+          schema:
+            $ref: '#/definitions/app.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/app.Response'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 创建部门
+      tags:
+      - 部门管理
+  /depts/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 软删除指定部门（不允许删除有子部门或关联用户的部门）
+      parameters:
+      - description: 部门ID
+        format: int64
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            $ref: '#/definitions/app.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/app.Response'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+        "404":
+          description: 部门不存在
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 删除部门
+      tags:
+      - 部门管理
+    get:
+      consumes:
+      - application/json
+      description: 根据部门 ID 查询部门详细信息
+      parameters:
+      - description: 部门ID
+        format: int64
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/response.DeptResp'
+              type: object
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+        "404":
+          description: 部门不存在
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 部门详情
+      tags:
+      - 部门管理
+    put:
+      consumes:
+      - application/json
+      description: 更新指定部门的信息，移动部门时自动更新 ancestors
+      parameters:
+      - description: 部门ID
+        format: int64
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新部门请求
+        in: body
+        name: req
+        required: true
+        schema:
+          $ref: '#/definitions/request.UpdateDeptReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            $ref: '#/definitions/app.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/app.Response'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+        "404":
+          description: 部门不存在
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 更新部门
+      tags:
+      - 部门管理
+  /depts/sort:
+    put:
+      consumes:
+      - application/json
+      description: 批量提交部门排序值（直接覆盖赋值，不触发精确落位的兄弟搬移）
+      parameters:
+      - description: 排序请求
+        in: body
+        name: req
+        required: true
+        schema:
+          $ref: '#/definitions/request.UpdateDeptSortReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 保存成功
+          schema:
+            $ref: '#/definitions/app.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/app.Response'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+        "404":
+          description: 部门不存在
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 保存排序
+      tags:
+      - 部门管理
+  /dict/codes:
+    get:
+      consumes:
+      - application/json
+      description: 传入多个字典类型编码(逗号分隔)，一次性返回各类型对应的字典项映射
+      parameters:
+      - description: 字典类型编码，逗号分隔(如 user_type,order_status)
+        in: query
+        name: codes
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.Response'
+            - properties:
+                data:
+                  additionalProperties: true
+                  type: object
+              type: object
+        "400":
+          description: codes 参数不能为空
+          schema:
+            $ref: '#/definitions/app.Response'
+        "500":
+          description: 服务内部错误
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 批量按编码查字典项
+      tags:
+      - 字典查询
+  /dict/codes/{code}:
+    get:
+      consumes:
+      - application/json
+      description: 根据字典类型编码返回该类型下所有启用的字典项
+      parameters:
+      - description: 字典类型编码
+        in: path
+        name: code
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/response.DictItem'
+                  type: array
+              type: object
+        "400":
+          description: 字典编码不能为空
+          schema:
+            $ref: '#/definitions/app.Response'
+        "500":
+          description: 服务内部错误
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 按编码查字典项
+      tags:
+      - 字典查询
+  /dict/types:
+    get:
+      consumes:
+      - application/json
+      description: 分页查询字典类型列表，支持按名称、编码、状态筛选
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: 每页条数
+        in: query
+        name: pageSize
+        type: integer
+      - description: 字典类型名称(模糊查询)
+        in: query
+        name: name
+        type: string
+      - description: 字典类型编码(模糊查询)
+        in: query
+        name: code
+        type: string
+      - description: 状态(0=禁用 1=启用)
+        in: query
+        name: status
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/app.PageResponse'
+              type: object
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 字典类型列表
+      tags:
+      - 字典管理
+    post:
+      consumes:
+      - application/json
+      description: 创建新的字典类型
+      parameters:
+      - description: 创建字典类型请求
+        in: body
+        name: req
+        required: true
+        schema:
+          $ref: '#/definitions/request.CreateDictTypeReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 创建成功
+          schema:
+            $ref: '#/definitions/app.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/app.Response'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 创建字典类型
+      tags:
+      - 字典管理
+  /dict/types/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 软删除指定字典类型
+      parameters:
+      - description: 字典类型ID
+        format: int64
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            $ref: '#/definitions/app.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/app.Response'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+        "404":
+          description: 字典类型不存在
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 删除字典类型
+      tags:
+      - 字典管理
+    get:
+      consumes:
+      - application/json
+      description: 根据字典类型 ID 查询详细信息
+      parameters:
+      - description: 字典类型ID
+        format: int64
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/response.DictTypeResp'
+              type: object
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+        "404":
+          description: 字典类型不存在
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 字典类型详情
+      tags:
+      - 字典管理
+    put:
+      consumes:
+      - application/json
+      description: 更新指定字典类型的信息
+      parameters:
+      - description: 字典类型ID
+        format: int64
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新字典类型请求
+        in: body
+        name: req
+        required: true
+        schema:
+          $ref: '#/definitions/request.UpdateDictTypeReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            $ref: '#/definitions/app.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/app.Response'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+        "404":
+          description: 字典类型不存在
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 更新字典类型
+      tags:
+      - 字典管理
+  /dict/types/{id}/data:
+    get:
+      consumes:
+      - application/json
+      description: 根据字典类型 ID 查询该类型下的所有字典数据
+      parameters:
+      - description: 字典类型ID
+        format: int64
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/response.DictDataResp'
+                  type: array
+              type: object
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 字典数据列表
+      tags:
+      - 字典管理
+    post:
+      consumes:
+      - application/json
+      description: 在指定字典类型下创建新的字典数据
+      parameters:
+      - description: 字典类型ID
+        format: int64
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 创建字典数据请求
+        in: body
+        name: req
+        required: true
+        schema:
+          $ref: '#/definitions/request.CreateDictDataReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 创建成功
+          schema:
+            $ref: '#/definitions/app.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/app.Response'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 创建字典数据
+      tags:
+      - 字典管理
+  /dict/types/{id}/data/{dataId}:
+    delete:
+      consumes:
+      - application/json
+      description: 软删除指定字典数据
+      parameters:
+      - description: 字典类型ID
+        format: int64
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 字典数据ID
+        format: int64
+        in: path
+        name: dataId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            $ref: '#/definitions/app.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/app.Response'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+        "404":
+          description: 字典数据不存在
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 删除字典数据
+      tags:
+      - 字典管理
+    get:
+      consumes:
+      - application/json
+      description: 根据字典数据 ID 查询详细信息
+      parameters:
+      - description: 字典类型ID
+        format: int64
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 字典数据ID
+        format: int64
+        in: path
+        name: dataId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/response.DictDataResp'
+              type: object
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+        "404":
+          description: 字典数据不存在
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 字典数据详情
+      tags:
+      - 字典管理
+    put:
+      consumes:
+      - application/json
+      description: 更新指定字典数据的信息
+      parameters:
+      - description: 字典类型ID
+        format: int64
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 字典数据ID
+        format: int64
+        in: path
+        name: dataId
+        required: true
+        type: integer
+      - description: 更新字典数据请求
+        in: body
+        name: req
+        required: true
+        schema:
+          $ref: '#/definitions/request.UpdateDictDataReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            $ref: '#/definitions/app.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/app.Response'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+        "404":
+          description: 字典数据不存在
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 更新字典数据
+      tags:
+      - 字典管理
+  /files:
+    delete:
+      consumes:
+      - application/json
+      description: 删除指定 ID 的文件元数据并清理本地磁盘文件
+      parameters:
+      - description: 批量删除请求
+        in: body
+        name: req
+        required: true
+        schema:
+          $ref: '#/definitions/request.DeleteFilesReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 批量删除文件
+      tags:
+      - 文件管理
+    get:
+      consumes:
+      - application/json
+      description: 分页查询文件列表,支持关键字/分类筛选与排序
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: 每页条数
+        in: query
+        name: pageSize
+        type: integer
+      - description: 文件名关键字(模糊)
+        in: query
+        name: keyword
+        type: string
+      - description: 分类(image/video/audio/document/archive/code/other)
+        in: query
+        name: category
+        type: string
+      - description: 排序字段(createdAt/name/size)
+        in: query
+        name: sortBy
+        type: string
+      - description: 排序方向(asc/desc)
+        in: query
+        name: sortOrder
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/app.PageResponse'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 文件列表
+      tags:
+      - 文件管理
+    post:
+      consumes:
+      - multipart/form-data
+      description: 接收 multipart/form-data 的 files 字段(支持多文件),落盘并登记元数据
+      parameters:
+      - description: 上传文件(可多个,字段名 files)
+        in: formData
+        name: files
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 上传成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/response.UploadFilesResp'
+              type: object
+        "400":
+          description: 文件为空/超出大小限制/类型不允许
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 上传文件
+      tags:
+      - 文件管理
+  /files/{id}:
+    put:
+      consumes:
+      - application/json
+      description: 更新文件显示名(不影响物理存储)
+      parameters:
+      - description: 文件ID
+        format: int64
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 重命名请求
+        in: body
+        name: req
+        required: true
+        schema:
+          $ref: '#/definitions/request.RenameFileReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 重命名文件
+      tags:
+      - 文件管理
+  /files/{id}/download:
+    get:
+      consumes:
+      - application/json
+      description: '以附件形式下载文件(Content-Disposition: attachment)'
+      parameters:
+      - description: 文件ID
+        format: int64
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/octet-stream
+      responses:
+        "200":
+          description: 文件内容
+          schema:
+            type: file
+      security:
+      - BearerAuth: []
+      summary: 下载文件
+      tags:
+      - 文件管理
+  /files/{id}/preview:
+    get:
+      consumes:
+      - application/json
+      description: 以内联方式输出文件内容,支持 Range 分段请求(视频拖动/续传)
+      parameters:
+      - description: 文件ID
+        format: int64
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/octet-stream
+      responses:
+        "200":
+          description: 文件内容
+          schema:
+            type: file
+      security:
+      - BearerAuth: []
+      summary: 预览文件
+      tags:
+      - 文件管理
+  /files/{id}/thumbnail:
+    get:
+      description: 服务端将图片缩放为最长边 width(默认 256,上限 512)的 JPEG 并做内存 LRU 缓存;响应带长缓存头
+      parameters:
+      - description: 文件ID
+        format: int64
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 最长边像素(默认256,上限512)
+        in: query
+        name: width
+        type: integer
+      produces:
+      - image/jpeg
+      responses:
+        "200":
+          description: JPEG 缩略图
+          schema:
+            type: file
+        "400":
+          description: 非图片文件/无法解码
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 图片缩略图
+      tags:
+      - 文件管理
+  /files/stats:
+    get:
+      consumes:
+      - application/json
+      description: 返回文件总数/总大小/近7天新增/分类计数(用于文件管理首页卡片与分布条)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/response.FileStatsResp'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 文件概览统计
+      tags:
+      - 文件管理
+  /jobs:
+    get:
+      consumes:
+      - application/json
+      description: 分页查询定时任务列表，支持按任务名称、分组、状态筛选
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: 每页条数
+        in: query
+        name: pageSize
+        type: integer
+      - description: 任务名称(模糊查询)
+        in: query
+        name: name
+        type: string
+      - description: 任务分组
+        in: query
+        name: jobGroup
+        type: string
+      - description: 状态(0=暂停 1=启用)
+        in: query
+        name: status
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/app.PageResponse'
+              type: object
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 定时任务列表
+      tags:
+      - 定时任务管理
+    post:
+      consumes:
+      - application/json
+      description: 创建新的定时任务
+      parameters:
+      - description: 创建定时任务请求
+        in: body
+        name: req
+        required: true
+        schema:
+          $ref: '#/definitions/request.CreateJobReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 创建成功
+          schema:
+            $ref: '#/definitions/app.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/app.Response'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 创建定时任务
+      tags:
+      - 定时任务管理
+  /jobs/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 软删除指定定时任务
+      parameters:
+      - description: 任务ID
+        format: int64
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            $ref: '#/definitions/app.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/app.Response'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+        "404":
+          description: 任务不存在
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 删除定时任务
+      tags:
+      - 定时任务管理
+    get:
+      consumes:
+      - application/json
+      description: 根据任务 ID 查询定时任务详细信息
+      parameters:
+      - description: 任务ID
+        format: int64
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/response.JobResp'
+              type: object
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+        "404":
+          description: 任务不存在
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 定时任务详情
+      tags:
+      - 定时任务管理
+    put:
+      consumes:
+      - application/json
+      description: 更新指定定时任务的信息
+      parameters:
+      - description: 任务ID
+        format: int64
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新定时任务请求
+        in: body
+        name: req
+        required: true
+        schema:
+          $ref: '#/definitions/request.UpdateJobReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            $ref: '#/definitions/app.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/app.Response'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+        "404":
+          description: 任务不存在
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 更新定时任务
+      tags:
+      - 定时任务管理
+  /jobs/{id}/pause:
+    post:
+      consumes:
+      - application/json
+      description: 暂停指定定时任务
+      parameters:
+      - description: 任务ID
+        format: int64
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 操作成功
+          schema:
+            $ref: '#/definitions/app.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/app.Response'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+        "404":
+          description: 任务不存在
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 暂停定时任务
+      tags:
+      - 定时任务管理
+  /jobs/{id}/resume:
+    post:
+      consumes:
+      - application/json
+      description: 恢复指定暂停的定时任务
+      parameters:
+      - description: 任务ID
+        format: int64
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 操作成功
+          schema:
+            $ref: '#/definitions/app.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/app.Response'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+        "404":
+          description: 任务不存在
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 恢复定时任务
+      tags:
+      - 定时任务管理
+  /jobs/{id}/run:
+    post:
+      consumes:
+      - application/json
+      description: 手动立即触发指定定时任务执行一次
+      parameters:
+      - description: 任务ID
+        format: int64
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 执行成功
+          schema:
+            $ref: '#/definitions/app.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/app.Response'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+        "404":
+          description: 任务不存在
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 手动执行一次
+      tags:
+      - 定时任务管理
+  /jobs/health:
+    get:
+      consumes:
+      - application/json
+      description: 获取定时任务调度器的运行健康状态
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.Response'
+            - properties:
+                data:
+                  additionalProperties: true
+                  type: object
+              type: object
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 调度器健康状态
+      tags:
+      - 定时任务管理
+  /jobs/logs:
+    delete:
+      consumes:
+      - application/json
+      description: 删除指定时间之前的定时任务执行日志
+      parameters:
+      - description: 截止时间(RFC3339格式)
+        in: query
+        name: before
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 清理成功
+          schema:
+            $ref: '#/definitions/app.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/app.Response'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 清理任务日志
+      tags:
+      - 定时任务管理
+    get:
+      consumes:
+      - application/json
+      description: 分页查询定时任务执行日志，支持按任务ID、状态、时间范围筛选
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: 每页条数
+        in: query
+        name: pageSize
+        type: integer
+      - description: 任务ID
+        in: query
+        name: jobId
+        type: integer
+      - description: 状态(0=执行中 1=成功 2=失败)
+        in: query
+        name: status
+        type: integer
+      - description: 开始时间(YYYY-MM-DD)
+        in: query
+        name: startTime
+        type: string
+      - description: 结束时间(YYYY-MM-DD)
+        in: query
+        name: endTime
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/app.PageResponse'
+              type: object
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 任务执行日志
+      tags:
+      - 定时任务管理
+  /jobs/targets:
+    get:
+      consumes:
+      - application/json
+      description: 获取所有可注册为定时任务的调用目标列表
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.Response'
+            - properties:
+                data:
+                  items:
+                    type: string
+                  type: array
+              type: object
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 可用任务目标
+      tags:
+      - 定时任务管理
+  /login:
+    post:
+      consumes:
+      - application/json
+      description: 使用用户名和密码登录系统，返回 JWT access token 和 refresh token
+      parameters:
+      - description: 登录请求参数
+        in: body
+        name: req
+        required: true
+        schema:
+          $ref: '#/definitions/request.LoginReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 登录成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/response.LoginResp'
+              type: object
+        "400":
+          description: 验证码错误(10004-10007)
+          schema:
+            $ref: '#/definitions/app.Response'
+        "401":
+          description: 认证失败
+          schema:
+            $ref: '#/definitions/app.Response'
+      summary: 用户登录
+      tags:
+      - 认证
+  /logout:
+    post:
+      consumes:
+      - application/json
+      description: 清除当前用户的 token，退出登录
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 登出成功
+          schema:
+            $ref: '#/definitions/app.Response'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 用户登出
+      tags:
+      - 认证
+  /logs/login:
+    get:
+      consumes:
+      - application/json
+      description: 分页查询登录日志，支持按用户名、IP、结果码、时间范围筛选
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: 每页条数
+        in: query
+        name: pageSize
+        type: integer
+      - description: 用户名(模糊查询)
+        in: query
+        name: username
+        type: string
+      - description: 登录IP
+        in: query
+        name: ip
+        type: string
+      - description: 结果码(0=成功,10001=用户名或密码错误,10005=验证码错误,10008=账号已锁定等) 完整取值见字典 sys_opt_result_code
+        in: query
+        name: code
+        type: integer
+      - description: 开始时间(YYYY-MM-DD)
+        in: query
+        name: startTime
+        type: string
+      - description: 结束时间(YYYY-MM-DD)
+        in: query
+        name: endTime
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/app.PageResponse'
+              type: object
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 登录日志列表
+      tags:
+      - 登录日志
+  /logs/operation:
+    delete:
+      consumes:
+      - application/json
+      description: 删除指定日期之前的操作日志记录
+      parameters:
+      - description: 截止日期(YYYY-MM-DD)
+        in: query
+        name: before
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 清理成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.Response'
+            - properties:
+                data:
+                  additionalProperties:
+                    format: int64
+                    type: integer
+                  type: object
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/app.Response'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 清理操作日志
+      tags:
+      - 操作日志
+    get:
+      consumes:
+      - application/json
+      description: 分页查询操作日志，支持按用户名、模块、操作类型、结果码、时间范围筛选
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: 每页条数
+        in: query
+        name: pageSize
+        type: integer
+      - description: 用户名(模糊查询)
+        in: query
+        name: username
+        type: string
+      - description: 操作模块
+        in: query
+        name: module
+        type: string
+      - description: 操作类型(新增/修改/删除)
+        in: query
+        name: operationType
+        type: string
+      - description: 结果码(0=成功,10001=未登录,10002=无权限,40000=参数错误,40400=资源不存在,40900=操作冲突,50000=服务器内部错误)
+          完整取值见字典 sys_opt_result_code
+        in: query
+        name: code
+        type: integer
+      - description: 开始时间(YYYY-MM-DD)
+        in: query
+        name: startTime
+        type: string
+      - description: 结束时间(YYYY-MM-DD)
+        in: query
+        name: endTime
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/app.PageResponse'
+              type: object
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 操作日志列表
+      tags:
+      - 操作日志
+  /menus:
+    get:
+      consumes:
+      - application/json
+      description: 获取菜单树结构（目录→菜单→按钮三级，按当前用户数据范围过滤）
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/response.MenuResp'
+                  type: array
+              type: object
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 菜单树
+      tags:
+      - 菜单管理
+    post:
+      consumes:
+      - application/json
+      description: 创建新菜单（目录、菜单或按钮），支持三级树形结构
+      parameters:
+      - description: 创建菜单请求
+        in: body
+        name: req
+        required: true
+        schema:
+          $ref: '#/definitions/request.CreateMenuReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 创建成功
+          schema:
+            $ref: '#/definitions/app.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/app.Response'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 创建菜单
+      tags:
+      - 菜单管理
+  /menus/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 软删除指定菜单（不允许删除有子节点的菜单）
+      parameters:
+      - description: 菜单ID
+        format: int64
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            $ref: '#/definitions/app.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/app.Response'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+        "404":
+          description: 菜单不存在
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 删除菜单
+      tags:
+      - 菜单管理
+    get:
+      consumes:
+      - application/json
+      description: 根据菜单 ID 查询菜单详细信息
+      parameters:
+      - description: 菜单ID
+        format: int64
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/response.MenuResp'
+              type: object
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+        "404":
+          description: 菜单不存在
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 菜单详情
+      tags:
+      - 菜单管理
+    put:
+      consumes:
+      - application/json
+      description: 更新指定菜单的信息
+      parameters:
+      - description: 菜单ID
+        format: int64
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新菜单请求
+        in: body
+        name: req
+        required: true
+        schema:
+          $ref: '#/definitions/request.UpdateMenuReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            $ref: '#/definitions/app.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/app.Response'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+        "404":
+          description: 菜单不存在
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 更新菜单
+      tags:
+      - 菜单管理
+  /menus/sort:
+    put:
+      consumes:
+      - application/json
+      description: 批量提交菜单排序值（直接覆盖赋值，不触发精确落位的兄弟搬移）
+      parameters:
+      - description: 排序请求
+        in: body
+        name: req
+        required: true
+        schema:
+          $ref: '#/definitions/request.UpdateMenuSortReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 保存成功
+          schema:
+            $ref: '#/definitions/app.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/app.Response'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 保存排序
+      tags:
+      - 菜单管理
+  /monitor/cache/keys:
+    delete:
+      consumes:
+      - application/json
+      description: 按 prefix 模式批量删除 Redis key，受 maxCount 限制（上限 10000）
+      parameters:
+      - in: query
+        maximum: 10000
+        minimum: 1
+        name: maxCount
+        type: integer
+      - in: query
+        name: prefix
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/response.DeleteKeysResponse'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/app.Response'
+        "500":
+          description: 服务内部错误
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 批量删除缓存key
+      tags:
+      - 缓存管理
+    get:
+      consumes:
+      - application/json
+      description: 按 prefix 模糊扫描 Redis key，支持游标分页
+      parameters:
+      - in: query
+        maximum: 100
+        minimum: 1
+        name: count
+        type: integer
+      - in: query
+        name: cursor
+        type: integer
+      - in: query
+        name: prefix
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/response.ListKeysResponse'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/app.Response'
+        "500":
+          description: 服务内部错误
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 缓存key列表
+      tags:
+      - 缓存管理
+  /monitor/cache/keys/value:
+    get:
+      consumes:
+      - application/json
+      description: |-
+        按 value 类型分页查询 key 的值与 TTL：list/zset 用 offset+limit 分页，
+        set/hash 用 cursor+limit 游标分页，string 用 limit 作字节窗；TTL=-2 表示 key 不存在
+      parameters:
+      - description: 目标缓存 key
+        in: query
+        name: key
+        required: true
+        type: string
+      - description: list/zset 起始下标、string 起始字节
+        format: int64
+        in: query
+        minimum: 0
+        name: offset
+        type: integer
+      - description: list/zset/set/hash 每页条数(≤200)、string 字节窗(≤4MB)
+        format: int64
+        in: query
+        maximum: 4194304
+        minimum: 1
+        name: limit
+        type: integer
+      - description: set/hash 的 SCAN 游标，0 表示从头扫，续扫传上页 next_cursor
+        format: int64
+        in: query
+        minimum: 0
+        name: cursor
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/response.CacheValuePage'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/app.Response'
+        "404":
+          description: key 不存在
+          schema:
+            $ref: '#/definitions/app.Response'
+        "500":
+          description: 服务内部错误
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 缓存key值
+      tags:
+      - 缓存管理
+  /monitor/cache/stats:
+    get:
+      consumes:
+      - application/json
+      description: 返回 Redis 连接与内存等统计信息
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/cache.Stats'
+              type: object
+        "500":
+          description: 服务内部错误
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 缓存统计
+      tags:
+      - 缓存管理
+  /monitor/pprof/disable:
+    post:
+      consumes:
+      - application/json
+      description: 动态禁用 pprof 采集，并停止自动关闭计时器
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 禁用成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.Response'
+            - properties:
+                data:
+                  additionalProperties: true
+                  type: object
+              type: object
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 禁用pprof
+      tags:
+      - pprof
+  /monitor/pprof/enable:
+    post:
+      consumes:
+      - application/json
+      description: 动态启用 pprof 采集；若配置了 autoOffSeconds，将在超时后自动关闭
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 启用成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.Response'
+            - properties:
+                data:
+                  additionalProperties: true
+                  type: object
+              type: object
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 启用pprof
+      tags:
+      - pprof
+  /monitor/pprof/profile/{name}:
+    get:
+      consumes:
+      - application/json
+      description: 返回指定 profile 的火焰图树与热点函数表,支持 top 参数(默认15,5~50)
+      parameters:
+      - description: profile 名:goroutine/heap/allocs/block/mutex/threadcreate
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: 热点函数行数(默认15)
+        in: query
+        name: top
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 解析成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/response.PprofProfileResponse'
+              type: object
+        "400":
+          description: 不支持的 profile
+          schema:
+            $ref: '#/definitions/app.Response'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+        "404":
+          description: pprof 未启用
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 解析pprof时profile数据
+      tags:
+      - pprof
+  /monitor/pprof/status:
+    get:
+      consumes:
+      - application/json
+      description: 返回启用状态、自动关闭倒计时与各 profile 概览
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/response.PprofStatusResponse'
+              type: object
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 查询pprof状态
+      tags:
+      - pprof
+  /monitor/server/history:
+    get:
+      consumes:
+      - application/json
+      description: 返回指定时间窗口内按 step 聚合的服务器指标时序(CPU/内存/GC/磁盘等),支撑前端趋势图
+      parameters:
+      - description: 时间窗口,如 15m,1h(默认 15m,范围 1m~24h)
+        in: query
+        name: window
+        type: string
+      - description: 桶粒度,如 3s,10s(默认 window/180,最小 1s)
+        in: query
+        name: step
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/serverstats.Snapshot'
+              type: object
+        "400":
+          description: 参数无效
+          schema:
+            $ref: '#/definitions/app.Response'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 服务器监控时序
+      tags:
+      - 服务器监控
+  /monitor/server/stats:
+    get:
+      consumes:
+      - application/json
+      description: 返回服务器运行信息：版本、CPU、内存、Goroutine、GC、磁盘
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/response.ServerMonitorResp'
+              type: object
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 服务器监控
+      tags:
+      - 服务器监控
+  /monitor/sql/history:
+    get:
+      consumes:
+      - application/json
+      description: 返回指定时间窗口内按 step 聚合的时序指标(QPS/平均耗时/P50/P95/P99/最大耗时/错误/慢查询)；数据来自
+        Redis 滚动窗口(3s 采样、保留 24h、跨重启),Redis 不可用时回退进程内统计
+      parameters:
+      - description: 时间窗口，如 5m,1h（默认 15m，范围 1m~24h）
+        in: query
+        name: window
+        type: string
+      - description: 桶粒度，如 3s,10s（默认 window/180，最小 1s）
+        in: query
+        name: step
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/database.HistorySnapshot'
+              type: object
+        "400":
+          description: 参数无效
+          schema:
+            $ref: '#/definitions/app.Response'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: SQL监控时序数据
+      tags:
+      - SQL监控
+  /monitor/sql/stats:
+    get:
+      consumes:
+      - application/json
+      description: 返回 SQL 执行统计；可选 window 参数按时间窗口(如 5m,1h)聚合，留空返回累计统计
+      parameters:
+      - description: 时间窗口，如 5m,1h；留空返回累计统计
+        in: query
+        name: window
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/database.StatsSnapshot'
+              type: object
+        "400":
+          description: window 格式无效
+          schema:
+            $ref: '#/definitions/app.Response'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: SQL监控统计
+      tags:
+      - SQL监控
+  /notices:
+    get:
+      consumes:
+      - application/json
+      description: 分页查询通知公告列表，支持按标题、类型、状态筛选
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: 每页条数
+        in: query
+        name: pageSize
+        type: integer
+      - description: 标题(模糊查询)
+        in: query
+        name: title
+        type: string
+      - description: 类型(1=通知 2=公告)
+        in: query
+        name: noticeType
+        type: integer
+      - description: 状态(0=草稿 1=已发布 2=已撤回)
+        in: query
+        name: status
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/app.PageResponse'
+              type: object
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 通知公告列表
+      tags:
+      - 通知公告
+    post:
+      consumes:
+      - application/json
+      description: 创建新的通知公告（默认状态为草稿）
+      parameters:
+      - description: 创建通知公告请求
+        in: body
+        name: req
+        required: true
+        schema:
+          $ref: '#/definitions/request.CreateNoticeReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 创建成功
+          schema:
+            $ref: '#/definitions/app.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/app.Response'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 创建通知公告
+      tags:
+      - 通知公告
+  /notices/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 软删除指定通知公告
+      parameters:
+      - description: 通知公告ID
+        format: int64
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            $ref: '#/definitions/app.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/app.Response'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+        "404":
+          description: 通知公告不存在
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 删除通知公告
+      tags:
+      - 通知公告
+    get:
+      consumes:
+      - application/json
+      description: 根据通知公告 ID 查询详细信息
+      parameters:
+      - description: 通知公告ID
+        format: int64
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/response.NoticeResp'
+              type: object
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+        "404":
+          description: 通知公告不存在
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 通知公告详情
+      tags:
+      - 通知公告
+    put:
+      consumes:
+      - application/json
+      description: 更新指定通知公告的信息（已发布的通知不能修改）
+      parameters:
+      - description: 通知公告ID
+        format: int64
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新通知公告请求
+        in: body
+        name: req
+        required: true
+        schema:
+          $ref: '#/definitions/request.UpdateNoticeReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            $ref: '#/definitions/app.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/app.Response'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+        "404":
+          description: 通知公告不存在
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 更新通知公告
+      tags:
+      - 通知公告
+  /notices/{id}/publish:
+    post:
+      consumes:
+      - application/json
+      description: 发布指定通知公告，支持全员发布或自定义发布范围（按用户/角色/部门）
+      parameters:
+      - description: 通知公告ID
+        format: int64
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 发布通知公告请求
+        in: body
+        name: req
+        required: true
+        schema:
+          $ref: '#/definitions/request.PublishNoticeReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 发布成功
+          schema:
+            $ref: '#/definitions/app.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/app.Response'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+        "404":
+          description: 通知公告不存在
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 发布通知公告
+      tags:
+      - 通知公告
+  /notices/{id}/read:
+    post:
+      consumes:
+      - application/json
+      description: 将指定通知公告标记为当前用户已读
+      parameters:
+      - description: 通知公告ID
+        format: int64
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 标记成功
+          schema:
+            $ref: '#/definitions/app.Response'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "404":
+          description: 通知公告不存在
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 标记已读
+      tags:
+      - 通知公告
+  /notices/{id}/read-users:
+    get:
+      consumes:
+      - application/json
+      description: 分页查询指定通知公告的已读用户列表，支持按登录名/姓名模糊搜索
+      parameters:
+      - description: 通知公告ID
+        format: int64
+        in: path
+        name: id
+        required: true
+        type: integer
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: 每页条数
+        in: query
+        name: pageSize
+        type: integer
+      - description: 登录名称/用户姓名
+        in: query
+        name: searchValue
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/app.PageResponse'
+              type: object
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "404":
+          description: 通知公告不存在
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 通知公告已读用户
+      tags:
+      - 通知公告
+  /notices/{id}/revoke:
+    post:
+      consumes:
+      - application/json
+      description: 撤回已发布的通知公告
+      parameters:
+      - description: 通知公告ID
+        format: int64
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 撤回成功
+          schema:
+            $ref: '#/definitions/app.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/app.Response'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+        "404":
+          description: 通知公告不存在
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 撤回通知公告
+      tags:
+      - 通知公告
+  /notices/my:
+    get:
+      consumes:
+      - application/json
+      description: 获取当前用户可见的已发布公告列表（含已读标记与未读数）
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/response.NoticeMyListResp'
+              type: object
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 我的公告
+      tags:
+      - 通知公告
+  /notices/read-all:
+    post:
+      consumes:
+      - application/json
+      description: 将当前用户可见的全部已发布公告标记为已读（幂等）
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 标记成功
+          schema:
+            $ref: '#/definitions/app.Response'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "500":
+          description: 标记全部已读失败
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 全部标为已读
+      tags:
+      - 通知公告
+  /notices/target-users:
+    get:
+      consumes:
+      - application/json
+      description: 按逗号分隔的用户 ID 反查用户信息（接收范围回显用）
+      parameters:
+      - description: 逗号分隔的用户ID
+        in: query
+        name: ids
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/response.NoticeTargetUserResp'
+                  type: array
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/app.Response'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 反查通知接收人
+      tags:
+      - 通知公告
+  /refresh:
+    post:
+      consumes:
+      - application/json
+      description: 使用 refresh token 刷新 access token，返回新的 token 对
+      parameters:
+      - description: 刷新令牌请求
+        in: body
+        name: req
+        required: true
+        schema:
+          $ref: '#/definitions/request.RefreshTokenReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 刷新成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/response.RefreshTokenResp'
+              type: object
+        "401":
+          description: refresh token 无效或已过期
+          schema:
+            $ref: '#/definitions/app.Response'
+      summary: 刷新令牌
+      tags:
+      - 认证
+  /roles:
+    get:
+      consumes:
+      - application/json
+      description: 分页查询角色列表，支持按名称、编码、状态筛选
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: 每页条数
+        in: query
+        name: pageSize
+        type: integer
+      - description: 角色名称(模糊查询)
+        in: query
+        name: name
+        type: string
+      - description: 角色编码(模糊查询)
+        in: query
+        name: code
+        type: string
+      - description: 状态(0=禁用 1=启用)
+        in: query
+        name: status
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/app.PageResponse'
+              type: object
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 角色列表
+      tags:
+      - 角色管理
+    post:
+      consumes:
+      - application/json
+      description: 创建新角色，可同时关联菜单和部门权限
+      parameters:
+      - description: 创建角色请求
+        in: body
+        name: req
+        required: true
+        schema:
+          $ref: '#/definitions/request.CreateRoleReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 创建成功
+          schema:
+            $ref: '#/definitions/app.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/app.Response'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 创建角色
+      tags:
+      - 角色管理
+  /roles/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 软删除指定角色（不允许删除被用户关联的角色）
+      parameters:
+      - description: 角色ID
+        format: int64
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            $ref: '#/definitions/app.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/app.Response'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+        "404":
+          description: 角色不存在
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 删除角色
+      tags:
+      - 角色管理
+    get:
+      consumes:
+      - application/json
+      description: 根据角色 ID 查询角色详细信息，包含关联的菜单和部门
+      parameters:
+      - description: 角色ID
+        format: int64
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/response.RoleResp'
+              type: object
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+        "404":
+          description: 角色不存在
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 角色详情
+      tags:
+      - 角色管理
+    put:
+      consumes:
+      - application/json
+      description: 更新指定角色的信息，包括菜单和部门权限（全量替换）
+      parameters:
+      - description: 角色ID
+        format: int64
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新角色请求
+        in: body
+        name: req
+        required: true
+        schema:
+          $ref: '#/definitions/request.UpdateRoleReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            $ref: '#/definitions/app.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/app.Response'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+        "404":
+          description: 角色不存在
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 更新角色
+      tags:
+      - 角色管理
+  /roles/{id}/status:
+    put:
+      consumes:
+      - application/json
+      description: 启用/停用指定角色（内置管理员角色不允许修改）
+      parameters:
+      - description: 角色ID
+        format: int64
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 状态(0=停用 1=启用)
+        in: body
+        name: req
+        required: true
+        schema:
+          $ref: '#/definitions/request.UpdateRoleStatusReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 修改成功
+          schema:
+            $ref: '#/definitions/app.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/app.Response'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+        "404":
+          description: 角色不存在
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 修改角色状态
+      tags:
+      - 角色管理
+  /roles/{id}/users:
+    delete:
+      consumes:
+      - application/json
+      description: 批量移除角色的指定用户
+      parameters:
+      - description: 角色ID
+        format: int64
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 用户ID列表
+        in: body
+        name: req
+        required: true
+        schema:
+          $ref: '#/definitions/request.RoleUsersReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 移除成功
+          schema:
+            $ref: '#/definitions/app.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/app.Response'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+        "404":
+          description: 角色不存在
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 取消角色的用户分配
+      tags:
+      - 角色管理
+    get:
+      consumes:
+      - application/json
+      description: 分页查询已分配指定角色的用户，支持按用户名筛选
+      parameters:
+      - description: 角色ID
+        format: int64
+        in: path
+        name: id
+        required: true
+        type: integer
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: 每页条数
+        in: query
+        name: pageSize
+        type: integer
+      - description: 用户名(模糊查询)
+        in: query
+        name: username
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/app.PageResponse'
+              type: object
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 角色的用户列表
+      tags:
+      - 角色管理
+    post:
+      consumes:
+      - application/json
+      description: 将指定用户批量分配到角色（已分配的用户自动跳过）
+      parameters:
+      - description: 角色ID
+        format: int64
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 用户ID列表
+        in: body
+        name: req
+        required: true
+        schema:
+          $ref: '#/definitions/request.RoleUsersReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 分配成功
+          schema:
+            $ref: '#/definitions/app.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/app.Response'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+        "404":
+          description: 角色不存在
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 分配用户到角色
+      tags:
+      - 角色管理
+  /roles/all:
+    get:
+      consumes:
+      - application/json
+      description: 获取所有角色，用于下拉选择(不含授权明细)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/response.RoleOptionResp'
+                  type: array
+              type: object
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 全部角色
+      tags:
+      - 角色管理
+  /roles/sort:
+    put:
+      consumes:
+      - application/json
+      description: 批量提交角色排序值(直接覆盖赋值,不触发关联替换)
+      parameters:
+      - description: 排序请求
+        in: body
+        name: req
+        required: true
+        schema:
+          $ref: '#/definitions/request.UpdateRoleSortReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 保存成功
+          schema:
+            $ref: '#/definitions/app.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/app.Response'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 保存排序
+      tags:
+      - 角色管理
+  /user/avatar/{id}:
+    get:
+      description: 按用户 ID 返回头像图片文件
+      parameters:
+      - description: 用户ID
+        format: int64
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - image/*
+      responses:
+        "200":
+          description: 头像图片
+          schema:
+            type: file
+        "404":
+          description: 头像不存在
+          schema:
+            $ref: '#/definitions/app.Response'
+      summary: 获取用户头像
+      tags:
+      - 认证
+  /user/info:
+    get:
+      consumes:
+      - application/json
+      description: 获取当前登录用户的详细信息，包括角色和权限列表
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/response.UserInfoResp'
+              type: object
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 获取当前用户信息
+      tags:
+      - 认证
+    put:
+      consumes:
+      - application/json
+      description: 当前登录用户更新自己的姓名/邮箱/手机号(角色、部门、状态等不在个人中心维护)
+      parameters:
+      - description: 更新资料请求
+        in: body
+        name: req
+        required: true
+        schema:
+          $ref: '#/definitions/request.UpdateProfileReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            $ref: '#/definitions/app.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/app.Response'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 更新个人资料
+      tags:
+      - 认证
+  /user/info/avatar:
+    post:
+      consumes:
+      - multipart/form-data
+      description: 上传并替换当前用户的头像图片(JPG/PNG/WebP/GIF,≤2MB)
+      parameters:
+      - description: 头像图片文件
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 上传成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/response.AvatarUploadResp'
+              type: object
+        "400":
+          description: 文件不合法/超限
+          schema:
+            $ref: '#/definitions/app.Response'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 上传头像
+      tags:
+      - 认证
+  /user/overview:
+    get:
+      consumes:
+      - application/json
+      description: 聚合当前用户的身份信息、登录统计、近 30 天登录活动与最近登录记录(个人中心页专用,仅本人数据)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/response.UserOverviewResp'
+              type: object
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 个人中心总览
+      tags:
+      - 认证
+  /user/password:
+    post:
+      consumes:
+      - application/json
+      description: 当前登录用户修改自己的密码，需要提供旧密码
+      parameters:
+      - description: 修改密码请求
+        in: body
+        name: req
+        required: true
+        schema:
+          $ref: '#/definitions/request.ChangePasswordReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 修改成功
+          schema:
+            $ref: '#/definitions/app.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/app.Response'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 修改密码
+      tags:
+      - 认证
+  /user/password/verify:
+    post:
+      consumes:
+      - application/json
+      description: 锁屏解锁校验当前用户登录密码;错误不计入登录日志
+      parameters:
+      - description: 验证密码请求
+        in: body
+        name: req
+        required: true
+        schema:
+          $ref: '#/definitions/request.VerifyPasswordReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 验证成功
+          schema:
+            $ref: '#/definitions/app.Response'
+        "400":
+          description: 参数错误或密码不正确
+          schema:
+            $ref: '#/definitions/app.Response'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 验证当前登录密码
+      tags:
+      - 认证
+  /users:
+    get:
+      consumes:
+      - application/json
+      description: 分页查询用户列表，支持按用户名、真实姓名、手机号、邮箱、状态、部门筛选
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: 每页条数
+        in: query
+        name: pageSize
+        type: integer
+      - description: 用户名(模糊查询)
+        in: query
+        name: username
+        type: string
+      - description: 真实姓名(模糊查询)
+        in: query
+        name: realName
+        type: string
+      - description: 手机号(模糊查询)
+        in: query
+        name: phone
+        type: string
+      - description: 邮箱(模糊查询)
+        in: query
+        name: email
+        type: string
+      - description: 状态(0=禁用 1=启用)
+        in: query
+        name: status
+        type: integer
+      - description: 部门ID
+        in: query
+        name: deptId
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/app.PageResponse'
+              type: object
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 用户列表
+      tags:
+      - 用户管理
+    post:
+      consumes:
+      - application/json
+      description: 创建新用户，可同时关联角色
+      parameters:
+      - description: 创建用户请求
+        in: body
+        name: req
+        required: true
+        schema:
+          $ref: '#/definitions/request.CreateUserReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 创建成功
+          schema:
+            $ref: '#/definitions/app.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/app.Response'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 创建用户
+      tags:
+      - 用户管理
+  /users/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 软删除指定用户
+      parameters:
+      - description: 用户ID
+        format: int64
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            $ref: '#/definitions/app.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/app.Response'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+        "404":
+          description: 用户不存在
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 删除用户
+      tags:
+      - 用户管理
+    get:
+      consumes:
+      - application/json
+      description: 根据用户 ID 查询用户详细信息，包含部门和角色信息
+      parameters:
+      - description: 用户ID
+        format: int64
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/response.UserResp'
+              type: object
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+        "404":
+          description: 用户不存在
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 用户详情
+      tags:
+      - 用户管理
+    put:
+      consumes:
+      - application/json
+      description: 仅更新用户基本信息（不含角色与状态；角色走 /users/:id/roles，状态走 enable/disable）
+      parameters:
+      - description: 用户ID
+        format: int64
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新用户请求
+        in: body
+        name: req
+        required: true
+        schema:
+          $ref: '#/definitions/request.UpdateUserReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            $ref: '#/definitions/app.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/app.Response'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+        "404":
+          description: 用户不存在
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 更新用户信息
+      tags:
+      - 用户管理
+  /users/{id}/disable:
+    post:
+      consumes:
+      - application/json
+      description: 停用指定用户
+      parameters:
+      - description: 用户ID
+        format: int64
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 停用成功
+          schema:
+            $ref: '#/definitions/app.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/app.Response'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+        "404":
+          description: 用户不存在
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 停用用户
+      tags:
+      - 用户管理
+  /users/{id}/enable:
+    post:
+      consumes:
+      - application/json
+      description: 启用指定用户
+      parameters:
+      - description: 用户ID
+        format: int64
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 启用成功
+          schema:
+            $ref: '#/definitions/app.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/app.Response'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+        "404":
+          description: 用户不存在
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 启用用户
+      tags:
+      - 用户管理
+  /users/{id}/password/reset:
+    post:
+      consumes:
+      - application/json
+      description: 管理员重置指定用户的密码
+      parameters:
+      - description: 用户ID
+        format: int64
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 重置密码请求
+        in: body
+        name: req
+        required: true
+        schema:
+          $ref: '#/definitions/request.ResetPasswordReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 重置成功
+          schema:
+            $ref: '#/definitions/app.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/app.Response'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+        "404":
+          description: 用户不存在
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 重置密码
+      tags:
+      - 用户管理
+  /users/{id}/roles:
+    put:
+      consumes:
+      - application/json
+      description: 替换目标用户的全部角色（不可修改自己的角色）
+      parameters:
+      - description: 用户ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 角色 ID 列表
+        in: body
+        name: req
+        required: true
+        schema:
+          $ref: '#/definitions/request.AssignRolesReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 分配成功
+          schema:
+            $ref: '#/definitions/app.Response'
+        "400":
+          description: 参数错误/不能修改自己的角色
+          schema:
+            $ref: '#/definitions/app.Response'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+        "404":
+          description: 用户不存在
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 分配用户角色
+      tags:
+      - 用户管理
+  /users/{id}/unlock:
+    post:
+      consumes:
+      - application/json
+      description: 清除指定用户的登录失败计数和锁定状态
+      parameters:
+      - description: 用户ID
+        format: int64
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 解锁成功
+          schema:
+            $ref: '#/definitions/app.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/app.Response'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/app.Response'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - BearerAuth: []
+      summary: 解锁用户
+      tags:
+      - 用户管理
+securityDefinitions:
+  BearerAuth:
+    description: Type "Bearer" followed by a space and JWT token.
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

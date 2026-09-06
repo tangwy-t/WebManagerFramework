@@ -1,0 +1,12 @@
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# 构建产物
+bin/
+dist/
+
+# 本地运行时产物
+logs/
+*.log

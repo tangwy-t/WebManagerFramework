@@ -1,0 +1,15 @@
+node_modules
+dist
+dist-ssr
+.git
+.idea
+.DS_Store
+*.local
+*.log
+logs
+.auto-import.json
+# 注意:不能排除 src/types/import —— auto-imports.d.ts / components.d.ts
+# 是 unplugin 生成的类型声明,构建阶段 vue-tsc 依赖它们做类型检查,
+# 排除后 docker 构建会因 TS2304(找不到 ref/watch/ElMessage 等)失败。
+docs
+.npmrc
