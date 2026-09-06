@@ -1,12 +1,9 @@
 package migrations
 
 import (
-	"encoding/json"
-
 	"gorm.io/gorm"
 
 	"github.com/tangwy-t/webmanager-server/internal/model/entity"
-	"github.com/tangwy-t/webmanager-server/internal/pkg/apperror"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/migration"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/ptr"
 )
@@ -63,28 +60,6 @@ func migrateOptResultCodeV16(tx *gorm.DB) error {
 			Status:     ptr.To[int8](entity.DictDataStatusEnabled),
 		}
 		if err := tx.Where("type_id = ? AND value = ?", dd.TypeID, dd.Value).FirstOrCreate(&dd).Error; err != nil {
-			return err
-		}
-	}
-
-	// 3. 历史失败日志 code 回填:旧 status 时代失败行(error_msg 非空且 code 仍为 0)
-	//    从 error_msg 的信封 JSON 解析真实业务码,解析不了按 50000 记。
-	var legacy []entity.SysOperationLog
-	if err := tx.Where("code = ? AND error_msg IS NOT NULL AND error_msg <> ''", apperror.CodeOK).
-		Find(&legacy).Error; err != nil {
-		return err
-	}
-	for i := range legacy {
-		code := apperror.CodeInternal
-		var env struct {
-			Code *int `json:"code"`
-		}
-		if legacy[i].ErrorMsg != nil {
-			if err := json.Unmarshal([]byte(*legacy[i].ErrorMsg), &env); err == nil && env.Code != nil && *env.Code != apperror.CodeOK {
-				code = *env.Code
-			}
-		}
-		if err := tx.Model(&entity.SysOperationLog{}).Where("id = ?", legacy[i].ID).Update("code", code).Error; err != nil {
 			return err
 		}
 	}
