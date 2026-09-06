@@ -19,6 +19,9 @@ web/docs/superpowers/
 data/uploads/*
 !data/uploads/.gitkeep
 
+# ── 本机 SSH 私钥与 known_hosts(仅本部署环境使用,严禁入库) ──
+.ssh-keys/
+
 # ── 会话调试/临时文件 ──
 .ppshot/
 .pnpm-cache-tmp/
