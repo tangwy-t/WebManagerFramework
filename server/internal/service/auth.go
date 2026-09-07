@@ -59,6 +59,7 @@ type AuthRepositoryInterface interface {
 	FindByUsername(ctx context.Context, username string) (*entity.SysUser, error)
 	FindByID(ctx context.Context, id uint64) (*entity.SysUser, error)
 	GetRoleCodes(ctx context.Context, userID uint64) ([]string, error)
+	FindMenuPerms(ctx context.Context) ([]string, error)
 	GetUserPermissions(ctx context.Context, userID uint64) ([]string, error)
 	GetUserDataScope(ctx context.Context, userID uint64) (int8, uint64, error)
 	GetUserRoleScope(ctx context.Context, userID uint64) int8

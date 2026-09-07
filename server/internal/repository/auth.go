@@ -27,6 +27,17 @@ func (r *AuthRepo) FindByUsername(ctx context.Context, username string) (*entity
 	return &user, nil
 }
 
+// FindMenuPerms 返回当前 ctx 数据范围下所有非空菜单权限标识。
+// 本方法不手写任何角色 join:ctx 携带 ScopeContext 时,scope 插件自动
+// 注入 sys_menu.id IN (角色授权菜单 ID) 过滤,与菜单树查询共用同一来源。
+func (r *AuthRepo) FindMenuPerms(ctx context.Context) ([]string, error) {
+	var perms []string
+	err := r.db.WithContext(ctx).Model(&entity.SysMenu{}).
+		Where("perms IS NOT NULL AND perms != ''").
+		Pluck("perms", &perms).Error
+	return perms, err
+}
+
 func (r *AuthRepo) FindByID(ctx context.Context, id uint64) (*entity.SysUser, error) {
 	var user entity.SysUser
 	err := r.db.WithContext(ctx).Preload("Roles").First(&user, id).Error

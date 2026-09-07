@@ -20,6 +20,7 @@ import (
 type stubAuthRepo struct {
 	findByIDUser *entity.SysUser
 	findByIDErr  error
+	findMenuPermsFn func(context.Context) ([]string, error)
 }
 
 func (m *stubAuthRepo) FindByUsername(context.Context, string) (*entity.SysUser, error) {
@@ -33,6 +34,12 @@ func (m *stubAuthRepo) FindByID(_ context.Context, _ uint64) (*entity.SysUser, e
 }
 func (m *stubAuthRepo) GetRoleCodes(context.Context, uint64) ([]string, error) {
 	return nil, nil
+}
+func (m *stubAuthRepo) FindMenuPerms(ctx context.Context) ([]string, error) {
+	if m.findMenuPermsFn == nil {
+		return nil, nil
+	}
+	return m.findMenuPermsFn(ctx)
 }
 func (m *stubAuthRepo) GetUserPermissions(context.Context, uint64) ([]string, error) {
 	return nil, nil
