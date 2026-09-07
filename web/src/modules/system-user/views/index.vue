@@ -112,11 +112,11 @@
 
 <script setup lang="ts">
   import { computed, h, reactive, ref } from 'vue'
-  import { ElAvatar, ElSwitch, ElTag, ElTooltip, ElMessage, ElMessageBox } from 'element-plus'
+  import { ElSwitch, ElTag, ElTooltip, ElMessage, ElMessageBox } from 'element-plus'
   import { useWindowSize } from '@vueuse/core'
   import { useTableColumns } from '@/hooks/core/useTableColumns'
   import { useDict } from '@/hooks/core/useDict'
-  import defaultAvatar from '@imgs/user/avatar.webp'
+  import { resolveAvatar } from '@/utils/avatar'
   import ArtButtonTable from '@/components/core/forms/art-button-table/index.vue'
   import ArtButtonMore from '@/components/core/forms/art-button-more/index.vue'
   import ArtSvgIcon from '@/components/core/base/art-svg-icon/index.vue'
@@ -371,7 +371,14 @@
 
   /* ── 渲染工具 ───────────────────────────────────── */
   function renderAvatar(row: Api.System.User) {
-    return h(ElAvatar, { src: row.avatar?.trim() || defaultAvatar, size: 34 })
+    return h('img', {
+      src: resolveAvatar(row.avatar),
+      alt: row.username,
+      class: 'w-[34px] h-[34px] rounded-full object-cover align-middle',
+      onError: (e: Event) => {
+        ;(e.target as HTMLImageElement).src = resolveAvatar()
+      }
+    })
   }
 
   function fmtTime(v?: string | null) {
