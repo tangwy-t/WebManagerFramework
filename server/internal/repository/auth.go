@@ -54,6 +54,20 @@ func (r *AuthRepo) GetUserPermissions(ctx context.Context, userID uint64) ([]str
 		return []string{}, nil
 	}
 
+	// Admin 角色默认拥有全量权限：不依赖 sys_role_menu 授权记录，
+	// 直接返回 sys_menu 中全部权限标识(外加 "admin" 通配标记)。
+	var adminCount int64
+	if err := r.db.WithContext(ctx).Model(&entity.SysRole{}).Where("id IN ? AND code = ?", roleIDs, "admin").Count(&adminCount).Error; err != nil {
+		return nil, err
+	}
+	if adminCount > 0 {
+		allPerms, err := r.allMenuPerms(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return append(allPerms, "admin"), nil
+	}
+
 	var menuIDs []uint64
 	if err := r.db.WithContext(ctx).Model(&entity.SysRoleMenu{}).Where("role_id IN ?", roleIDs).Pluck("menu_id", &menuIDs).Error; err != nil {
 		return nil, err
@@ -65,16 +79,16 @@ func (r *AuthRepo) GetUserPermissions(ctx context.Context, userID uint64) ([]str
 			return nil, err
 		}
 	}
-
-	// Admin role grants all permissions
-	var adminCount int64
-	if err := r.db.WithContext(ctx).Model(&entity.SysRole{}).Where("id IN ? AND code = ?", roleIDs, "admin").Count(&adminCount).Error; err != nil {
-		return nil, err
-	}
-	if adminCount > 0 {
-		perms = append(perms, "admin")
-	}
 	return perms, nil
+}
+
+// allMenuPerms 返回 sys_menu 中全部非空权限标识。
+func (r *AuthRepo) allMenuPerms(ctx context.Context) ([]string, error) {
+	var perms []string
+	err := r.db.WithContext(ctx).Model(&entity.SysMenu{}).
+		Where("perms IS NOT NULL AND perms != ''").
+		Pluck("perms", &perms).Error
+	return perms, err
 }
 
 func (r *AuthRepo) UpdatePassword(ctx context.Context, userID uint64, newPassword string, newSalt *string) error {
