@@ -72,13 +72,13 @@ type AuthRepositoryInterface interface {
 }
 
 type AuthService struct {
-	cfgProv      ConfigGetterInterface
-	repo         AuthRepositoryInterface
-	logger       logger.LoggerInterface
-	sessionStore SessionStoreInterface
-	loginLogSvc  LoginLogServiceInterface
-	captchaSvc   CaptchaInterface
-	apiPrefix    string // server.apiPrefix,用于拼接头像访问路径
+	cfgProv       ConfigGetterInterface
+	repo          AuthRepositoryInterface
+	logger        logger.LoggerInterface
+	sessionStore  SessionStoreInterface
+	loginLogSvc   LoginLogServiceInterface
+	captchaSvc    CaptchaInterface
+	apiPrefix     string // server.apiPrefix,用于拼接头像访问路径
 	scopeResolver *datascope.ScopeResolver
 }
 
@@ -94,13 +94,13 @@ func NewAuthService(
 	scopeResolver *datascope.ScopeResolver,
 ) *AuthService {
 	return &AuthService{
-		cfgProv:      cfgProv,
-		repo:         repo,
-		logger:       logger,
-		sessionStore: sessionStore,
-		loginLogSvc:  loginLogSvc,
-		captchaSvc:   captchaSvc,
-		apiPrefix:    apiPrefix,
+		cfgProv:       cfgProv,
+		repo:          repo,
+		logger:        logger,
+		sessionStore:  sessionStore,
+		loginLogSvc:   loginLogSvc,
+		captchaSvc:    captchaSvc,
+		apiPrefix:     apiPrefix,
 		scopeResolver: scopeResolver,
 	}
 }

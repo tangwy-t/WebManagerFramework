@@ -66,9 +66,12 @@ func (g *PermissionGuard) Permission(requiredPerm string) gin.HandlerFunc {
 			logger.Warn("permission cache read failed, falling back to service", zap.Error(err))
 		}
 		if perms == nil {
-			// singleflight：合并同一用户的并发缓存 miss 为一次 DB 查询
+			// singleflight:合并同一用户的并发缓存 miss 为一次 DB 查询
 			v, err, _ := g.sfGroup.Do(strconv.FormatUint(uid, 10), func() (any, error) {
-				p, loadErr := authSvc.GetUserPermissions(context.Background(), uid)
+				// 回源必须携带请求 ctx:经 ScopeResolverHandler(router 组级中间件)
+				// 注入 ScopeContext,scope 插件据此过滤 sys_menu,权限点与运行时同源。
+				// 传 Background 会让 scope 静默失效(旧行为)。
+				p, loadErr := authSvc.GetUserPermissions(c.Request.Context(), uid)
 				if loadErr != nil {
 					return nil, loadErr
 				}
