@@ -50,7 +50,7 @@
         :tree-props="{ children: 'children' }"
         :expand-row-keys="expandedKeys"
         :indent="22"
-        @expand-change="(_row, rows) => onExpandChange(rows)"
+        @expand-change="(_row: Api.System.Dept, rows: Api.System.Dept[]) => onExpandChange(rows)"
       >
         <template v-if="sortColReady" #sort="{ row }">
           <el-input-number
