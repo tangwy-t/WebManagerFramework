@@ -1085,6 +1085,8 @@
     }
     const res = await deleteCacheKeys({ prefix: toPattern(prefix.value), maxCount: 1000 })
     ElMessage.success(`已删除 ${res.deleted} 个缓存键`)
+    // 清空输入框后按空前缀重新查询（查看全部），避免停留在已删除前缀的过滤视图
+    prefix.value = ''
     await loadKeys()
   }
 

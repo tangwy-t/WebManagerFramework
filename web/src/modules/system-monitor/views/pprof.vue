@@ -17,7 +17,7 @@
           </p>
         </div>
         <div class="ml-auto flex flex-wrap items-center gap-2">
-          <div class="relative">
+          <div v-if="enabled" class="relative">
             <ArtButtonTable
               :icon="'ri:timer-2-line'"
               :iconClass="autoRefresh ? 'bg-theme text-white shadow-sm' : 'bg-theme/12 text-theme'"
@@ -41,6 +41,7 @@
             {{ enabled ? '停用采集' : '启用采集' }}
           </button>
           <ArtButtonTable
+            v-if="enabled"
             icon="ri:refresh-line"
             iconClass="bg-theme/12 text-theme"
             title="刷新状态"
