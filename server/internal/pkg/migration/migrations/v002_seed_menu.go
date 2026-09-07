@@ -196,11 +196,8 @@ func seedMenu(tx *gorm.DB) error {
 	if len(idByKey) != len(menuDefinitions) {
 		return gorm.ErrRecordNotFound
 	}
-	// 暴露给 seedPermission：按定义顺序输出全部菜单 ID。
-	allMenuIDs = make([]uint64, 0, len(menuDefinitions))
-	for _, d := range menuDefinitions {
-		allMenuIDs = append(allMenuIDs, idByKey[d.Key])
-	}
+	// 菜单 ID 无需对外共享：admin 默认全量菜单，普通角色授权由运营在
+	// 菜单/角色页手动配置，种子间不传递包级变量。
 	return nil
 }
 

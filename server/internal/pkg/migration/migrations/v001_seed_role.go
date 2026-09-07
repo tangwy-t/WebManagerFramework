@@ -16,7 +16,9 @@ func init() {
 	})
 }
 
-// adminRole 超级管理员角色：后续菜单授权、用户绑定均引用此变量的 snowflake ID。
+// adminRole 超级管理员角色种子模板。v001 只负责创建角色本身；
+// admin 用户默认拥有全量菜单（鉴权层直通），无需 sys_role_menu 授权；
+// 需要角色 ID 的迁移（如 v004 用户绑定）自行查库，种子间不共享包级变量。
 var adminRole = entity.SysRole{
 	Name:      "超级管理员",
 	Code:      "admin",
@@ -27,10 +29,7 @@ var adminRole = entity.SysRole{
 }
 
 func seedRole(tx *gorm.DB) error {
-	role := adminRole
-	if err := tx.CreateInBatches([]entity.SysRole{role}, 1).Error; err != nil {
-		return err
-	}
-	adminRoleID = role.ID // snowflake 回调已回写
-	return nil
+	// 角色 ID 由 snowflake 回调生成并回写到 slice 元素，本迁移无消费者，
+	// 后续迁移需要时自行按 code 查询。
+	return tx.CreateInBatches([]entity.SysRole{adminRole}, 1).Error
 }

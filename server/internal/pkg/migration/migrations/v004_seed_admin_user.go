@@ -1,6 +1,8 @@
 package migrations
 
 import (
+	"fmt"
+
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 
@@ -39,6 +41,15 @@ func seedAdminUser(tx *gorm.DB) error {
 	}
 	if err := tx.Create(&user).Error; err != nil {
 		return err
+	}
+
+	// 种子间不共享包级变量：按 code 自行查询 v001 创建的超管角色 ID。
+	var adminRoleID uint64
+	if err := tx.Model(&entity.SysRole{}).
+		Select("id").
+		Where("code = ?", "admin").
+		First(&adminRoleID).Error; err != nil {
+		return fmt.Errorf("seedAdminUser: 查询超级管理员角色失败: %w", err)
 	}
 
 	if err := tx.Create(&entity.SysUserRole{
