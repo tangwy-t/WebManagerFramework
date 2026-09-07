@@ -60,7 +60,6 @@ type AuthRepositoryInterface interface {
 	FindByID(ctx context.Context, id uint64) (*entity.SysUser, error)
 	GetRoleCodes(ctx context.Context, userID uint64) ([]string, error)
 	FindMenuPerms(ctx context.Context) ([]string, error)
-	GetUserPermissions(ctx context.Context, userID uint64) ([]string, error)
 	GetUserDataScope(ctx context.Context, userID uint64) (int8, uint64, error)
 	GetUserRoleScope(ctx context.Context, userID uint64) int8
 	UpdatePassword(ctx context.Context, userID uint64, newPassword string, newSalt *string) error
@@ -294,33 +293,9 @@ func (s *AuthService) Login(ctx context.Context, req *request.LoginReq, ip, user
 		}
 	}
 
-	// Load permissions
-	perms, err := s.repo.GetUserPermissions(ctx, user.ID)
-	if err != nil {
-		s.logger.Warn("failed to load user permissions", zap.Uint64("userId", user.ID), zap.Error(err))
-		perms = []string{}
-	}
-
-	// Load data scope and department ID
-	dataScope, deptID, err := s.repo.GetUserDataScope(ctx, user.ID)
-	if err != nil {
-		s.logger.Warn("failed to load user data scope", zap.Uint64("userId", user.ID), zap.Error(err))
-		dataScope = 5
-	}
-
-	// Load role codes (best-effort, logged for future extensions)
-	roleCodes, err := s.repo.GetRoleCodes(ctx, user.ID)
-	if err != nil {
-		s.logger.Warn("failed to load role codes", zap.Uint64("userId", user.ID), zap.Error(err))
-	}
-	_ = roleCodes // used for future extensions
-
-	// Generate JWT tokens with multi-dimension scopes.
-	// Only include the dimension that matches the user's actual data scope:
-	// - ScopeSelf: use the "self" dimension to restrict to own records
-	// - all other scopes: use the "dept" dimension for department-level filtering
-	roleScope := s.repo.GetUserRoleScope(ctx, user.ID)
-	scopes := buildUserScopes(user.ID, dataScope, deptID, roleScope)
+	// Load permissions + data scope claims in one consolidated pass
+	// (role codes 死查询一并移除:此前加载后仅 `_ = roleCodes` 丢弃)。
+	perms, scopes := s.resolveUserAccess(ctx, user.ID)
 	accessToken, refreshToken, err := s.issueTokens(ctx, user.ID, perms, scopes)
 	if err != nil {
 		return nil, apperror.Internal("生成 token 失败")
@@ -431,7 +406,7 @@ func (s *AuthService) GetUserInfo(ctx context.Context) (*response.UserInfoResp, 
 		s.logger.Warn("failed to load role codes", zap.Uint64("userId", userID), zap.Error(err))
 		roleCodes = []string{}
 	}
-	perms, err := s.repo.GetUserPermissions(ctx, userID)
+	perms, err := s.GetUserPermissions(ctx, userID)
 	if err != nil {
 		s.logger.Warn("failed to load user permissions", zap.Uint64("userId", userID), zap.Error(err))
 		perms = []string{}
@@ -672,23 +647,9 @@ func (s *AuthService) RefreshToken(ctx context.Context, req *request.RefreshToke
 		return nil, apperror.Unauthorized("账号已被禁用，请联系管理员")
 	}
 
-	// 6. Load latest permissions
-	perms, err := s.repo.GetUserPermissions(ctx, claims.UserID)
-	if err != nil {
-		s.logger.Warn("failed to load user permissions", zap.Uint64("userId", claims.UserID), zap.Error(err))
-		perms = []string{}
-	}
-
-	// 7. Load data scope
-	dataScope, deptID, err := s.repo.GetUserDataScope(ctx, claims.UserID)
-	if err != nil {
-		s.logger.Warn("failed to load user data scope", zap.Uint64("userId", claims.UserID), zap.Error(err))
-		dataScope = 5
-	}
-
-	roleScope := s.repo.GetUserRoleScope(ctx, claims.UserID)
-	// 8. Generate new scopes(与 Login 共用构造,消除两路径发散)
-	scopes := buildUserScopes(claims.UserID, dataScope, deptID, roleScope)
+	// 6. Load latest permissions + scopes(与 Login 共用 resolveUserAccess 收敛入口)
+	perms, scopes := s.resolveUserAccess(ctx, claims.UserID)
+	// 7. Generate new tokens
 	accessToken, refreshToken, err := s.issueTokens(ctx, claims.UserID, perms, scopes)
 	if err != nil {
 		return nil, apperror.Internal("生成 token 失败")

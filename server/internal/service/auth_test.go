@@ -46,9 +46,6 @@ func (m *stubAuthRepo) FindMenuPerms(ctx context.Context) ([]string, error) {
 	}
 	return m.findMenuPermsFn(ctx)
 }
-func (m *stubAuthRepo) GetUserPermissions(context.Context, uint64) ([]string, error) {
-	return nil, nil
-}
 func (m *stubAuthRepo) GetUserDataScope(context.Context, uint64) (int8, uint64, error) {
 	return m.dataScope, m.deptID, nil
 }

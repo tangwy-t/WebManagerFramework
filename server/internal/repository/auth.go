@@ -56,52 +56,6 @@ func (r *AuthRepo) GetRoleCodes(ctx context.Context, userID uint64) ([]string, e
 	return codes, err
 }
 
-func (r *AuthRepo) GetUserPermissions(ctx context.Context, userID uint64) ([]string, error) {
-	var roleIDs []uint64
-	if err := r.db.WithContext(ctx).Model(&entity.SysUserRole{}).Where("user_id = ?", userID).Pluck("role_id", &roleIDs).Error; err != nil {
-		return nil, err
-	}
-	if len(roleIDs) == 0 {
-		return []string{}, nil
-	}
-
-	// Admin 角色默认拥有全量权限：不依赖 sys_role_menu 授权记录，
-	// 直接返回 sys_menu 中全部权限标识(外加 "admin" 通配标记)。
-	var adminCount int64
-	if err := r.db.WithContext(ctx).Model(&entity.SysRole{}).Where("id IN ? AND code = ?", roleIDs, "admin").Count(&adminCount).Error; err != nil {
-		return nil, err
-	}
-	if adminCount > 0 {
-		allPerms, err := r.allMenuPerms(ctx)
-		if err != nil {
-			return nil, err
-		}
-		return append(allPerms, "admin"), nil
-	}
-
-	var menuIDs []uint64
-	if err := r.db.WithContext(ctx).Model(&entity.SysRoleMenu{}).Where("role_id IN ?", roleIDs).Pluck("menu_id", &menuIDs).Error; err != nil {
-		return nil, err
-	}
-
-	var perms []string
-	if len(menuIDs) > 0 {
-		if err := r.db.WithContext(ctx).Model(&entity.SysMenu{}).Where("id IN ? AND perms IS NOT NULL AND perms != ''", menuIDs).Pluck("perms", &perms).Error; err != nil {
-			return nil, err
-		}
-	}
-	return perms, nil
-}
-
-// allMenuPerms 返回 sys_menu 中全部非空权限标识。
-func (r *AuthRepo) allMenuPerms(ctx context.Context) ([]string, error) {
-	var perms []string
-	err := r.db.WithContext(ctx).Model(&entity.SysMenu{}).
-		Where("perms IS NOT NULL AND perms != ''").
-		Pluck("perms", &perms).Error
-	return perms, err
-}
-
 func (r *AuthRepo) UpdatePassword(ctx context.Context, userID uint64, newPassword string, newSalt *string) error {
 	updates := map[string]interface{}{"password": newPassword}
 	if newSalt != nil {
