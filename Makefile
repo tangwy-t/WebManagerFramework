@@ -20,9 +20,21 @@ WEB_DIR        := web
 
 # ── Go 模块与版本注入 ───────────────────────────────────────
 GO_MODULE      := github.com/tangwy-t/webmanager-server
+# 用 ?= 允许 CI/命令行覆盖;但 ?= 对「已定义但为空」的环境变量不会赋值,
+# 故追加 strip 空值兜底,保证空值也回退到 git/date 推算,避免注入 empty。
 VERSION       ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 BUILD_TIME    ?= $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 COMMIT_HASH   ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+
+ifeq ($(strip $(VERSION)),)
+  VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+endif
+ifeq ($(strip $(BUILD_TIME)),)
+  BUILD_TIME := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
+endif
+ifeq ($(strip $(COMMIT_HASH)),)
+  COMMIT_HASH := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+endif
 
 LDFLAGS = -X '$(GO_MODULE)/internal/pkg/version.Version=$(VERSION)' \
           -X '$(GO_MODULE)/internal/pkg/version.BuildTime=$(BUILD_TIME)' \
@@ -40,7 +52,7 @@ SWAG_VERSION   ?= v1.16.6
         web-install web-dev web-build web-serve web-test web-lint web-fix web-fmt \
         test lint fmt build run clean \
         docker-build docker-up docker-down docker-logs docker-ps \
-        docker-up-tracing docker-down-tracing
+        docker-build-tracing docker-up-tracing docker-down-tracing
 
 ## ───────────────────────────────────────────────────────────
 ## 帮助
@@ -167,8 +179,17 @@ docker-ps: ## 查看服务状态
 #   OBSERVABILITY_TRACING_ENDPOINT=jaeger:4317
 # 再执行本目标,一次命令完成「构建 + 起业务 + 起追踪侧(Jaeger v2)」,
 # 保证后端按最新 .env 追踪变量重建并上报。
-docker-up-tracing: ## 构建并启动全部服务 + 追踪(Jaeger v2)
-	docker compose --profile tracing up -d --build
+# 注意:docker compose up --build 不支持 --build-arg,版本三件套只能经
+# docker compose build 注入;故 up 前必须先 build(参照 docker-build)。
+docker-build-tracing: ## 构建全部镜像(含追踪 profile),注入版本信息
+	docker compose --profile tracing build \
+		--build-arg VERSION="$(VERSION)" \
+		--build-arg BUILD_TIME="$(BUILD_TIME)" \
+		--build-arg COMMIT_HASH="$(COMMIT_HASH)" \
+		server web
+
+docker-up-tracing: docker-build-tracing ## 构建(注入版本)+启动全部服务 + 追踪(Jaeger v2)
+	docker compose --profile tracing up -d
 
 docker-down-tracing: ## 停止并移除全部服务(含追踪)
 	docker compose --profile tracing down
