@@ -18,7 +18,7 @@
  *     useTreeExpand(data)
  *   // 模板：
  *   //   :expand-row-keys="expandedKeys"
- *   //   @expand-change="(row, rows) => onExpandChange(rows)"
+ *   //   @expand-change="onExpandChange"
  *   //   :title="expanded ? '折叠' : '展开'"  @click="toggleExpandAll"
  *   // loadList 拉回 list 并 data.value = list 后调用 initExpanded()。
  */
@@ -66,12 +66,19 @@ export function useTreeExpand<T extends TreeRow>(dataRef: Ref<T[]>) {
   }
 
   /**
-   * el-table 受控展开事件回调：用户点击展开/折叠箭头时，把当前展开行集合
-   * 同步回 expandedKeys。直接透传 el-table `@expand-change` 的第二个参数
-   * （expandedRows 数组）即可。
+   * el-table 受控展开事件回调：用户点击展开/折叠箭头时，把该行的展开态
+   * 同步回 expandedKeys。
+   * 注意：纯树形表格（未配置 type="expand" 展开列）的 expand-change 第二参数
+   * 是该行「展开与否的布尔值」，而非展开行数组（element-plus ⩾2.x 实现，
+   * 见其 table/src/store/tree.mjs 的 toggleTreeExpansion）。此前按数组处理
+   * 会在每次点击箭头时抛 TypeError，导致受控 keys 从不更新、数据刷新后
+   * 树被重新全部展开。
    */
-  function onExpandChange(expandedRows: T[]) {
-    expandedKeys.value = expandedRows.map((n) => n.id)
+  function onExpandChange(row: T, expanded: boolean) {
+    const next = new Set(expandedKeys.value)
+    if (expanded) next.add(row.id)
+    else next.delete(row.id)
+    expandedKeys.value = [...next]
   }
 
   /** 一键全展开/全折叠：已全部展开则收起到全折叠，否则展开所有父节点。 */
