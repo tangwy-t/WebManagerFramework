@@ -97,13 +97,20 @@ func Init(db *gorm.DB, sqlStats *database.SQLStats, redis goredis.UniversalClien
 		return nil
 	})
 
+	// ── Scope Resolver ──(前移到 AuthService 之前:登录/刷新时的访问解析
+	// resolveUserAccess 依赖它构造 ScopeContext;依赖只需 authRepo/deptRepo/log)
+	deptResolver := datascope.NewDeptDimensionResolver(authRepo, deptRepo)
+	roleResolver := datascope.NewRoleDimensionResolver(authRepo)
+	selfResolver := datascope.NewSelfDimensionResolver()
+	scopeResolver := datascope.NewScopeResolver([]datascope.DimensionResolver{deptResolver, selfResolver, roleResolver}, log)
+
 	// ── Services ───────────────────────────────────────────────────────
 	userSvc := service.NewUserService(userRepo, log, sessionStore)
 	roleSvc := service.NewRoleService(roleRepo, log, sessionStore)
 	menuSvc := service.NewMenuService(menuRepo, sessionStore, log)
 	deptSvc := service.NewDeptService(deptRepo, log)
 	loginLogSvc := service.NewLoginLogService(loginLogRepo, log)
-	authSvc := service.NewAuthService(configSvc, authRepo, log, sessionStore, loginLogSvc, captchaPkg, cfg.Server.APIPrefix)
+	authSvc := service.NewAuthService(configSvc, authRepo, log, sessionStore, loginLogSvc, captchaPkg, cfg.Server.APIPrefix, scopeResolver)
 	noticeSvc := service.NewNoticeService(noticeRepo, hub, log)
 	opLogSvc := service.NewOperationLogService(opLogRepo, userRepo, log)
 
@@ -176,11 +183,7 @@ func Init(db *gorm.DB, sqlStats *database.SQLStats, redis goredis.UniversalClien
 
 	hub.SetOnUserOnline(noticeSvc.GetUnreadNotices)
 
-	// ── Scope Resolver ─────────────────────────────────────────────────
-	deptResolver := datascope.NewDeptDimensionResolver(authRepo, deptRepo)
-	roleResolver := datascope.NewRoleDimensionResolver(authRepo)
-	selfResolver := datascope.NewSelfDimensionResolver()
-	scopeResolver := datascope.NewScopeResolver([]datascope.DimensionResolver{deptResolver, selfResolver, roleResolver}, log)
+	// ScopeResolver 上移到 AuthService 构造之前(登录/刷新访问解析依赖注入)。
 
 	// ── Permission Guard ─────────────────────────────────────────────────
 	permGuard := middleware.NewPermissionGuard(authSvc, sessionStore, configSvc, log)

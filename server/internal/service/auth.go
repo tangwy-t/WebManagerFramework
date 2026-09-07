@@ -80,6 +80,7 @@ type AuthService struct {
 	loginLogSvc  LoginLogServiceInterface
 	captchaSvc   CaptchaInterface
 	apiPrefix    string // server.apiPrefix,用于拼接头像访问路径
+	scopeResolver *datascope.ScopeResolver
 }
 
 // NewAuthService constructs an AuthService with the given dependencies.
@@ -91,6 +92,7 @@ func NewAuthService(
 	loginLogSvc LoginLogServiceInterface,
 	captchaSvc CaptchaInterface,
 	apiPrefix string,
+	scopeResolver *datascope.ScopeResolver,
 ) *AuthService {
 	return &AuthService{
 		cfgProv:      cfgProv,
@@ -100,6 +102,7 @@ func NewAuthService(
 		loginLogSvc:  loginLogSvc,
 		captchaSvc:   captchaSvc,
 		apiPrefix:    apiPrefix,
+		scopeResolver: scopeResolver,
 	}
 }
 
@@ -157,6 +160,70 @@ func buildUserScopes(userID uint64, dataScope int8, deptID uint64, roleScope int
 	}
 	scopes = append(scopes, jwt.ScopeClaim{Dimension: "role", Level: roleScope, SelfID: 0})
 	return scopes
+}
+
+// scopeCtxFor 按 scopes 声明构造 ScopeContext 注入 ctx,复用与
+// middleware.ScopeResolverHandler 完全相同的 resolver,权限口径与运行时一致。
+// resolver 解析失败降级为 nil 维度(该维度放行),scopeResolver 未注入(测试)时原样返回。
+func (s *AuthService) scopeCtxFor(ctx context.Context, userID uint64, scopes []jwt.ScopeClaim) context.Context {
+	if s.scopeResolver == nil {
+		return ctx
+	}
+	sc := &datascope.ScopeContext{UserID: userID, Dimensions: make(map[string]*datascope.ResolvedDimension, len(scopes))}
+	for _, claim := range scopes {
+		resolver, ok := s.scopeResolver.Resolvers[claim.Dimension]
+		if !ok {
+			continue
+		}
+		dim, err := resolver.Resolve(ctx, claim.Level, claim.SelfID, userID)
+		if err != nil {
+			s.logger.Warn("scope resolve failed during access resolution",
+				zap.String("dimension", claim.Dimension),
+				zap.Int8("level", claim.Level),
+				zap.Error(err))
+			dim = &datascope.ResolvedDimension{Level: claim.Level, SelfID: claim.SelfID}
+			continue
+		}
+		sc.Dimensions[claim.Dimension] = dim
+	}
+	return datascope.WithScopeContext(ctx, sc)
+}
+
+// resolveUserAccess 一次解析登录/刷新所需的全部权限数据:权限点集合与
+// 数据范围声明。权限点由 scope 插件自动注入过滤(scopeCtxFor 构造的
+// ScopeContext),与运行时菜单查询共用同一过滤来源;admin(role scope=ScopeAll)
+// 附加 "admin" 通配标记。加载失败降级为空权限,不阻断发 token(与旧行为一致)。
+func (s *AuthService) resolveUserAccess(ctx context.Context, userID uint64) ([]string, []jwt.ScopeClaim) {
+	dataScope, deptID, err := s.repo.GetUserDataScope(ctx, userID)
+	if err != nil {
+		s.logger.Warn("failed to load user data scope", zap.Uint64("userId", userID), zap.Error(err))
+		dataScope = datascope.ScopeSelf
+		deptID = 0
+	}
+
+	roleScope := s.repo.GetUserRoleScope(ctx, userID)
+	scopes := buildUserScopes(userID, dataScope, deptID, roleScope)
+
+	perms, err := s.repo.FindMenuPerms(s.scopeCtxFor(ctx, userID, scopes))
+	if err != nil {
+		s.logger.Warn("failed to load user permissions", zap.Uint64("userId", userID), zap.Error(err))
+		perms = []string{}
+	}
+	if roleScope == datascope.ScopeAll {
+		perms = append(perms, "admin")
+	}
+	return perms, scopes
+}
+
+// roleScopeAllFromCtx 判断 ctx 中 role 维度是否为 ScopeAll(admin)。
+// 无 ScopeContext / 无 role 维度时返回 false(防御性不加 admin 标记)。
+func roleScopeAllFromCtx(ctx context.Context) bool {
+	sc, ok := datascope.ScopeContextFromCtx(ctx)
+	if !ok || sc == nil || sc.Dimensions == nil {
+		return false
+	}
+	dim, ok := sc.Dimensions[datascope.DimRole]
+	return ok && dim != nil && dim.Level == datascope.ScopeAll
 }
 
 func (s *AuthService) Login(ctx context.Context, req *request.LoginReq, ip, userAgent string) (*response.LoginResp, error) {
@@ -382,8 +449,19 @@ func (s *AuthService) GetUserInfo(ctx context.Context) (*response.UserInfoResp, 
 	return resp, nil
 }
 
+// GetUserPermissions 从请求 ctx 携带的 ScopeContext 派生权限点:scope 插件
+// 自动注入 sys_menu.id 过滤,role 维度为 ScopeAll(admin)时附加 "admin" 标记。
+// 消费方是 middleware.PermissionGuard 缓存回源 —— ctx 必须是经过
+// ScopeResolverHandler 的请求 ctx(而非裸 Background),否则 scope 不会注入。
 func (s *AuthService) GetUserPermissions(ctx context.Context, userID uint64) ([]string, error) {
-	return s.repo.GetUserPermissions(ctx, userID)
+	perms, err := s.repo.FindMenuPerms(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if roleScopeAllFromCtx(ctx) {
+		perms = append(perms, "admin")
+	}
+	return perms, nil
 }
 
 func (s *AuthService) ChangePassword(ctx context.Context, req *request.ChangePasswordReq, accessToken string) error {

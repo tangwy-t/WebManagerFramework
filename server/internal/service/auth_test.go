@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/tangwy-t/webmanager-server/internal/pkg/apperror"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/contextkeys"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/crypto"
+	"github.com/tangwy-t/webmanager-server/internal/pkg/datascope"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/logger"
 	"gorm.io/gorm"
 )
@@ -18,9 +20,12 @@ import (
 // ── 测试替身 ────────────────────────────────────────────
 // stubAuthRepo 满足 AuthRepositoryInterface;仅 FindByID 被测,其余一律零值返回。
 type stubAuthRepo struct {
-	findByIDUser *entity.SysUser
-	findByIDErr  error
+	findByIDUser    *entity.SysUser
+	findByIDErr     error
 	findMenuPermsFn func(context.Context) ([]string, error)
+	dataScope       int8
+	deptID          uint64
+	roleScope       int8
 }
 
 func (m *stubAuthRepo) FindByUsername(context.Context, string) (*entity.SysUser, error) {
@@ -45,9 +50,9 @@ func (m *stubAuthRepo) GetUserPermissions(context.Context, uint64) ([]string, er
 	return nil, nil
 }
 func (m *stubAuthRepo) GetUserDataScope(context.Context, uint64) (int8, uint64, error) {
-	return 0, 0, nil
+	return m.dataScope, m.deptID, nil
 }
-func (m *stubAuthRepo) GetUserRoleScope(context.Context, uint64) int8 { return 0 }
+func (m *stubAuthRepo) GetUserRoleScope(context.Context, uint64) int8 { return m.roleScope }
 func (m *stubAuthRepo) UpdatePassword(context.Context, uint64, string, *string) error {
 	return nil
 }
@@ -66,7 +71,7 @@ func (m *stubAuthRepo) GetDeptName(context.Context, uint64) (string, error) { re
 
 // newVerifyService 构造仅 VerifyPassword 依赖的极简 AuthService(其余依赖零值)。
 func newVerifyService(repo AuthRepositoryInterface) *AuthService {
-	return NewAuthService(nil, repo, logger.NewNop(), nil, nil, nil, "")
+	return NewAuthService(nil, repo, logger.NewNop(), nil, nil, nil, "", nil)
 }
 
 func newStubUser(t *testing.T, password string) *entity.SysUser {
@@ -123,4 +128,123 @@ func TestAuthServiceVerifyPasswordUnauthorized(t *testing.T) {
 	// 不注入 userID
 	_, err := svc.VerifyPassword(context.Background(), &request.VerifyPasswordReq{Password: "x"})
 	wantCode(t, err, apperror.CodeUnauthorized)
+}
+
+// ── scope 驱动的访问解析测试 ────────────────────────────────────
+
+// stubRoleMenuRepo 满足 datascope.RoleMenuRepoInterface。
+type stubRoleMenuRepo struct {
+	ids   []uint64
+	err   error
+	calls int
+}
+
+func (m *stubRoleMenuRepo) FindRoleMenuIDs(context.Context, uint64) ([]uint64, error) {
+	m.calls++
+	return m.ids, m.err
+}
+
+// newAccessService 构造仅访问解析相关的 AuthService:注入 role/self 两个
+// 维度的 resolver(dept 维度缺省跳过,scopeCtxFor 对缺失 resolver 静默跳过)。
+func newAccessService(repo AuthRepositoryInterface, roleMenus *stubRoleMenuRepo) *AuthService {
+	scopeResolver := datascope.NewScopeResolver([]datascope.DimensionResolver{
+		datascope.NewRoleDimensionResolver(roleMenus),
+		datascope.NewSelfDimensionResolver(),
+	}, logger.NewNop())
+	return NewAuthService(nil, repo, logger.NewNop(), nil, nil, nil, "", scopeResolver)
+}
+
+func TestResolveUserAccessCustomRoleScope(t *testing.T) {
+	roleMenus := &stubRoleMenuRepo{ids: []uint64{11, 12, 15}}
+	repo := &stubAuthRepo{
+		dataScope: datascope.ScopeCustom,
+		deptID:    9,
+		roleScope: datascope.ScopeCustom,
+		findMenuPermsFn: func(ctx context.Context) ([]string, error) {
+			sc, ok := datascope.ScopeContextFromCtx(ctx)
+			if !ok || sc == nil {
+				t.Fatalf("FindMenuPerms 未收到携带 ScopeContext 的 ctx")
+			}
+			dim, ok := sc.Dimensions[datascope.DimRole]
+			if !ok || dim == nil {
+				t.Fatalf("role 维度缺失")
+			}
+			if len(dim.AllowedIDs) != 3 || dim.AllowedIDs[0] != 11 {
+				t.Fatalf("AllowedIDs = %v, want role-menu 集合 [11 12 15]", dim.AllowedIDs)
+			}
+			return []string{"system:user:list"}, nil
+		},
+	}
+	svc := newAccessService(repo, roleMenus)
+
+	perms, scopes := svc.resolveUserAccess(context.Background(), 7)
+
+	if len(perms) != 1 || perms[0] != "system:user:list" {
+		t.Fatalf("perms = %v, want [system:user:list]", perms)
+	}
+	if slices.Contains(perms, "admin") {
+		t.Fatal("ScopeCustom 用户不应获得 admin 标记")
+	}
+	if len(scopes) != 2 || scopes[1].Dimension != datascope.DimRole || scopes[1].Level != datascope.ScopeCustom {
+		t.Fatalf("scopes = %+v, want [dept custom, role custom]", scopes)
+	}
+	if roleMenus.calls != 1 {
+		t.Fatalf("role resolver 调用次数 = %d, want 1", roleMenus.calls)
+	}
+}
+
+func TestResolveUserAccessAdminAppendsMarker(t *testing.T) {
+	repo := &stubAuthRepo{
+		dataScope: datascope.ScopeAll,
+		deptID:    9,
+		roleScope: datascope.ScopeAll,
+		findMenuPermsFn: func(context.Context) ([]string, error) {
+			return []string{"system:user:list"}, nil
+		},
+	}
+	svc := newAccessService(repo, &stubRoleMenuRepo{})
+
+	perms, _ := svc.resolveUserAccess(context.Background(), 1)
+
+	if len(perms) != 2 || perms[1] != "admin" {
+		t.Fatalf("perms = %v, want [system:user:list admin](ScopeAll → plugin 不加过滤 → 全量 + admin 标记)", perms)
+	}
+}
+
+func TestGetUserPermissionsUsesScopeFromCtx(t *testing.T) {
+	repo := &stubAuthRepo{findMenuPermsFn: func(ctx context.Context) ([]string, error) {
+		if _, ok := datascope.ScopeContextFromCtx(ctx); !ok {
+			t.Fatal("ctx 缺少 ScopeContext:GetUserPermissions 必须由调用方提供已注入 scope 的 ctx")
+		}
+		return []string{"system:user:list"}, nil
+	}}
+	svc := newAccessService(repo, &stubRoleMenuRepo{})
+
+	sc := &datascope.ScopeContext{UserID: 1, Dimensions: map[string]*datascope.ResolvedDimension{
+		datascope.DimRole: {Level: datascope.ScopeAll},
+	}}
+	ctx := datascope.WithScopeContext(context.Background(), sc)
+
+	perms, err := svc.GetUserPermissions(ctx, 1)
+	if err != nil {
+		t.Fatalf("GetUserPermissions: %v", err)
+	}
+	if len(perms) != 2 || perms[1] != "admin" {
+		t.Fatalf("perms = %v, want 含 admin 标记", perms)
+	}
+}
+
+func TestGetUserPermissionsNoScopeCtxNoMarker(t *testing.T) {
+	repo := &stubAuthRepo{findMenuPermsFn: func(context.Context) ([]string, error) {
+		return []string{"system:user:list"}, nil
+	}}
+	svc := newAccessService(repo, &stubRoleMenuRepo{})
+
+	perms, err := svc.GetUserPermissions(context.Background(), 1)
+	if err != nil {
+		t.Fatalf("GetUserPermissions: %v", err)
+	}
+	if len(perms) != 1 || slices.Contains(perms, "admin") {
+		t.Fatalf("perms = %v, want 无 admin 标记(无 scope ctx 时防御性不加)", perms)
+	}
 }
