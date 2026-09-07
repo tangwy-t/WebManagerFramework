@@ -9,8 +9,7 @@ reference/
 
 # ── AI 生成的设计稿 / 过程文档(不入库) ──
 design-system/
-server/docs/superpowers/
-web/docs/superpowers/
+superpowers/
 
 # ── 代码索引缓存(CodeGraph,按需重建) ──
 .codegraph/
