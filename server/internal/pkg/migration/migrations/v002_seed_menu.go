@@ -34,6 +34,18 @@ type menuDef struct {
 // seedMenu 逐条解析父引用时父节点的 snowflake ID 已经生成。
 // 层级与 sort/icon 对齐当前生产数据库（服务监控、日志管理为根级目录）。
 var menuDefinitions = []menuDef{
+
+	// ── 服务监控 (dir, 根级) ───────────────────────────────────
+	{Key: "monitor", Name: "服务监控", Type: "dir", Sort: 0, Icon: "ri:dashboard-2-line"},
+	{Key: "monitor:server", Parent: "monitor", Name: "服务器监控", Type: "menu", Perms: "system:server:list", Path: "/monitor/server", Component: "monitor/server/index", Sort: 1, Icon: "material-symbols:browse-activity-outline-rounded"},
+	{Key: "monitor:pprof", Parent: "monitor", Name: "pprof", Type: "menu", Perms: "system:pprof:list", Path: "/monitor/pprof", Component: "monitor/pprof/index", Sort: 2, Icon: "boxicons:hot"},
+	{Key: "monitor:pprof:enable", Parent: "monitor:pprof", Name: "启用pprof", Type: "btn", Perms: "system:pprof:enable", Sort: 1},
+	{Key: "monitor:pprof:disable", Parent: "monitor:pprof", Name: "停用pprof", Type: "btn", Perms: "system:pprof:disable", Sort: 2},
+	{Key: "monitor:cache", Parent: "monitor", Name: "缓存管理", Type: "menu", Perms: "system:cache:list", Path: "/monitor/cache", Component: "monitor/cache/index", Sort: 3, Icon: "devicon-plain:redis-wordmark"},
+	{Key: "monitor:cache:query", Parent: "monitor:cache", Name: "缓存查询", Type: "btn", Perms: "system:cache:query", Sort: 1},
+	{Key: "monitor:cache:delete", Parent: "monitor:cache", Name: "缓存删除", Type: "btn", Perms: "system:cache:delete", Sort: 2},
+	{Key: "monitor:sql", Parent: "monitor", Name: "SQL监控", Type: "menu", Perms: "system:sql:list", Path: "/monitor/sql", Component: "monitor/sql/index", Sort: 4, Icon: "hugeicons:sql"},
+
 	// ── 系统管理 (dir, 根级) ───────────────────────────────────
 	{Key: "system", Name: "系统管理", Type: "dir", Sort: 1, Icon: "ri:settings-3-line"},
 
@@ -116,17 +128,6 @@ var menuDefinitions = []menuDef{
 	{Key: "job:once", Parent: "job", Name: "执行一次", Type: "btn", Perms: "system:job:once", Sort: 7},
 	{Key: "job:log:list", Parent: "job", Name: "任务日志", Type: "btn", Perms: "system:job:log:list", Sort: 8},
 	{Key: "job:log:delete", Parent: "job", Name: "清空日志", Type: "btn", Perms: "system:job:log:delete", Sort: 9},
-
-	// ── 服务监控 (dir, 根级) ───────────────────────────────────
-	{Key: "monitor", Name: "服务监控", Type: "dir", Sort: 2, Icon: "ri:dashboard-2-line"},
-	{Key: "monitor:server", Parent: "monitor", Name: "服务器监控", Type: "menu", Perms: "system:server:list", Path: "/monitor/server", Component: "monitor/server/index", Sort: 1, Icon: "material-symbols:browse-activity-outline-rounded"},
-	{Key: "monitor:pprof", Parent: "monitor", Name: "pprof", Type: "menu", Perms: "system:pprof:list", Path: "/monitor/pprof", Component: "monitor/pprof/index", Sort: 2, Icon: "boxicons:hot"},
-	{Key: "monitor:pprof:enable", Parent: "monitor:pprof", Name: "启用pprof", Type: "btn", Perms: "system:pprof:enable", Sort: 1},
-	{Key: "monitor:pprof:disable", Parent: "monitor:pprof", Name: "停用pprof", Type: "btn", Perms: "system:pprof:disable", Sort: 2},
-	{Key: "monitor:cache", Parent: "monitor", Name: "缓存管理", Type: "menu", Perms: "system:cache:list", Path: "/monitor/cache", Component: "monitor/cache/index", Sort: 3, Icon: "devicon-plain:redis-wordmark"},
-	{Key: "monitor:cache:query", Parent: "monitor:cache", Name: "缓存查询", Type: "btn", Perms: "system:cache:query", Sort: 1},
-	{Key: "monitor:cache:delete", Parent: "monitor:cache", Name: "缓存删除", Type: "btn", Perms: "system:cache:delete", Sort: 2},
-	{Key: "monitor:sql", Parent: "monitor", Name: "SQL监控", Type: "menu", Perms: "system:sql:list", Path: "/monitor/sql", Component: "monitor/sql/index", Sort: 4, Icon: "hugeicons:sql"},
 
 	// ── 日志管理 (dir, 根级) ───────────────────────────────────
 	{Key: "log", Name: "日志管理", Type: "dir", Sort: 3, Icon: "icon-park-outline:log"},
