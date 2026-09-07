@@ -69,12 +69,12 @@
               <template #label>
                 <span class="inline-flex items-center whitespace-nowrap">
                   路由路径
-                  <el-tooltip content="访问的路由地址，如 /system/user" placement="top">
+                  <el-tooltip content="访问的路由地址，如 /system/user；目录可留空" placement="top">
                     <el-icon class="ml-0.5"><QuestionFilled /></el-icon>
                   </el-tooltip>
                 </span>
               </template>
-              <el-input v-model="form.path" placeholder="请输入路由路径" />
+              <el-input v-model="form.path" placeholder="请输入路由路径（目录可留空）" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -183,11 +183,11 @@
     status: 1
   })
 
-  // 校验规则：目录无需 path/component；按钮无需 path/component；名称必填。
+  // 校验规则：名称必填；菜单(menu)类型组件路径必须、路由路径必填；目录(dir)路由路径非必填。
   const rules = computed<FormRules>(() => ({
     name: [{ required: true, message: '菜单名称不能为空', trigger: 'blur' }],
     path:
-      form.type !== 'btn' ? [{ required: true, message: '路由路径不能为空', trigger: 'blur' }] : [],
+      form.type === 'menu' ? [{ required: true, message: '路由路径不能为空', trigger: 'blur' }] : [],
     component:
       form.type === 'menu' ? [{ required: true, message: '组件路径不能为空', trigger: 'blur' }] : []
   }))
