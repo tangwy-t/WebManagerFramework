@@ -51,6 +51,7 @@ logs/
 !.env.example
 server/configs/config.yaml
 server/configs/config.docker.yaml
+!server/configs/config.example.yaml
 
 # ── pnpm 本地内容存储 ──
 .pnpm-store/

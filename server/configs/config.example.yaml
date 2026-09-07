@@ -1,0 +1,123 @@
+# ============================================================
+# RBAC 企业级后台服务 — 配置文件模板
+# 使用方法：复制本文件为 config.yaml 并按需修改。
+# (注意：config.yaml / config.docker.yaml 已被 .gitignore 忽略，
+#  不会提交到仓库，请勿在 config.yaml 中写入真实密钥)
+# 环境变量覆盖：配置键点号映射为下划线，如 SERVER_PORT、
+# DATABASE_PASSWORD、REDIS_ADDR，环境变量优先于本文件（密钥建议走 env）。
+# ============================================================
+
+# 服务配置
+server:
+  port: 9999               # 监听端口
+  mode: debug               # 运行模式: debug(开发) | release(生产) | test(测试)
+  apiPrefix: /api/v1        # API 路由前缀
+  readTimeout: 30           # HTTP 读取超时（秒）
+  writeTimeout: 30          # HTTP 写入超时（秒）
+  idleTimeout: 60           # HTTP 空闲连接超时（秒）
+  maxHeaderBytes: 1048576   # 最大请求头大小（字节，默认 1MB）
+  drainTimeout: 25       # drain 阶段超时（秒）：排空 WebSocket 和 HTTP 请求
+  cleanupTimeout: 5       # cleanup 阶段超时（秒）：关闭 scheduler/broker/redis/db
+  # 受信任的反向代理地址（CIDR/IP）。为空 = 不信任任何代理（ClientIP 取对端地址）。
+  # 部署在 nginx/SLB 之后时必须配置，否则按 IP 的登录限流可被 X-Forwarded-For 伪造绕过。
+  trustedProxies: []      # 例: ["172.17.0.0/16", "10.0.0.0/8"]
+
+# 数据库配置
+database:
+  host: 127.0.0.1        # MySQL 主机地址
+  port: 3306             # MySQL 端口
+  user: root             # 数据库用户名
+  password: "请填写数据库密码"   # ⚠️ 请替换为真实密码，或通过环境变量 DATABASE_PASSWORD 注入（推荐）
+  dbname: web_manager_framework   # 数据库名称
+  charset: utf8mb4       # 字符集
+  maxIdleConns: 10       # 最大空闲连接数
+  maxOpenConns: 100      # 最大打开连接数
+  maxLifetime: 3600      # 连接最大存活时间（秒）
+  slowQueryThreshold: 200   # 慢查询阈值（毫秒）
+  slowQueryLogEnabled: true # 是否启用慢查询日志
+  statsInterval: 60         # SQL 统计采集间隔（秒）
+
+# Redis 配置
+redis:
+  mode: single           # 模式: single(单机) | cluster(集群) | sentinel(哨兵)
+  addr: 127.0.0.1:6379  # 单机地址（mode=single 时使用）
+  addrs:                 # 集群地址列表（mode=cluster 时使用）
+    - 127.0.0.1:7000
+    - 127.0.0.1:7001
+    - 127.0.0.1:7002
+  masterName: ""         # 哨兵主节点名称（mode=sentinel 时使用）
+  password: ""           # Redis 密码（空字符串表示无密码，或经环境变量 REDIS_PASSWORD 注入）
+  db: 0                  # 数据库编号（仅 mode=single 时有效）
+  dialTimeout: 5000      # 连接超时（毫秒），默认 5000
+  readTimeout: 3000      # 读取超时（毫秒），默认 3000
+  writeTimeout: 3000     # 写入超时（毫秒），默认 3000
+
+# 雪花 ID 生成器配置
+snowflake:
+  workerId: 1            # 工作节点 ID（分布式环境需保证唯一，范围 0-1023）
+
+# 日志配置
+log:
+  level: debug           # 日志级别: debug | info | warn | error
+  format: console        # 输出格式: console(开发友好) | json(生产推荐)
+  output: file         # 输出目标: stdout(标准输出) | file(文件)
+  filePath: logs/server.log   # 日志文件路径（output=file 时生效）
+  maxSize: 100           # 单个日志文件最大大小（MB），超过后自动切割
+  maxBackups: 10         # 保留的旧日志文件最大数量
+  maxAge: 30             # 旧日志文件保留天数
+  compress: true         # 是否压缩旧日志文件（gzip）
+  caller: true           # 是否在日志中显示调用位置（文件名+行号）
+  development: true      # 开发模式（true: 更详细; false: 生产模式，JSON 格式）
+
+# 可观测性配置
+observability:
+  tracing:
+    enabled: false           # 是否启用分布式追踪
+    endpoint: "localhost:4317" # OTLP gRPC collector 地址
+    sampleRate: 0.1          # 采样率 (0.0-1.0)
+    serviceName: "webmanager-server" # 上报服务标识(留空回退模块名)
+  # pprof 启停与自动关闭时长不走此文件:由 DB 配置键
+  # sys.pprof.enabled / sys.pprof.autoOffSeconds 控制(可热更,经 pprof API)。
+
+# 文件存储配置（替代旧的 sys.upload.*）
+# sys.file.backend 通过 sys_config 表配置，此处仅为文档参考
+# 支持的 backend: local | s3 | minio | oss | cos
+# file:
+#   local:
+#     path: "./uploads"
+#   s3:
+#     endpoint: ""
+#     region: "us-east-1"
+#     accessKeyID: ""
+#     secretAccessKey: ""
+#     bucket: ""
+#     presignedURLExpiry: 3600
+#   minio:
+#     endpoint: "localhost:9000"
+#     accessKeyID: ""
+#     secretAccessKey: ""
+#     bucket: ""
+#     useSSL: false
+#     presignedURLExpiry: 3600
+#   oss:
+#     endpoint: ""
+#     accessKeyID: ""
+#     accessKeySecret: ""
+#     bucket: ""
+#     presignedURLExpiry: 3600
+#   cos:
+#     region: ""
+#     secretID: ""
+#     secretKey: ""
+#     bucket: ""
+#     presignedURLExpiry: 3600
+
+  # 分片上传配置
+  chunk:
+    size: 5242880          # 分片大小，默认 5MB
+    expireMinutes: 60      # 会话过期时间，默认 60 分钟
+
+  # 缩略图预览配置
+  # sys.file.preview.size 通过 sys_config 表配置，此处仅为文档参考
+  # preview:
+  #   size: "400x400"  # 缩略图固定尺寸，格式 WxH
