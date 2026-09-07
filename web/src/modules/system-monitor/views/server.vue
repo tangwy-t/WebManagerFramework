@@ -818,7 +818,7 @@
       service: [
         { icon: 'ri:calendar-check-line', label: '服务启动', value: srv?.startTime || '-' },
         { icon: 'ri:timer-line', label: '运行时长', value: srv?.uptime || '-' },
-        { icon: 'ri:information-line', label: '版本', value: srv?.version ? `v${srv.version}` : '-', chip: true },
+        { icon: 'ri:information-line', label: '版本', value: srv?.version ? `${srv.version}` : '-', chip: true },
         { icon: 'ri:calendar-line', label: '构建时间', value: (srv?.buildTime || '-').slice(0, 10) },
         { icon: 'ri:git-commit-line', label: '提交哈希', value: srv?.commitHash || '-', mono: true }
       ]
