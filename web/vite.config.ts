@@ -34,17 +34,6 @@ export default ({ mode, command }: { mode: string; command: 'serve' | 'build' })
         }
       },
       host: true,
-      // Docker/WSL2 场景：源码在 drvfs（/mnt/d）上，inotify 收不到事件，
-      // HMR 退化为轮询（compose 里注入 VITE_USE_POLLING=true）。
-      // 宿主机裸开发不受影响（默认不开轮询）。
-      watch:
-        env.VITE_USE_POLLING === 'true'
-          ? {
-              usePolling: true,
-              interval: 300,
-              ignored: ['**/node_modules/**', '**/dist/**', '**/.git/**']
-            }
-          : undefined
     },
     // 路径别名
     resolve: {

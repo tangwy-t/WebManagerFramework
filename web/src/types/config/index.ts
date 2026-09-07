@@ -119,12 +119,6 @@ export interface EnvConfig {
   VITE_BASE_URL: string
   // API 地址
   VITE_API_URL: string
-  // 是否开启 Mock
-  VITE_USE_MOCK?: string
-  // 是否开启压缩
-  VITE_USE_GZIP?: string
-  // 是否开启 CDN
-  VITE_USE_CDN?: string
 }
 
 // 应用配置

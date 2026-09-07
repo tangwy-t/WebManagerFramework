@@ -39,7 +39,8 @@ SWAG_VERSION   ?= v1.16.6
         server-swagger server-clean \
         web-install web-dev web-build web-serve web-test web-lint web-fix web-fmt \
         test lint fmt build run clean \
-        docker-build docker-up docker-down docker-logs docker-ps
+        docker-build docker-up docker-down docker-logs docker-ps \
+        docker-up-tracing docker-down-tracing
 
 ## ───────────────────────────────────────────────────────────
 ## 帮助
@@ -160,3 +161,14 @@ docker-logs: ## 跟踪查看全部服务日志( Ctrl+C 退出)
 
 docker-ps: ## 查看服务状态
 	docker compose ps
+
+# ── 可选追踪堆栈(需 --profile tracing,默认 up 不启动) ──
+# 前置:在 .env 开启 OBSERVABILITY_TRACING_ENABLED=true 并设
+#   OBSERVABILITY_TRACING_ENDPOINT=otel-collector:4317
+# 再执行本目标,一次命令完成「构建 + 起业务 + 起追踪侧」,
+# 保证后端按最新 .env 追踪变量重建并上报。
+docker-up-tracing: ## 构建并启动全部服务 + 追踪堆栈(otel-collector + jaeger)
+	docker compose --profile tracing up -d --build
+
+docker-down-tracing: ## 停止并移除全部服务(含追踪堆栈)
+	docker compose --profile tracing down

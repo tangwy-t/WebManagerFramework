@@ -113,9 +113,9 @@ observability:
 #     presignedURLExpiry: 3600
 
   # 分片上传配置
-  chunk:
-    size: 5242880          # 分片大小，默认 5MB
-    expireMinutes: 60      # 会话过期时间，默认 60 分钟
+  #chunk:
+  #  size: 5242880          # 分片大小，默认 5MB
+  #  expireMinutes: 60      # 会话过期时间，默认 60 分钟
 
   # 缩略图预览配置
   # sys.file.preview.size 通过 sys_config 表配置，此处仅为文档参考

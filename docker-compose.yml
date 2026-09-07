@@ -1,85 +1,285 @@
-# ============================================================
-# web-manager-framework — web + server 容器编排
-# mysql / redis 使用宿主机现存实例（经 host.docker.internal 访问），
-# 不在 compose 中启动数据库服务。
+# ============================================================================
+# web-manager-framework — 生产环境容器编排 (docker compose)
+#
+# 拓扑说明：
+#   web (nginx) ── 反代 /api ──► server (Go/Gin) ──► MySQL / Redis（外部实例）
+#
+# MySQL / Redis 复用「外部生产实例」（RDS / 云 Redis / 自建集群），
+# 由 DB/Redis DBA 团队提供，不在 compose 中托管数据库服务。
+# 容器内经 extra_hosts 的 host-gateway 解析到宿主机网络（同现有用法），
+# 生产亦可直接填写内网 IP / 域名覆盖 DATABASE_HOST / REDIS_ADDR。
 #
 # 用法：
-#   docker compose up -d --build     构建并启动
-#   docker compose logs -f server    查看后端日志
-#   docker compose down              停止并移除容器
+#   cp .env.example .env && 编辑 .env（务必改掉默认口令/密钥）
+#   docker compose config                                  # 渲染并校验
+#   docker compose up -d --build                           # 构建并启动
+#   docker compose ps                                      # 状态
+#   docker compose logs -f server                          # 后端日志
+#   docker compose down                                    # 停止并移除
 #
-# 可覆盖项（通过同目录 .env 或 shell 环境变量注入，见 .env.example）：
-#   DATABASE_PASSWORD   MySQL 密码（默认 password，与 config.docker.yaml 一致）
-#   DATABASE_HOST       MySQL 地址（默认 host.docker.internal）
-#   DATABASE_DBNAME     数据库名（默认 web_manager_framework）
-#   REDIS_ADDR          Redis 地址（默认 host.docker.internal:6379）
-#   SERVER_PORT         后端映射端口（默认 8088）
-#   WEB_PORT            前端映射端口（默认 80）
-# ============================================================
+# 所有可覆盖项见 .env.example，本文件给出安全的「生产默认值」。
+# ============================================================================
 
 name: web-manager-framework
 
 services:
-  # ── Go 后端 ─────────────────────────────────────────────────
+  # ── Go 后端 ─────────────────────────────────────────────────────────────
   server:
     build:
       context: ./server
-      # Go 模块代理用代理源 goproxy.cn（proxy.golang.org 在本环境不可达）；
-      # 如需官方源可在构建时覆盖：docker compose build --build-arg GOPROXY=https://proxy.golang.org,direct
       args:
+        # Go 模块代理：默认 goproxy.cn（本环境 proxy.golang.org 不可达）。
+        # 生产可连官方源的环境改走 https://proxy.golang.org,direct，或企业私服，
+        # 在 .env 覆盖 GOPROXY。
         GOPROXY: ${GOPROXY:-https://goproxy.cn,direct}
-        # 版本信息注入（监控页「构建时间/提交 Hash」数据源）：
-        # 从 shell 环境或 .env 透传；留空时 Dockerfile 内兜底 ——
-        # BUILD_TIME 自动取构建时刻，VERSION=docker，COMMIT_HASH=unknown。
-        # 推荐入口：server/ 下 `make docker-build`（自动计算三值并传参）。
+        # 版本信息注入（监控页「构建时间/提交 Hash」数据源）。
+        # 生产建议用 CI 或 make docker-build 显式注入；留空走 Dockerfile 兜底。
         VERSION: ${VERSION:-}
         BUILD_TIME: ${BUILD_TIME:-}
         COMMIT_HASH: ${COMMIT_HASH:-}
+    image: ${SERVER_IMAGE:-webmanager/server}:${SERVER_IMAGE_TAG:-latest}
     container_name: wmf-server
     restart: unless-stopped
-    # 环境变量覆盖配置键（viper 点号→下划线，优先级高于配置文件）
+
+    # 环境变量覆盖配置键（viper 点号→下划线，优先级高于 config.docker.yaml）。
+    # 敏感项（DB/Redis 密码）一律经 .env / Secrets 注入，不落入镜像与配置仓库。
     environment:
-      # 容器默认 UTC，会与宿主机（Asia/Shanghai）及宿主 MySQL 差 8 小时；
-      # 设置 TZ 后 time.Now() 与 DSN 的 loc=Local 都对齐到 CST。
-      TZ: Asia/Shanghai
+      # 时区：与宿主机/MySQL/Redis 对齐（日志时间戳、time.Now()、DSN loc=Local）
+      TZ: ${TZ:-Asia/Shanghai}
+
+      # ── 服务 ──
       SERVER_PORT: ${SERVER_PORT:-8088}
+      SERVER_MODE: release                          # 生产强制 release（禁用 swagger/pprof 文档面）
+      SERVER_READTIMEOUT: ${SERVER_READTIMEOUT:-30}
+      SERVER_WRITETIMEOUT: ${SERVER_WRITETIMEOUT:-60}
+      SERVER_IDLETIMEOUT: ${SERVER_IDLETIMEOUT:-60}
+      SERVER_MAXHEADERBYTES: ${SERVER_MAXHEADERBYTES:-1048576}
+      SERVER_DRAINTIMEOUT: ${SERVER_DRAINTIMEOUT:-25}
+      SERVER_CLEANUPTIMEOUT: ${SERVER_CLEANUPTIMEOUT:-5}
+      # ⚠️ 关键安全项：部署在 nginx/SLB 之后必须配置受信任代理网段，
+      # 否则按 IP 的登录限流可被 X-Forwarded-For 伪造绕过。
+      # 单容器反向代理场景填 nginx 所在网段（见 .env.example），由 env 注入。
+      SERVER_TRUSTEDPROXIES: ${SERVER_TRUSTEDPROXIES:-}
+
+      # ── MySQL ──
       DATABASE_HOST: ${DATABASE_HOST:-host.docker.internal}
       DATABASE_PORT: ${DATABASE_PORT:-3306}
-      DATABASE_USER: ${DATABASE_USER:-root}
-      DATABASE_PASSWORD: ${DATABASE_PASSWORD:-password}
+      DATABASE_USER: ${DATABASE_USER:?生产环境必须设置 DATABASE_USER}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:?生产环境必须设置 DATABASE_PASSWORD}
       DATABASE_DBNAME: ${DATABASE_DBNAME:-web_manager_framework}
+      DATABASE_CHARSET: ${DATABASE_CHARSET:-utf8mb4}
+      DATABASE_MAXIDLECONNS: ${DATABASE_MAXIDLECONNS:-10}
+      DATABASE_MAXOPENCONNS: ${DATABASE_MAXOPENCONNS:-100}
+      DATABASE_MAXLIFETIME: ${DATABASE_MAXLIFETIME:-3600}
+      DATABASE_SLOWQUERYTHRESHOLD: ${DATABASE_SLOWQUERYTHRESHOLD:-200}
+      DATABASE_SLOWQUERYLOGENABLED: ${DATABASE_SLOWQUERYLOGENABLED:-true}
+
+      # ── Redis ──
+      REDIS_MODE: ${REDIS_MODE:-single}
       REDIS_ADDR: ${REDIS_ADDR:-host.docker.internal:6379}
-      # REDIS_PASSWORD 留空时不覆盖文件配置（viper 忽略空环境变量）
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}           # 留空=无密码（viper 忽略空值）
+      REDIS_DB: ${REDIS_DB:-0}
+      REDIS_DIALTIMEOUT: ${REDIS_DIALTIMEOUT:-5000}
+      REDIS_READTIMEOUT: ${REDIS_READTIMEOUT:-3000}
+      REDIS_WRITETIMEOUT: ${REDIS_WRITETIMEOUT:-3000}
+
+      # ── 日志（生产推荐 JSON，配合日志采集/告警） ──
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      LOG_FORMAT: ${LOG_FORMAT:-json}
       LOG_OUTPUT: stdout
+      LOG_CALLER: ${LOG_CALLER:-true}
+      LOG_DEVELOPMENT: "false"
+
+      # ── 可观测性（默认关闭；接 OTEL 时在 .env 开启） ──
+      OBSERVABILITY_TRACING_ENABLED: ${OBSERVABILITY_TRACING_ENABLED:-false}
+      OBSERVABILITY_TRACING_ENDPOINT: ${OBSERVABILITY_TRACING_ENDPOINT:-}
+      OBSERVABILITY_TRACING_SAMPLERATE: ${OBSERVABILITY_TRACING_SAMPLERATE:-0.1}
+
     volumes:
-      # docker 专用配置（DB/Redis 走宿主机、日志走 stdout）
+      # 生产配置：以 config.docker.yaml 为基线（DB/Redis 走外部实例、日志 stdout），
+      # 上面 environment 的键逐项覆盖。改配置请编辑该文件后 `docker compose up -d` 重建。
       - ./server/configs/config.docker.yaml:/app/configs/config.yaml:ro
-      # 上传文件持久化:挂到宿主机目录,容器重建/升级不丢数据
-      - ./data/uploads:/app/uploads
+      # 上传文件持久化：挂宿主机目录，容器重建/滚动升级不丢数据。
+      # 生产建议改用命名卷或对象存储（sys.file.backend=s3/minio/oss/cos）见 config.yaml。
+      - uploads-data:/app/uploads
+
     extra_hosts:
-      # Linux 上让容器内的 host.docker.internal 解析到宿主机
+      # Linux 上让容器内 host.docker.internal 解析到宿主机
       - "host.docker.internal:host-gateway"
-    ports:
-      - "${SERVER_PORT:-8088}:8088"
+
+    # 仅暴露到内部网络，不对宿主机直接发布端口——
+    # 生产统一由 web(nginx) 反代 /api，后端不直连外网，缩小攻击面。
+    expose:
+      - "8088"
+
+    # 资源与安全基线（生产建议按真实负载调优）
+    mem_limit: ${SERVER_MEM_LIMIT:-1g}
+    cpus: ${SERVER_CPUS:-1.0}
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:size=64M,mode=1777
+    cap_drop:
+      - ALL
+
+    logging:
+      driver: json-file
+      options:
+        max-size: ${LOG_MAX_SIZE:-50m}
+        max-file: ${LOG_MAX_FILE:-5}
+
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8088/api/v1/health"]
-      interval: 10s
-      timeout: 3s
+      interval: 15s
+      timeout: 5s
       retries: 5
-      start_period: 15s
+      start_period: 30s
 
-  # ── Vue 3 前端（nginx 托管 dist + /api 反代到 server）──────
+    depends_on:
+      # 生产默认不启动 tracing 堆栈；若启用了 OBSERVABILITY_TRACING_ENABLED 并以
+      # 「同 compose 的 Collector」为终点，则等待其就绪后再拉起后端。
+      otel-collector:
+        condition: service_started
+        required: false
+
+    # 加入 tracing 网络，使 server 能以服务名 "otel-collector" 解析、上报 OTLP。
+    # 不启用 tracing 时该网络无任何服务，无副作用。
+    networks:
+      - default
+      - tracing
+
+  # ── Vue 3 前端（nginx 托管 dist + /api 反代 server） ───────────────────
   web:
     build:
       context: ./web
       args:
         NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmmirror.com}
+        # VITE_* 编译期变量：统一由根 .env 覆盖（见 .env.example），
+        # 内联进 dist，nginx 静态托管后不再读取。不设时退回 Dockerfile 默认。
+        VITE_API_URL: ${VITE_API_URL:-/}
+        VITE_BASE_URL: ${VITE_BASE_URL:-/}
+        VITE_VERSION: ${VITE_VERSION:-0.1.0}
+        VITE_API_PREFIX: ${VITE_API_PREFIX:-/api/v1}
+        VITE_ACCESS_MODE: ${VITE_ACCESS_MODE:-backend}
+        VITE_WITH_CREDENTIALS: ${VITE_WITH_CREDENTIALS:-false}
+        VITE_OPEN_ROUTE_INFO: ${VITE_OPEN_ROUTE_INFO:-false}
+        VITE_DROP_CONSOLE: ${VITE_DROP_CONSOLE:-true}
+    image: ${WEB_IMAGE:-webmanager/web}:${WEB_IMAGE_TAG:-latest}
     container_name: wmf-web
     restart: unless-stopped
+
     environment:
-      TZ: Asia/Shanghai  # 与宿主机时区对齐，nginx 日志时间戳一致
+      TZ: ${TZ:-Asia/Shanghai}
+
     depends_on:
       server:
         condition: service_healthy
+        restart: true
+
     ports:
+      # 前端对外唯一入口：仅发布 WEB_PORT。生产通常在更外层接负载均衡 / TLS 网关。
       - "${WEB_PORT:-80}:80"
+
+    mem_limit: ${WEB_MEM_LIMIT:-256m}
+    cpus: ${WEB_CPUS:-0.5}
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx:size=64M,mode=1777
+      - /var/run:size=8M,mode=1777
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE                      # nginx 绑定 80 端口所需
+
+    logging:
+      driver: json-file
+      options:
+        max-size: ${LOG_MAX_SIZE:-50m}
+        max-file: ${LOG_MAX_FILE:-5}
+
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+# ============================================================================
+# 可选：分布式追踪堆栈（OpenTelemetry Collector + Jaeger）
+#
+# ⚠️ 仅按需、临时拉起 —— 用 --profile tracing 显式启用，默认 `docker compose up`
+#    不会启动以下服务，也不影响生产主链路。
+#
+#   docker compose --profile tracing up -d    # 连同 web/server 一起拉起
+#   docker compose --profile tracing up -d otel-collector jaeger   # 只起追踪侧
+#
+# 与后端打通：server 用 OTLP gRPC(Insecure, 端口 4317)出站上报，
+#   所以 .env 里应设置：
+#     OBSERVABILITY_TRACING_ENABLED=true
+#     OBSERVABILITY_TRACING_ENDPOINT=otel-collector:4317   # 注意：裸 host:port，不带 http://
+#   然后 `docker compose up -d` 重建后端即可。
+#   修改生效前先确认上面的 server.depends_on 对 otel-collector 的等待已按需处理。
+# ============================================================================
+
+  # ── OpenTelemetry Collector（OTLP gRPC 4317 入站 → 导出 Jaeger） ──────
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.126.0
+    container_name: wmf-otel-collector
+    profiles: ["tracing"]
+    restart: unless-stopped
+    command: ["--config=/etc/otelcol/config.yaml"]
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+    volumes:
+      # 只读挂入 collector 配置（含 gRPC receiver + Jaeger exporter）
+      - ./deploy/otelcol/config.yaml:/etc/otelcol/config.yaml:ro
+    depends_on:
+      jaeger:
+        condition: service_started
+    # 追踪侧服务走隔离网络（见 networks），不发布公网端口；
+    # 仅对同网络内的 server 暴露 4317。如需跨机/本机调试，取消注释 4317 映射到 localhost。
+    expose:
+      - "4317"      # OTLP gRPC（后端上报端）
+      - "8888"      # collector 自身 metrics（内网监控用）
+    #    ports:
+    #      - "4317:4317"   # 需要从宿主机/其他机器直连 Collector 时再打开
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - tracing
+
+  # ── Jaeger all-in-one（存储 + 查询 UI） ───────────────────────────────
+  jaeger:
+    image: jaegertracing/all-in-one:1.71.0
+    container_name: wmf-jaeger
+    profiles: ["tracing"]
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+      COLLECTOR_OTLP_ENABLED: "true"   # 启用 OTLP gRPC(4317)接收
+    # 14317=gRPC(供 collector 上抽),16686=查询 UI；仅发布 UI 端口供内网查看。
+    # 生产请勿将两者发布到公网（Jaeger 无内置鉴权）。
+    expose:
+      - "14317"     # collector→jaeger 的 gRPC 上抽（内部）
+    ports:
+      - "${JAEGER_UI_PORT:-16686}:16686"
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - tracing
+
+# ── 命名卷：上传文件持久化（升级/重建不丢数据） ────────────────────────────
+volumes:
+  uploads-data:
+    name: wmf-uploads
+
+# ── 网络：追踪堆栈内部隔离（server 经 tracing 网络访问 Collector） ─────────
+# 默认桥接网络仍承载 web↔server 主链路。tracing 网络只服务追踪侧服务，
+# 使 Collector/Jaeger 与业务网络隔离，并让 server 能以服务名 "otel-collector" 解析。
+networks:
+  tracing:
+    name: wmf-tracing
+    driver: bridge
