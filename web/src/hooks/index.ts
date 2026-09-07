@@ -24,3 +24,6 @@ export { useChart, useChartComponent, useChartOps } from './core/useChart'
 
 // 布局高度
 export { useLayoutHeight, useAutoLayoutHeight } from './core/useLayoutHeight'
+
+// 树形表格受控展开（记忆折叠状态）
+export { useTreeExpand } from './core/useTreeExpand'

@@ -43,14 +43,14 @@
       </ArtTableHeader>
 
       <ArtTable
-        ref="tableRef"
         :loading="loading"
         :data="data"
         :columns="columns"
         row-key="id"
         :tree-props="{ children: 'children' }"
-        :default-expand-all="expanded"
+        :expand-row-keys="expandedKeys"
         :indent="22"
+        @expand-change="(_row, rows) => onExpandChange(rows)"
       >
         <template v-if="sortColReady" #sort="{ row }">
           <el-input-number
@@ -74,6 +74,7 @@
   import { ElMessage, ElMessageBox, ElTag } from 'element-plus'
   import { useTableColumns } from '@/hooks/core/useTableColumns'
   import { useDict } from '@/hooks/core/useDict'
+  import { useTreeExpand } from '@/hooks/core/useTreeExpand'
   import ArtSvgIcon from '@/components/core/base/art-svg-icon/index.vue'
   import ArtButtonTable from '@/components/core/forms/art-button-table/index.vue'
   import { fetchMenus, removeMenu, updateMenuSort } from '../api'
@@ -85,7 +86,6 @@
   const loading = ref(false)
   const data = ref<Api.System.Menu[]>([])
   const dialog = ref<InstanceType<typeof MenuDialog>>()
-  const tableRef = ref()
   const sortColReady = ref(true)
 
   const statusDict = useDict('sys_menu_status', { numeric: true })
@@ -94,10 +94,13 @@
   // 类型可视化：目录=primary、菜单=success、按钮=warning（对齐 RuoYi）。
   const typeMeta = MENU_TYPE_META
 
+  // 树形展开状态（受控 + 记忆折叠，见 useTreeExpand）。
+  const { expandedKeys, expanded, initExpanded, onExpandChange, toggleExpandAll } =
+    useTreeExpand(data)
+
   // 搜索表单
   const searchForm = ref<{ name?: string; status?: number; type?: string }>({})
   const showSearchBar = ref(false)
-  const expanded = ref(true)
 
   const searchItems = computed(() => [
     {
@@ -142,6 +145,8 @@
         visibleDict.ensure()
       ])
       data.value = list
+      // 首次加载：默认全展开（由 useTreeExpand 记录）；此后保持用户手动折叠状态。
+      initExpanded()
       resetSortDirty()
     } finally {
       loading.value = false
@@ -177,21 +182,6 @@
     await removeMenu(row.id)
     ElMessage.success('已删除')
     await loadList()
-  }
-
-  function toggleExpandAll() {
-    const table = tableRef.value?.elTableRef
-    if (!table) return
-    const rows: Api.System.Menu[] = []
-    const collect = (list: Api.System.Menu[]) =>
-      list.forEach((n) => {
-        rows.push(n)
-        if (n.children?.length) collect(n.children)
-      })
-    collect(data.value)
-    const next = !expanded.value
-    rows.forEach((row) => table.toggleRowExpansion(row, next))
-    expanded.value = next
   }
 
   // —— 行内排序编辑 + 批量保存(有改动时出现,计数逻辑同角色管理) ——

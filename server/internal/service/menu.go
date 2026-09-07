@@ -341,7 +341,12 @@ func (s *MenuService) buildMenuTree(menus []entity.SysMenu) []response.MenuResp 
 		return result
 	}
 
-	return build(0)
+	// 顶层兜底：空树返回 [] 而非 nil，避免 Go 将 nil slice 序列化为 JSON null。
+	root := build(0)
+	if root == nil {
+		return []response.MenuResp{}
+	}
+	return root
 }
 
 // isDescendant returns true if descendantID is (transitively) a descendant of ancestorID

@@ -303,5 +303,11 @@ func (s *DeptService) buildDeptTree(depts []entity.SysDept) []response.DeptResp 
 		return result
 	}
 
-	return build(0)
+	// 顶层兜底：空树返回 [] 而非 nil，避免 Go 将 nil slice 序列化为 JSON null，
+	// 导致前端消费方（如通知公告的部门下拉）对 null 调 .map 崩溃。
+	root := build(0)
+	if root == nil {
+		return []response.DeptResp{}
+	}
+	return root
 }

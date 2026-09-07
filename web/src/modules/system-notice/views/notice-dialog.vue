@@ -216,8 +216,10 @@
 
   async function loadSupportOptions() {
     const [roles, depts] = await Promise.all([fetchAllRoles(), fetchDepts()])
-    roleOptions.value = roles.map((r) => ({ value: r.id, label: r.name }))
-    deptTree.value = buildDeptTree(depts)
+    // 防御性兜底：后端空数据时理论上应返回 []，但若异常返回 null，
+    // 这里归一化为空数组，避免后续 .map 对 null 崩溃。
+    roleOptions.value = (roles ?? []).map((r) => ({ value: r.id, label: r.name }))
+    deptTree.value = buildDeptTree(depts ?? [])
   }
 
   function buildDeptTree(depts: Api.System.Dept[]): any[] {
@@ -246,8 +248,8 @@
           label: u.realName ? `${u.realName}（${u.username}）` : u.username
         })
       }
-      byName.list.forEach(push)
-      byReal.list.forEach(push)
+      ;(byName?.list ?? []).forEach(push)
+      ;(byReal?.list ?? []).forEach(push)
       userOptions.value = merged
     } finally {
       userLoading.value = false
@@ -295,7 +297,7 @@
       targetUserIds.value = arr
       if (arr.length) {
         const rows = await fetchNoticeTargetUsers(arr.join(','))
-        userOptions.value = rows.map((u) => ({
+        userOptions.value = (rows ?? []).map((u) => ({
           value: u.id,
           label: u.realName ? `${u.realName}（${u.username}）` : u.username
         }))
