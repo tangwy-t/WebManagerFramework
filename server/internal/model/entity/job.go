@@ -15,7 +15,6 @@ type SysJob struct {
 	Remark         *string `gorm:"column:remark;size:512"                    json:"remark"`
 }
 
-// Deprecated: Use dict service FindDataByCode(ctx, "sys_job_status") / "sys_job_concurrent" instead.
 // Kept for backward compatibility.
 const (
 	JobStatusEnabled        int8 = 1

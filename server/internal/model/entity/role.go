@@ -12,7 +12,6 @@ type SysRole struct {
 	Depts     []SysDept `gorm:"many2many:sys_role_dept;joinForeignKey:role_id;joinReferences:dept_id" json:"depts,omitempty"`
 }
 
-// Deprecated: Use dict service FindDataByCode(ctx, "sys_role_status") instead.
 // Kept for backward compatibility.
 const (
 	RoleStatusEnabled  int8 = 1

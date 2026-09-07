@@ -18,7 +18,6 @@ type SysNotice struct {
 	TargetIDs  string `gorm:"column:target_ids;size:2048;not null;default:''" json:"targetIds"`
 }
 
-// Deprecated: Use dict service FindDataByCode(ctx, "sys_notice_status") / "sys_notice_type" / "sys_notice_priority" / "sys_notice_publish_type" instead.
 // Kept for backward compatibility.
 const (
 	NoticeStatusDraft       int8 = 0

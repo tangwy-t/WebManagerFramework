@@ -8,7 +8,6 @@ type SysDictType struct {
 	Remark *string `gorm:"column:remark;size:512"       json:"remark"`
 }
 
-// Deprecated: Use dict service FindDataByCode(ctx, "sys_dict_status") instead.
 // Kept for backward compatibility.
 const (
 	DictTypeStatusEnabled  int8 = 1

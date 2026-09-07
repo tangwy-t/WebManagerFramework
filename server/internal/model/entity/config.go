@@ -10,7 +10,6 @@ type SysConfig struct {
 	Status      *int8   `gorm:"column:status;default:1"              json:"status"`
 }
 
-// Deprecated: Use dict service FindDataByCode(ctx, "sys_config_status") instead.
 // Kept for backward compatibility.
 const (
 	ConfigStatusEnabled  int8 = 1

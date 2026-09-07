@@ -24,7 +24,6 @@ type SysUser struct {
 	Roles         []SysRole  `gorm:"many2many:sys_user_role;joinForeignKey:user_id;joinReferences:role_id"                json:"roles,omitempty"`
 }
 
-// Deprecated: Use dict service FindDataByCode(ctx, "sys_normal_disable") instead.
 // Kept for backward compatibility.
 const (
 	UserStatusEnabled  int8 = 1

@@ -15,7 +15,6 @@ type SysDept struct {
 	Children  []*SysDept `gorm:"-"                              json:"children,omitempty"`
 }
 
-// Deprecated: Use dict service FindDataByCode(ctx, "sys_dept_status") instead.
 // Kept for backward compatibility.
 const (
 	DeptStatusEnabled  int8 = 1

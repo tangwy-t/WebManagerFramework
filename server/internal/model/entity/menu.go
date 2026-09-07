@@ -17,7 +17,6 @@ type SysMenu struct {
 	Children  []*SysMenu `gorm:"-"                              json:"children,omitempty"`
 }
 
-// Deprecated: Use dict service FindDataByCode(ctx, "sys_menu_status") / "sys_show_hide" instead.
 // Kept for backward compatibility.
 const (
 	MenuStatusEnabled  int8 = 1

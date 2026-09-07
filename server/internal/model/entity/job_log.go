@@ -16,7 +16,6 @@ type SysJobLog struct {
 	ErrorMsg     *string    `gorm:"column:error_msg;size:1024"               json:"errorMsg"`
 }
 
-// Deprecated: Use dict service FindDataByCode(ctx, "sys_job_log_trigger") / "sys_job_log_status" instead.
 // Kept for backward compatibility.
 const (
 	JobLogTriggerCron   int8 = 1 // 定时触发
