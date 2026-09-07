@@ -16,7 +16,8 @@ type Task interface {
 }
 
 // ParamValidator 可选接口：支持参数校验的 Task 实现此接口。
-// Scheduler 在创建/更新任务时通过 type assertion 检查并使用。
+// Registry.List 据此将目标标记为带参数(hasParams)；创建/更新任务时可
+// type assertion 取得该接口做服务端参数校验。
 type ParamValidator interface {
 	ValidateParams(params json.RawMessage) error
 }

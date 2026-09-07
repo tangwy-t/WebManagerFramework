@@ -27,14 +27,15 @@
 
       <!-- 可视化生成器 -->
       <template v-else-if="mode === 'visual'">
-        <div class="visual-row">
+        <div class="pattern-row">
           <ElSelect v-model="sub.pattern" class="pattern-select" aria-label="调度模式">
             <ElOption label="每 N 时间单位" value="interval" />
             <ElOption label="每日指定时刻" value="daily" />
             <ElOption label="每周指定几日" value="weekly" />
             <ElOption label="每月指定日期" value="monthly" />
           </ElSelect>
-
+        </div>
+        <div class="visual-row">
           <template v-if="sub.pattern === 'interval'">
             <span class="inline-label">每</span>
             <ElInputNumber
@@ -60,7 +61,7 @@
                 multiple
                 collapse-tags
                 collapse-tags-tooltip
-                :max-collapse-tags="2"
+                :max-collapse-tags="1"
                 class="days-select"
                 aria-label="星期"
               >
@@ -230,45 +231,54 @@
     }
   }
 
-  /** 解析已有表达式，尽量还原到可视化子模型（还原不了时落入表达式模式） */
-  function derive(expr: string): { mode: CronMode; sub?: Partial<VisualSub> } {
-    const t = expr.trim()
-    if (!t) return { mode: 'quick' }
-    if (CRON_PRESETS.some((p) => p.value === t)) return { mode: 'quick' }
+  /** 仅按可视化正则还原子模型（跳过快捷预设短路，供切换到可视化时对齐） */
+  function deriveVisualSub(t: string): Partial<VisualSub> | undefined {
     let m: RegExpMatchArray | null
     if ((m = t.match(/^\*\/(\d+) \* \* \* \* \*$/))) {
-      return { mode: 'visual', sub: { pattern: 'interval', unit: 'sec', n: Number(m[1]) } }
+      return { pattern: 'interval', unit: 'sec', n: Number(m[1]) }
     }
     if ((m = t.match(/^0 \*\/(\d+) \* \* \* \*$/))) {
-      return { mode: 'visual', sub: { pattern: 'interval', unit: 'min', n: Number(m[1]) } }
+      return { pattern: 'interval', unit: 'min', n: Number(m[1]) }
     }
     if ((m = t.match(/^0 0 \*\/(\d+) \* \* \*$/))) {
-      return { mode: 'visual', sub: { pattern: 'interval', unit: 'hour', n: Number(m[1]) } }
+      return { pattern: 'interval', unit: 'hour', n: Number(m[1]) }
     }
     if ((m = t.match(/^0 (\d{1,2}) (\d{1,2}) \* \* \*$/))) {
-      return { mode: 'visual', sub: { pattern: 'daily', minute: Number(m[1]), hour: Number(m[2]) } }
+      return { pattern: 'daily', minute: Number(m[1]), hour: Number(m[2]) }
     }
     const wk = t.match(/^0 (\d{1,2}) (\d{1,2}) \* \* ([0-7](?:,[0-7])*)$/)
     if (wk) {
       return {
-        mode: 'visual',
-        sub: {
-          pattern: 'weekly',
-          minute: Number(wk[1]),
-          hour: Number(wk[2]),
-          days: wk[3].split(',').map(Number)
-        }
+        pattern: 'weekly',
+        minute: Number(wk[1]),
+        hour: Number(wk[2]),
+        days: wk[3].split(',').map(Number)
       }
     }
     const mo = t.match(/^0 (\d{1,2}) (\d{1,2}) (\d{1,2}) \* \*$/)
     if (mo) {
       return {
-        mode: 'visual',
-        sub: { pattern: 'monthly', minute: Number(mo[1]), hour: Number(mo[2]), dom: Number(mo[3]) }
+        pattern: 'monthly',
+        minute: Number(mo[1]),
+        hour: Number(mo[2]),
+        dom: Number(mo[3])
       }
     }
-    return { mode: 'expr' }
+    return undefined
   }
+
+  /** 解析已有表达式，尽量还原到可视化子模型（还原不了时落入表达式模式） */
+  function derive(expr: string): { mode: CronMode; sub?: Partial<VisualSub> } {
+    const t = expr.trim()
+    if (!t) return { mode: 'quick' }
+    if (CRON_PRESETS.some((p) => p.value === t)) return { mode: 'quick' }
+    const sub = deriveVisualSub(t)
+    return sub ? { mode: 'visual', sub } : { mode: 'expr' }
+  }
+
+  /** 组件内部主动上抛的表达式：父级回传同值时跳过模式回推，
+   *  避免同名快捷预设（如「每 5 分钟」）把可视化模式拉回快捷页 */
+  let selfEmitted: string | null = null
 
   /** 父级值变化 → 还原模式与可视化子模型（编辑回填/预设应用） */
   watch(
@@ -276,11 +286,38 @@
     (val) => {
       const t = val ?? ''
       exprText.value = t
+      // 内部上抛的回传：保持当前编辑模式，不回推
+      if (selfEmitted !== null && selfEmitted === t) {
+        selfEmitted = null
+        return
+      }
       const d = derive(t)
       mode.value = d.mode
       if (d.sub) Object.assign(sub, d.sub)
     },
     { immediate: true }
+  )
+
+  /** 切到可视化模式：有表达式时把子模型对齐到该表达式（含快捷预设）；
+   *  为空则立即按当前子模型生成默认表达式。sync flush 保证在表单项
+   *  change 校验触发前生效，避免“明明有值却提示请填写执行周期” */
+  watch(
+    mode,
+    (m) => {
+      if (m !== 'visual') return
+      const current = (props.modelValue ?? '').trim()
+      if (current) {
+        const visualSub = deriveVisualSub(current)
+        if (visualSub) Object.assign(sub, visualSub)
+        return
+      }
+      const expr = buildFromSub()
+      if (expr) {
+        selfEmitted = expr
+        emit('update:modelValue', expr)
+      }
+    },
+    { flush: 'sync' }
   )
 
   /** 可视化子模型变化 → 生成表达式上抛 */
@@ -289,14 +326,20 @@
     () => {
       if (mode.value !== 'visual') return
       const expr = buildFromSub()
-      if (expr && expr !== props.modelValue) emit('update:modelValue', expr)
+      if (expr && expr !== props.modelValue) {
+        selfEmitted = expr
+        emit('update:modelValue', expr)
+      }
     },
     { deep: true }
   )
 
   /** 表达式模式输入 → 上抛 */
   watch(exprText, (val) => {
-    if (mode.value === 'expr' && val !== props.modelValue) emit('update:modelValue', val)
+    if (mode.value === 'expr' && val !== props.modelValue) {
+      selfEmitted = val
+      emit('update:modelValue', val)
+    }
   })
 
   /** 快捷预设应用 */
@@ -380,8 +423,12 @@
     white-space: nowrap;
   }
 
+  .pattern-row {
+    margin-bottom: 8px;
+  }
+
   .pattern-select {
-    width: 150px;
+    width: 100%;
   }
 
   .unit-select {
@@ -389,11 +436,11 @@
   }
 
   .days-select {
-    width: 200px;
+    width: 132px;
   }
 
   .num-input {
-    width: 110px;
+    width: 88px;
   }
 
   .visual-tip {

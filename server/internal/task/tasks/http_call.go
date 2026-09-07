@@ -146,7 +146,7 @@ func (t *HTTPCallTask) ParamSchema() map[string]any {
 			"url":     map[string]any{"type": "string", "title": "请求 URL", "description": "目标 HTTP 地址"},
 			"method":  map[string]any{"type": "string", "title": "请求方法", "enum": []string{"GET", "POST"}, "default": "GET"},
 			"headers": map[string]any{"type": "object", "title": "请求头"},
-			"body":    map[string]any{"type": "string", "title": "请求体"},
+			"body":    map[string]any{"type": "string", "title": "请求体", "multiline": true},
 		},
 		"required": []string{"url"},
 	}

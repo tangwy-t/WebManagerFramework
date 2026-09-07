@@ -82,9 +82,11 @@
             >
               <ElOption v-for="e in def.enum" :key="e" :label="e" :value="e" />
             </ElSelect>
-            <!-- string → 输入 -->
+            <!-- string → 输入（multiline 标记时渲染为多行 textarea） -->
             <ElInput
               v-else-if="def.type === 'string'"
+              :type="def.multiline ? 'textarea' : 'text'"
+              :rows="def.multiline ? 4 : undefined"
               :model-value="model[def.key]"
               :placeholder="def.description || (isUrl(def.key) ? 'https://' : '')"
               @update:model-value="(v) => setField(def.key, v)"
@@ -155,6 +157,7 @@
     enum?: string[]
     default?: unknown
     required?: boolean
+    multiline?: boolean
   }
 
   const { targets, ensure } = useJobTargets()
@@ -163,6 +166,15 @@
   const rawError = ref('')
   const paramsError = ref('')
   const model = ref<Record<string, any>>({})
+
+  // KV 行编辑器（type: object 的字段）：以"行"为单位维护，包含尚未填写 key 的
+  // 临时行。临时行无法放进 JSON（空 key 无意义），故与 model/params 分离存储，
+  // 提交到 model 时只保留已填写 key 的行。否则 addKvRow 追加的 { k: '', v: '' }
+  // 会被 writeKv 的空 key 过滤直接丢弃，页面上点击"添加"毫无反应。
+  const kvRowsState = reactive<Record<string, { k: string; v: string }[]>>({})
+  // 最近一次主动上抛的 params，用于识别"自己 emit 的回声"：
+  // 回声不应重建 kv 行状态（否则会把刚添加、尚未填 key 的临时行清掉）。
+  const lastEmittedParams = ref<string | null>(null)
 
   const selectedInfo = computed(() => targets.value.find((t) => t.target === props.target))
   const unknownTarget = computed(() => !!props.target && !selectedInfo.value)
@@ -196,7 +208,8 @@
         description: def.description,
         enum: Array.isArray(def.enum) ? def.enum.map(String) : undefined,
         default: def.default,
-        required: required.includes(key)
+        required: required.includes(key),
+        multiline: def.multiline === true
       }
     })
   })
@@ -248,7 +261,11 @@
         ensureRawText()
         return
       }
+      // 外部回填（编辑/目标切换）才重建模型与 KV 行；自己上抛 params 触发的
+      // 回声只更新模型，避免清掉正在编辑的临时 KV 行。
+      const isEcho = val != null && val === lastEmittedParams.value
       model.value = withDefaults(parseModel(val ?? ''))
+      if (!isEcho) syncKvFromModel()
       ensureRawText()
       paramsError.value = ''
     },
@@ -274,6 +291,7 @@
       )
     }
     model.value = obj
+    syncKvFromModel()
     const nextParams = next?.hasParams ? serialize(obj) : ''
     emit('update:target', v)
     rawMode.value = false
@@ -312,44 +330,55 @@
     return /url/i.test(key)
   }
 
-  /** KV 行编辑器（type: object 且值为对象） */
+  /** KV 行编辑器（type: object 且值为对象）。返回的数组引用会被模板 v-for 消费 */
   function kvRows(key: string): Array<{ k: string; v: string }> {
-    const obj = model.value[key]
-    if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return []
-    return Object.entries(obj as Record<string, unknown>).map(([k, v]) => ({
-      k,
-      v: typeof v === 'string' ? v : stringifyField(v)
-    }))
+    if (!kvRowsState[key]) kvRowsState[key] = []
+    return kvRowsState[key]
   }
 
-  function writeKv(key: string, rows: Array<{ k: string; v: string }>) {
+  /** 把已填写 key 的行提交到 model 并上抛参数（空 key 的临时行不进入 model） */
+  function commitKv(key: string) {
     const obj: Record<string, string> = {}
-    for (const r of rows) {
+    for (const r of kvRowsState[key] ?? []) {
       if (r.k.trim()) obj[r.k.trim()] = r.v
     }
     setField(key, obj)
   }
 
+  /** model（外部回填 / 目标切换 / 默认值）→ 重建 object 字段的行状态 */
+  function syncKvFromModel() {
+    for (const def of schemaProps.value) {
+      if (def.type !== 'object') continue
+      const obj = model.value[def.key]
+      kvRowsState[def.key] =
+        obj && typeof obj === 'object' && !Array.isArray(obj)
+          ? Object.entries(obj as Record<string, unknown>).map(([k, v]) => ({
+              k,
+              v: typeof v === 'string' ? v : stringifyField(v)
+            }))
+          : []
+    }
+  }
+
   function addKvRow(key: string) {
-    writeKv(key, [...kvRows(key), { k: '', v: '' }])
+    kvRows(key).push({ k: '', v: '' })
   }
 
   function removeKvRow(key: string, index: number) {
-    const rows = [...kvRows(key)]
-    rows.splice(index, 1)
-    writeKv(key, rows)
+    kvRows(key).splice(index, 1)
+    commitKv(key)
   }
 
   function setKvKey(key: string, index: number, v: string) {
-    const rows = [...kvRows(key)]
-    rows[index] = { ...rows[index], k: v }
-    writeKv(key, rows)
+    const row = kvRows(key)[index]
+    if (row) kvRowsState[key][index] = { ...row, k: v }
+    commitKv(key)
   }
 
   function setKvValue(key: string, index: number, v: string) {
-    const rows = [...kvRows(key)]
-    rows[index] = { ...rows[index], v }
-    writeKv(key, rows)
+    const row = kvRows(key)[index]
+    if (row) kvRowsState[key][index] = { ...row, v }
+    commitKv(key)
   }
 
   /** 高级 JSON 模式：解析合法后上抛 */
@@ -384,7 +413,10 @@
   })
 
   function emitParams(v: string) {
-    if (v !== props.params) emit('update:params', v)
+    if (v !== props.params) {
+      lastEmittedParams.value = v
+      emit('update:params', v)
+    }
   }
 
   /** 供表单规则调用 */

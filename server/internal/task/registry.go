@@ -52,7 +52,11 @@ func (r *Registry) List() []TargetInfo {
 		if _, ok := t.(ParamValidator); ok {
 			info.HasParams = true
 		}
+		// 目标"带参数"不能只看 ParamValidator：只提供 paramSchema 而不实现
+		// 参数校验的任务（如 http-call）同样带参数。此前漏判导致 hasParams=false，
+		// 前端据此隐藏整个参数区，paramSchema 驱动的动态表单无法渲染。
 		if ps, ok := t.(ParamSchemaProvider); ok {
+			info.HasParams = true
 			info.ParamSchema = ps.ParamSchema()
 		}
 		result = append(result, info)

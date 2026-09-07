@@ -298,7 +298,6 @@
 <style scoped>
   .job-form {
     max-height: 60vh;
-    padding-right: 8px;
     overflow-y: auto;
   }
 
