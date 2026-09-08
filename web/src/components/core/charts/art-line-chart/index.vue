@@ -44,7 +44,12 @@
     // 交互配置
     showTooltip: true,
     showLegend: false,
-    legendPosition: 'bottom'
+    legendPosition: 'bottom',
+
+    // 缩放配置（inside 型 dataZoom）
+    showDataZoom: false,
+    dataZoomStart: 0,
+    dataZoomEnd: 100
   })
 
   // 动画状态管理
@@ -247,6 +252,19 @@
     // 出现左右翻页箭头滑动浏览(装得下时与普通图例无差别)
     if (props.showLegend && isMultipleData.value) {
       options.legend = { ...getLegendStyle(props.legendPosition), type: 'scroll' }
+    }
+
+    // 数据缩放:inside 型 dataZoom,支持鼠标框选放大、滚轮缩放、放大后拖拽平移。
+    // 只对 x 轴(时间轴)生效;实时轮询场景下不锁定默认窗口,让用户可自由回看。
+    if (props.showDataZoom) {
+      const sharedZoom = {
+        type: 'inside' as const,
+        xAxisIndex: 0,
+        start: props.dataZoomStart,
+        end: props.dataZoomEnd,
+        minValueSpan: 0
+      }
+      options.dataZoom = [sharedZoom]
     }
 
     // 生成系列数据

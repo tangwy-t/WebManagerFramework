@@ -165,6 +165,12 @@ export interface LineChartProps extends BaseChartProps, AxisDisplayProps, Intera
   animationDelay?: number
   /** 增量模式：数据更新时不清零重播开场动画，直接平滑过渡（适合实时轮询场景） */
   live?: boolean
+  /** 是否显示数据缩放控件（inside 型：鼠标框选放大 + 滚轮缩放 + 拖拽平移） */
+  showDataZoom?: boolean
+  /** 数据缩放初始开始位置（百分比 0-100） */
+  dataZoomStart?: number
+  /** 数据缩放初始结束位置（百分比 0-100） */
+  dataZoomEnd?: number
 }
 
 // 雷达图数据项接口

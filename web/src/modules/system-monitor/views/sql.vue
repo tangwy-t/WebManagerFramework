@@ -129,6 +129,7 @@
               :smooth="false"
               :loading="loading && !stats"
               :live="true"
+              :show-data-zoom="true"
             />
           </div>
 
@@ -225,6 +226,7 @@
               :smooth="false"
               :loading="loading && !stats"
               :live="true"
+              :show-data-zoom="true"
             />
           </div>
         </div>

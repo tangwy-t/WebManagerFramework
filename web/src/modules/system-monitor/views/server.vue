@@ -283,6 +283,7 @@
               :smooth="false"
               :loading="historyLoading && !historyData"
               :live="true"
+              :show-data-zoom="true"
             />
             <div v-if="!trendSeries.length && historyData && !historyLoading" class="sv-panel-empty">
               请选择至少一个指标，或等待采样…
