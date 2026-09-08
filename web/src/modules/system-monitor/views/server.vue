@@ -833,7 +833,7 @@
     const chips: { icon: string; text: string }[] = []
     if (host?.hostname) chips.push({ icon: 'ri:computer-line', text: host.hostname })
     if (host?.os) chips.push({ icon: 'ri:terminal-box-line', text: [host.os, host.platformVersion].filter(Boolean).join(' · ') })
-    if (srv?.version) chips.push({ icon: 'ri:information-line', text: `v${srv.version}` })
+    if (srv?.version) chips.push({ icon: 'ri:information-line', text: `${srv.version}` })
     return chips
   })
 
