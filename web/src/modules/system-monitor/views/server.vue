@@ -404,6 +404,7 @@
   import type { LineDataItem } from '@/types/component/chart'
   import { fetchServerHistory, fetchServerStats } from '../api'
   import type { ServerHistory, ServerHistoryPoint } from '../api'
+  import { buildSparkSeries } from '../composables/use-spark-series'
 
   defineOptions({ name: 'MonitorServer' })
 
@@ -432,8 +433,7 @@
 
   type MetricKey = (typeof METRICS)[number]['key']
 
-  /** KPI sparkline 专用固定窗口：与旧客户端 10s×60 点语义一致 */
-  const SPARK_PARAMS = { window: '10m', step: '10s' } as const
+  /** KPI 迷你趋势:由历史桶尾派生(单一数据源),语义恒定 ≈ 最近 10 分钟 */
 
   interface SparkResult {
     line: string
@@ -456,7 +456,6 @@
   const loading = ref(false)
   const stats = ref<Api.Monitor.ServerStats | null>(null)
   const historyData = ref<ServerHistory | null>(null)
-  const sparkData = ref<ServerHistory | null>(null)
   const historyLoading = ref(false)
   const autoRefresh = ref(true)
   const updatedAt = ref<Date | null>(null)
@@ -464,7 +463,6 @@
   const selectedMetrics = ref<MetricKey[]>(['cpu', 'memSys'])
   let loadSeq = 0
   let historySeq = 0
-  let sparkSeq = 0
   let timer: number | undefined
 
   // ---------- 数据加载（seq 守卫丢弃过期响应） ----------
@@ -500,20 +498,10 @@
     }
   }
 
-  async function loadSpark() {
-    // KPI 迷你趋势数据：失败静默，卡片数值不受影响
-    const seq = ++sparkSeq
-    try {
-      const data = await fetchServerHistory({ ...SPARK_PARAMS })
-      if (seq !== sparkSeq) return
-      sparkData.value = data
-    } catch {
-      /* 静默：保留上一次的 sparkline */
-    }
-  }
-
   async function loadAll(silent = false) {
-    await Promise.all([loadStats(silent), loadHistory(silent), loadSpark()])
+    // 单一数据源:趋势图与 KPI 迷你趋势同源,迷你趋势由桶尾派生,
+    // 不再对 /monitor/server/history 发起第二份(10m)请求。
+    await Promise.all([loadStats(silent), loadHistory(silent)])
   }
 
   function switchRange(key: (typeof RANGES)[number]['key']) {
@@ -838,17 +826,12 @@
   })
 
   // ---------- KPI 磁贴（合计 6 项，颜色取自全局主色板） ----------
-  /** 从 spark 桶中提取某指标的数值序列（缺值向前填充，跳过无数据前缀） */
+  /** 从历史桶尾派生某指标的迷你趋势序列(窗口 ≈ SPARK_WINDOW_SECONDS) */
   // 'uptime' 不在趋势指标 chips 中,但 KPI 运行时长卡片的迷你趋势仍需要它
   function seriesOf(key: MetricKey | 'uptime'): number[] {
-    const out: number[] = []
-    let prev: number | undefined
-    for (const b of sparkData.value?.buckets ?? []) {
-      const v = b[key]
-      if (typeof v === 'number' && Number.isFinite(v)) prev = v
-      if (prev !== undefined) out.push(prev)
-    }
-    return out
+    const h = historyData.value
+    if (!h || !h.step_seconds) return []
+    return buildSparkSeries(h.buckets, h.step_seconds, key)
   }
 
   const kpis = computed<KpiTile[]>(() => {
