@@ -1,0 +1,84 @@
+/** system-monitor · cache 域 API/类型。契约随后端 OpenAPI(snake_case),与后端 response/dto 对齐 */
+import request from '@/utils/http'
+
+const PREFIX = import.meta.env.VITE_API_PREFIX
+
+/** 分页后的缓存 value 响应（后端 response.CacheValuePage，snake_case JSON 字段） */
+export interface CacheValuePage {
+  key: string
+  type: string
+  ttl: number
+  total: number
+  start: number
+  has_more: boolean
+  /** set/hash 续扫游标：后端 json:",string" 编码，防 JS 大整数精度丢失 */
+  next_cursor: string
+  truncated: boolean
+  value: unknown
+}
+
+/** zset 成员条目 */
+export interface ZSetEntry {
+  member: string
+  score: number
+}
+
+/** hash 字段条目 */
+export interface HashEntry {
+  field: string
+  value: string
+}
+
+/** 分页取值参数：list/zset 用 offset+limit；set/hash 用 cursor+limit；string 用 limit 字节窗 */
+export interface FetchPageOptions {
+  key: string
+  offset?: number
+  limit?: number
+  /** 首页请求传 0，续扫回传响应字符串 */
+  cursor?: string | number
+}
+
+export type FetchPage = (params: FetchPageOptions) => Promise<CacheValuePage>
+
+
+/** 缓存 key 列表查询参数 */
+export interface CacheKeysParams {
+  prefix?: string
+  cursor?: number
+  count?: number
+}
+
+/** 单个缓存 key（含 Redis 值类型） */
+export interface CacheKeyInfo {
+  key: string
+  type: string
+}
+
+/** 缓存 key 列表响应 */
+export interface CacheKeysResult {
+  keys: CacheKeyInfo[]
+  cursor: string
+}
+
+/** 批量删除缓存参数 */
+export interface DeleteCacheKeysParams {
+  prefix?: string
+  maxCount?: number
+}
+/** 缓存 key 列表 */
+export function fetchCacheKeys(params: CacheKeysParams) {
+  return request.get<CacheKeysResult>({ url: `${PREFIX}/monitor/cache/keys`, params })
+}
+
+/** 分页查询单个缓存 key 的 value（list/zset: offset+limit 分页；set/hash: cursor+limit 游标；string: limit 字节窗） */
+export function fetchCacheValuePage(params: FetchPageOptions) {
+  return request.get<CacheValuePage>({
+    url: `${PREFIX}/monitor/cache/keys/value`,
+    params
+  })
+}
+
+/** 按前缀批量删除缓存 key */
+export function deleteCacheKeys(params: DeleteCacheKeysParams) {
+  return request.del<{ deleted: number }>({ url: `${PREFIX}/monitor/cache/keys`, params })
+}
