@@ -1,7 +1,6 @@
 package database
 
 import (
-	"context"
 	"reflect"
 	"sync/atomic"
 
@@ -12,14 +11,11 @@ import (
 	"gorm.io/gorm/schema"
 )
 
-// userIDCtxKey is the context key used to extract the authenticated user ID.
-// It references contextkeys.UserID — the canonical key written by the auth
-// middleware and ws clients — so GORM audit callbacks stay decoupled from the
-// transport layer.
-var userIDCtxKey = contextkeys.UserID
-
 // Callbacks holds the snowflake Node for GORM callback ID generation.
 // Created once at startup; the node is stored atomically for safe concurrent access.
+// Audit callbacks read the authenticated user via contextkeys.UserIDFromCtx —
+// the same key written by the auth middleware and ws clients — which keeps
+// the GORM callback layer decoupled from the transport layer.
 type Callbacks struct {
 	node atomic.Pointer[sf.Node]
 }
@@ -86,7 +82,7 @@ func (c *Callbacks) setID(db *gorm.DB, node *sf.Node, rv reflect.Value) {
 }
 
 func (c *Callbacks) setCreateAudit(db *gorm.DB) {
-	userID, ok := c.userIDFromContext(db.Statement.Context)
+	userID, ok := contextkeys.UserIDFromCtx(db.Statement.Context)
 	if !ok {
 		return
 	}
@@ -95,7 +91,7 @@ func (c *Callbacks) setCreateAudit(db *gorm.DB) {
 }
 
 func (c *Callbacks) setUpdateAudit(db *gorm.DB) {
-	userID, ok := c.userIDFromContext(db.Statement.Context)
+	userID, ok := contextkeys.UserIDFromCtx(db.Statement.Context)
 	if !ok {
 		return
 	}
@@ -112,11 +108,6 @@ func (c *Callbacks) setUpdateAudit(db *gorm.DB) {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────
-
-func (c *Callbacks) userIDFromContext(ctx context.Context) (uint64, bool) {
-	id, ok := ctx.Value(userIDCtxKey).(uint64)
-	return id, ok
-}
 
 func (c *Callbacks) setField(db *gorm.DB, fieldName string, value uint64) *schema.Field {
 	field := c.lookupField(db, fieldName)
