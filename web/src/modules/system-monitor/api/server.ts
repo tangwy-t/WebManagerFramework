@@ -16,28 +16,11 @@ export interface ServerHistoryParams {
   step: string
 }
 
-/** 服务器监控历史采样桶(绝对时间对齐) */
-export interface ServerHistoryPoint {
-  /** 桶起始时间 */
-  timestamp: string
-  cpu: number | null
-  memSys: number | null
-  heapAlloc: number | null
-  sysMem: number | null
-  goroutines: number | null
-  gcNum: number | null
-  gcPauseMs: number | null
-  disk: number | null
-  load1: number | null
-  uptime: number | null
-}
+/** 服务器监控历史采样桶 → Api.Monitor.ServerHistoryPoint(api.generated.d.ts 为唯一事实源) */
+export type ServerHistoryPoint = Api.Monitor.ServerHistoryPoint
 
-/** 服务器监控历史查询结果 */
-export interface ServerHistory {
-  window_seconds: number
-  step_seconds: number
-  buckets: ServerHistoryPoint[]
-}
+/** 服务器监控历史查询结果 → Api.Monitor.ServerHistorySnapshot */
+export type ServerHistory = Api.Monitor.ServerHistorySnapshot
 
 /** 服务器监控历史时序 */
 export function fetchServerHistory(params: ServerHistoryParams) {

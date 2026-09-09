@@ -3,19 +3,8 @@ import request from '@/utils/http'
 
 const PREFIX = import.meta.env.VITE_API_PREFIX
 
-/** 分页后的缓存 value 响应（后端 response.CacheValuePage，snake_case JSON 字段） */
-export interface CacheValuePage {
-  key: string
-  type: string
-  ttl: number
-  total: number
-  start: number
-  has_more: boolean
-  /** set/hash 续扫游标：后端 json:",string" 编码，防 JS 大整数精度丢失 */
-  next_cursor: string
-  truncated: boolean
-  value: unknown
-}
+/** 分页后的缓存 value 响应 → Api.Monitor.CacheValuePage(api.generated.d.ts 为唯一事实源) */
+export type CacheValuePage = Api.Monitor.CacheValuePage
 
 /** zset 成员条目 */
 export interface ZSetEntry {
@@ -48,17 +37,11 @@ export interface CacheKeysParams {
   count?: number
 }
 
-/** 单个缓存 key（含 Redis 值类型） */
-export interface CacheKeyInfo {
-  key: string
-  type: string
-}
+/** 单个缓存 key（含 Redis 值类型） → Api.Monitor.CacheKeyInfo */
+export type CacheKeyInfo = Api.Monitor.CacheKeyInfo
 
-/** 缓存 key 列表响应 */
-export interface CacheKeysResult {
-  keys: CacheKeyInfo[]
-  cursor: string
-}
+/** 缓存 key 列表响应 → Api.Monitor.ListKeysResponse */
+export type CacheKeysResult = Api.Monitor.ListKeysResponse
 
 /** 批量删除缓存参数 */
 export interface DeleteCacheKeysParams {

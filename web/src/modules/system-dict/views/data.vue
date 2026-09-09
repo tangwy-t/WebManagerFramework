@@ -56,8 +56,10 @@
 
   const dictStatus = useDictStatus()
 
-  // 把 listClass 转为 el-tag 的 type（用于「标签」列）；未配置样式时回落到 info 中性色
-  const tagType = (c: Api.Dict.DictData['listClass']) => c || 'info'
+  // 把 listClass 转为 el-tag 的 type（用于「标签」列）；未配置样式时回落到 info 中性色。
+  // 后端 listClass 契约类型为 string(生成契约),这里白名单收敛到 el-tag 支持的色板。
+  const tagType = (c: string): 'primary' | 'success' | 'info' | 'warning' | 'danger' =>
+    c === 'primary' || c === 'success' || c === 'warning' || c === 'danger' ? c : 'info'
 
   async function loadAll() {
     if (!typeId) return

@@ -764,6 +764,8 @@ go tool pprof -http=:8080 &lt;server 二进制&gt; {{ fileNameExample }}</pre>
         nextAncestors.add(key)
         let cursor = x
         for (const c of node.children) {
+          // 后端火焰树 children 可为 null 元素([]*FlameNode),跳过空子节点
+          if (!c) continue
           walk(c, depth + 1, cursor, nextAncestors)
           cursor += c.value / flameData.value.totalValue
         }

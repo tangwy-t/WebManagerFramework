@@ -179,12 +179,14 @@ export interface ResolvedFileMeta extends FileCategoryMeta {
   category: Api.File.FileCategory
 }
 
-/** 汇总一个文件的图标/颜色/标签元数据 */
+/** 汇总一个文件的图标/颜色/标签元数据(后端 category 契约类型为 string,白名单收敛到 FileCategory) */
 export function fileMetaOf(file: {
   ext?: string | null
-  category?: Api.File.FileCategory | null
+  category?: string | null
 }): ResolvedFileMeta {
-  const category = file.category ?? categoryOfExt(file.ext)
+  const raw = file.category
+  const category: Api.File.FileCategory =
+    raw && raw in FILE_CATEGORY_MAP ? (raw as Api.File.FileCategory) : categoryOfExt(file.ext)
   const base = FILE_CATEGORY_MAP[category] ?? FILE_CATEGORY_MAP.other
   const special = file.ext ? EXT_ICON[file.ext.toLowerCase()] : undefined
   return {

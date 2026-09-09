@@ -44,28 +44,11 @@ export interface SqlQueryEntry {
   is_slow?: boolean
 }
 
-/** 时序快照中的单个时间桶 */
-export interface SqlHistoryPoint {
-  timestamp: string
-  count: number
-  qps: number
-  avg_ms: number
-  p50_ms: number
-  p95_ms: number
-  p99_ms: number
-  max_ms: number
-  error_count: number
-  slow_count: number
-}
+/** 时序快照中的单个时间桶 → Api.Monitor.SQLHistoryPoint(api.generated.d.ts 为唯一事实源) */
+export type SqlHistoryPoint = Api.Monitor.SQLHistoryPoint
 
-/** SQL 监控时序快照 */
-export interface SqlHistory {
-  window_seconds: number
-  step_seconds: number
-  slow_threshold_ms: number
-  recent_qps: number
-  buckets: SqlHistoryPoint[]
-}
+/** SQL 监控时序快照 → Api.Monitor.SQLHistorySnapshot */
+export type SqlHistory = Api.Monitor.SQLHistorySnapshot
 
 /** SQL 监控统计查询参数 */
 export interface SqlStatsParams {

@@ -5,57 +5,20 @@ const PREFIX = import.meta.env.VITE_API_PREFIX
 
 // ════════════════════════ pprof 性能分析 ════════════════════════
 
-/** pprof profile 概览条目 */
-export interface PprofProfileEntry {
-  name: string
-  description: string
-  /** snapshot:可即时采样解析;capture:需按需采集下载 */
-  category: 'snapshot' | 'capture'
-  unit: string
-  count: number
-}
+/** pprof profile 概览条目 → Api.Monitor.PprofProfileEntry(api.generated.d.ts 为唯一事实源) */
+export type PprofProfileEntry = Api.Monitor.PprofProfileEntry
 
-/** pprof 运行状态概览 */
-export interface PprofStatus {
-  enabled: boolean
-  /** 0 表示不自动关闭 */
-  autoOffSeconds: number
-  /** >0 时服务端自动关闭倒计时生效 */
-  remainingSeconds: number
-  profiles: PprofProfileEntry[]
-}
+/** pprof 运行状态概览 → Api.Monitor.PprofStatusResponse */
+export type PprofStatus = Api.Monitor.PprofStatusResponse
 
-/** 火焰图树节点 */
-export interface PprofFlameNode {
-  name: string
-  value: number
-  children?: PprofFlameNode[]
-}
+/** 火焰图树节点 → Api.Monitor.FlameNode */
+export type PprofFlameNode = Api.Monitor.FlameNode
 
-/** 热点函数一行 */
-export interface PprofTopFunc {
-  /** 完整函数名 */
-  fn: string
-  /** 缩短展示名 */
-  name: string
-  file: string
-  line: number
-  flat: number
-  cum: number
-}
+/** 热点函数一行 → Api.Monitor.PprofTopFunc */
+export type PprofTopFunc = Api.Monitor.PprofTopFunc
 
-/** 单个 profile 的火焰树 + 热点函数 */
-export interface PprofFlameData {
-  name: string
-  unit: string
-  sampleType: string
-  sampleCount: number
-  totalValue: number
-  /** 火焰树是否因深度/节点数限制被裁剪 */
-  truncated: boolean
-  flame: PprofFlameNode | null
-  top: PprofTopFunc[]
-}
+/** 单个 profile 的火焰树 + 热点函数 → Api.Monitor.PprofProfileResponse */
+export type PprofFlameData = Api.Monitor.PprofProfileResponse
 
 /** 查询 pprof 运行状态 */
 export function fetchPprofStatus() {
