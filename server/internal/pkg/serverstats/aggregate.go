@@ -1,16 +1,15 @@
 package serverstats
 
 import (
-	"fmt"
 	"time"
 
+	"github.com/tangwy-t/webmanager-server/internal/pkg/metricshistory"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/util"
 )
 
 // round2 把浮点数量化到 2 位小数(委托 util.Round2,全仓统一精度约定)。
-// 采样点已在采集端量化(handler roundTo2),但求平均会重新带出
-// 长尾小数(如 1.2333333),聚合输出前必须再量化一次,保证
-// /history 响应字段始终是干净的 2 位小数。
+// 采样点已在采集端量化,但求平均会重新带出长尾小数(如 1.2333333),
+// 聚合输出前必须再量化一次,保证 /history 响应字段始终是干净的 2 位小数。
 func round2(v float64) float64 {
 	return util.Round2(v)
 }
@@ -32,46 +31,24 @@ type bucketAcc struct {
 }
 
 // aggregate 把原始采样点聚合为按绝对时间对齐的时间桶。
-// 规则(与设计文档一致):
-//   - 桶边界 = epoch 秒对 step 整除,两次轮询桶划分稳定
+// 分桶方案(校验 / step 放大 / t0 对齐 / 边界桶折叠)由
+// metricshistory.Buckets 统一提供,本函数只保留服务器指标自身的
+// 累加语义:
 //   - cpu/memSys/heapAlloc/sysMem/goroutines/gcPauseMs/disk/load1 取均值,
 //     缺值点不参与平均;桶内该字段全缺则输出 nil(JSON 省略)
-//   - 所有均值输出前统一 round2 量化到 2 位小数(与采集端一致),
-//     避免长尾小数(12/3=4 干净,但 1.23+1.22 平均是 1.2250000000000001)
+//   - 所有均值输出前统一 round2 量化到 2 位小数(与采集端一致)
 //   - gcNum/uptime 取桶内最新采样点的值(单调递增量,均值无意义)
-//   - 空桶剔除;窗口外的点丢弃;恰落在 [now, now+step) 的点归入最后一桶
-func aggregate(points []Point, window, step time.Duration, now time.Time) (*Snapshot, error) {
-	stepSec := int64(step.Seconds())
-	if stepSec < 1 {
-		return nil, fmt.Errorf("step must be >= 1s, got %s", step)
-	}
-	windowSec := int64(window.Seconds())
-	if windowSec < stepSec {
-		return nil, fmt.Errorf("window must be >= step, got window=%s step=%s", window, step)
-	}
-
-	nBuckets := windowSec / stepSec
-	if nBuckets > maxHistoryBuckets {
-		stepSec = (windowSec + maxHistoryBuckets - 1) / maxHistoryBuckets
-		nBuckets = windowSec / stepSec
-	}
-
-	cutoff := now.Add(-time.Duration(windowSec) * time.Second)
-	t0 := cutoff.Unix()
-	t0 -= t0 % stepSec
-
-	accs := make([]bucketAcc, nBuckets)
+//   - 空桶剔除;窗口外的点按 Cutoff 丢弃
+func aggregate(points []Point, b metricshistory.Buckets) (*Snapshot, error) {
+	accs := make([]bucketAcc, b.N)
 	for _, p := range points {
 		sec := p.T / 1000
-		if time.Unix(sec, 0).Before(cutoff) {
+		if time.Unix(sec, 0).Before(b.Cutoff()) {
 			continue
 		}
-		pos := (sec - t0) / stepSec
-		if pos < 0 {
+		pos, ok := b.Pos(sec)
+		if !ok {
 			continue
-		}
-		if pos >= nBuckets {
-			pos = nBuckets - 1
 		}
 		a := &accs[pos]
 		if p.T > a.lastT {
@@ -102,49 +79,49 @@ func aggregate(points []Point, window, step time.Duration, now time.Time) (*Snap
 	}
 
 	f64 := func(v float64) *float64 { return &v }
-	buckets := make([]Bucket, 0, nBuckets)
+	buckets := make([]Bucket, 0, b.N)
 	for i := range accs {
 		a := &accs[i]
 		if a.lastT == 0 {
 			continue // 空桶
 		}
-		b := Bucket{
-			Timestamp: util.JSONTime(time.Unix(t0+int64(i)*stepSec, 0)),
+		bk := Bucket{
+			Timestamp: util.JSONTime(b.Timestamp(i)),
 		}
 		if a.cpuN > 0 {
-			b.CPU = f64(round2(a.cpuSum / a.cpuN))
+			bk.CPU = f64(round2(a.cpuSum / a.cpuN))
 		}
 		if a.memN > 0 {
-			b.MemSys = f64(round2(a.memSum / a.memN))
+			bk.MemSys = f64(round2(a.memSum / a.memN))
 		}
 		if a.heapN > 0 {
-			b.HeapAlloc = f64(round2(a.heapSum / a.heapN))
+			bk.HeapAlloc = f64(round2(a.heapSum / a.heapN))
 		}
 		if a.sysN > 0 {
-			b.SysMem = f64(round2(a.sysSum / a.sysN))
+			bk.SysMem = f64(round2(a.sysSum / a.sysN))
 		}
 		if a.gorN > 0 {
-			b.Goroutines = f64(round2(a.gorSum / a.gorN))
+			bk.Goroutines = f64(round2(a.gorSum / a.gorN))
 		}
 		if a.pauseN > 0 {
-			b.GCPauseMs = f64(round2(a.pauseSum / a.pauseN))
+			bk.GCPauseMs = f64(round2(a.pauseSum / a.pauseN))
 		}
 		if a.diskN > 0 {
-			b.Disk = f64(round2(a.diskSum / a.diskN))
+			bk.Disk = f64(round2(a.diskSum / a.diskN))
 		}
 		if a.loadN > 0 {
-			b.Load1 = f64(round2(a.loadSum / a.loadN))
+			bk.Load1 = f64(round2(a.loadSum / a.loadN))
 		}
 		gc := a.gcNumLast
 		up := a.uptimeLast
-		b.GCNum = &gc
-		b.Uptime = &up
-		buckets = append(buckets, b)
+		bk.GCNum = &gc
+		bk.Uptime = &up
+		buckets = append(buckets, bk)
 	}
 
 	return &Snapshot{
-		WindowSeconds: windowSec,
-		StepSeconds:   stepSec,
+		WindowSeconds: b.WindowSec,
+		StepSeconds:   b.StepSec,
 		Buckets:       buckets,
 	}, nil
 }

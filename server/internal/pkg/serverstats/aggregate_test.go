@@ -3,9 +3,20 @@ package serverstats
 import (
 	"testing"
 	"time"
+
+	"github.com/tangwy-t/webmanager-server/internal/pkg/metricshistory"
 )
 
 func f64p(v float64) *float64 { return &v }
+
+// bucketsFor 构造测试用分桶方案(与 Query 路径同源;测试参数固定合法)。
+func bucketsFor(now time.Time, window, step time.Duration) metricshistory.Buckets {
+	b, err := metricshistory.AlignBucketsAt(now, window, step)
+	if err != nil {
+		panic(err)
+	}
+	return b
+}
 
 // 桶边界按绝对时间对齐;桶内均值;uptime/gcNum 取末值;空桶剔除。
 func TestAggregateAlignmentAvgAndLastValue(t *testing.T) {
@@ -20,7 +31,7 @@ func TestAggregateAlignmentAvgAndLastValue(t *testing.T) {
 		{T: ms(now.Unix() - 30), CPU: 50, MemSys: 60, GCNum: 9, Uptime: 140},
 	}
 
-	snap, err := aggregate(points, window, step, now)
+	snap, err := aggregate(points, bucketsFor(now, window, step))
 	if err != nil {
 		t.Fatalf("aggregate: %v", err)
 	}
@@ -63,7 +74,7 @@ func TestAggregateSkipsMissingFields(t *testing.T) {
 		{T: now.UnixMilli() - 5000, CPU: 10, Load1: f64p(2.0)},
 		{T: now.UnixMilli() - 3000, CPU: 30, Load1: nil},
 	}
-	snap, err := aggregate(points, 10*time.Minute, 5*time.Second, now)
+	snap, err := aggregate(points, bucketsFor(now, 10*time.Minute, 5*time.Second))
 	if err != nil {
 		t.Fatalf("aggregate: %v", err)
 	}
@@ -86,30 +97,19 @@ func TestAggregateSkipsMissingFields(t *testing.T) {
 func TestAggregateWindowCutoffAndEmpty(t *testing.T) {
 	now := time.Unix(1800000, 0)
 	old := Point{T: (now.Unix() - 3600) * 1000, CPU: 99}
-	snap, err := aggregate([]Point{old}, 5*time.Minute, 60*time.Second, now)
+	snap, err := aggregate([]Point{old}, bucketsFor(now, 5*time.Minute, 60*time.Second))
 	if err != nil {
 		t.Fatalf("aggregate: %v", err)
 	}
 	if len(snap.Buckets) != 0 {
 		t.Fatalf("buckets = %d, want 0(窗口外点应被丢弃)", len(snap.Buckets))
 	}
-	snap2, err := aggregate(nil, 5*time.Minute, 60*time.Second, now)
+	snap2, err := aggregate(nil, bucketsFor(now, 5*time.Minute, 60*time.Second))
 	if err != nil {
 		t.Fatalf("aggregate empty: %v", err)
 	}
 	if snap2.Buckets == nil || len(snap2.Buckets) != 0 {
 		t.Fatalf("empty input buckets = %#v, want 空切片", snap2.Buckets)
-	}
-}
-
-// 非法参数:step < 1s、window < step。
-func TestAggregateInvalidParams(t *testing.T) {
-	now := time.Unix(1800000, 0)
-	if _, err := aggregate(nil, time.Minute, 500*time.Millisecond, now); err == nil {
-		t.Fatal("step < 1s 应返回错误")
-	}
-	if _, err := aggregate(nil, 30*time.Second, time.Minute, now); err == nil {
-		t.Fatal("window < step 应返回错误")
 	}
 }
 
@@ -123,7 +123,7 @@ func TestAggregateQuantizesMeanToTwoDecimals(t *testing.T) {
 		{T: now.UnixMilli() - 2000, CPU: 12.26, MemSys: 1.23, HeapAlloc: 0.334, Disk: 80.02, Load1: f64p(0.667)},
 		{T: now.UnixMilli() - 1000, CPU: 12.26, MemSys: 1.24, HeapAlloc: 0.334, Disk: 80.02, Load1: f64p(0.667)},
 	}
-	snap, err := aggregate(points, time.Minute, 5*time.Second, now)
+	snap, err := aggregate(points, bucketsFor(now, time.Minute, 5*time.Second))
 	if err != nil {
 		t.Fatalf("aggregate: %v", err)
 	}
