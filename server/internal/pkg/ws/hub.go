@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/rand/v2"
-	"strconv"
 	"sync"
 	"time"
 
@@ -134,7 +133,7 @@ func (h *Hub) handleAuth(c *Client, tokenStr string) {
 	claims, err := jwtPkg.ParseAccessToken(tokenStr, secret)
 	if err != nil {
 		h.logger.Warn("ws auth failed", zap.Error(err))
-		msg, _ := NewServerMessage(MsgTypeAuthErr, map[string]string{"message": "token invalid"})
+		msg, _ := MarshalAuthErr("token invalid")
 		c.Send(msg)
 		time.AfterFunc(100*time.Millisecond, func() { c.conn.Close() })
 		return
@@ -148,7 +147,7 @@ func (h *Hub) handleAuth(c *Client, tokenStr string) {
 			h.logger.Warn("ws session whitelist check failed", zap.Error(err))
 		} else if !valid {
 			h.logger.Warn("ws auth rejected: token revoked")
-			msg, _ := NewServerMessage(MsgTypeAuthErr, map[string]string{"message": "token revoked"})
+			msg, _ := MarshalAuthErr("token revoked")
 			c.Send(msg)
 			time.AfterFunc(100*time.Millisecond, func() { c.conn.Close() })
 			return
@@ -179,7 +178,7 @@ func (h *Hub) handleAuth(c *Client, tokenStr string) {
 	// Send auth success. user_id is sent as a string: snowflake IDs exceed
 	// JavaScript's Number.MAX_SAFE_INTEGER (2^53-1) and would lose precision
 	// if serialized as a JSON number.
-	authOK, _ := NewServerMessage(MsgTypeAuthOK, map[string]string{"user_id": strconv.FormatUint(userID, 10)})
+	authOK, _ := MarshalAuthOK(userID)
 	c.Send(authOK)
 
 	h.logger.Debug("ws client authenticated", zap.Uint64("userID", userID))
@@ -192,7 +191,7 @@ func (h *Hub) handleAuth(c *Client, tokenStr string) {
 			return
 		}
 		for _, noticeData := range notices {
-			msg, err := NewServerMessage(MsgTypeNewNotice, noticeData)
+			msg, err := MarshalNewNotice(noticeData)
 			if err != nil {
 				h.logger.Warn("ws marshal catch-up notice failed", zap.Error(err))
 				continue
@@ -209,7 +208,7 @@ func (h *Hub) handleRedisPushEvent(ctx context.Context, eventType string, payloa
 	if err := json.Unmarshal(payload, &evt); err != nil {
 		return err
 	}
-	msg, err := NewServerMessage(MsgTypeNewNotice, evt.NoticeData)
+	msg, err := MarshalNewNotice(evt.NoticeData)
 	if err != nil {
 		h.logger.Warn("ws hub marshal push event failed", zap.Error(err))
 		return nil

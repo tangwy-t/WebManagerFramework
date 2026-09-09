@@ -109,7 +109,7 @@ func (c *Client) Kick(reason string) {
 	c.mu.Lock()
 	c.Context = context.WithValue(c.Context, ctxKeyKicked, true)
 	c.mu.Unlock()
-	msg, _ := NewServerMessage(MsgTypeKicked, map[string]string{"message": reason})
+	msg, _ := MarshalKicked(reason)
 	c.Send(msg)
 	time.AfterFunc(kickTimeout, func() {
 		if c.IsKicked() {
@@ -168,7 +168,7 @@ func (c *Client) ReadPump() {
 			}
 			c.hub.handleAuth(c, msg.Token)
 		case MsgTypePing:
-			pong, _ := NewServerMessage(MsgTypePong, nil)
+			pong, _ := MarshalPong()
 			c.Send(pong)
 		default:
 			c.logger.Warn("ws client unknown message type", zap.String("type", msg.Type))
