@@ -142,7 +142,7 @@ func saveOperationLog(c *gin.Context, writer *bodyCaptureWriter, startTime time.
 		}()
 		// Use context.Background() because the request context may be cancelled
 		// after the response is sent.
-		ctx := context.WithValue(context.Background(), contextkeys.TraceID, traceID)
+		ctx := contextkeys.WithTraceID(context.Background(), traceID)
 		if err := svc.Create(ctx, entry); err != nil {
 			logger.Warn("failed to save operation log",
 				zap.Error(err),
