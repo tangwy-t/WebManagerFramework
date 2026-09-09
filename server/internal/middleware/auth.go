@@ -12,13 +12,15 @@ import (
 	"go.uber.org/zap"
 )
 
-// Gin-context keys. Values are set via c.Set and read via c.Get by HTTP
+// Gin-context keys. CtxClaims stores the authenticated user's full JWT
+// claims. Values are set via c.Set and read via c.Get by HTTP
 // middleware/handlers. Request-context (context.Context) variants live in
 // internal/pkg/contextkeys — services and GORM audit callbacks read from
 // there, which keeps the business layer free of transport-layer imports.
 const (
-	CtxUserID = "userID"
-	CtxScopes = "scopes"
+	// CtxClaims 是 gin 侧身份的单一来源:旧的 CtxUserID/CtxScopes 拆散存储
+	// 迫使 scope_resolver 用两个散值重建影子 Claims,字段级漂移无法在编译期防范。
+	CtxClaims = "claims"
 )
 
 // Auth returns a middleware that validates a Bearer JWT token from the
@@ -59,10 +61,10 @@ func Auth(cfgProv ConfigGetterInterface, tokenStore TokenStoreInterface, logger 
 			return
 		}
 
-		c.Set(CtxUserID, claims.UserID)
+		c.Set(CtxClaims, claims)
 		c.Request = c.Request.WithContext(contextkeys.WithUserID(c.Request.Context(), claims.UserID))
-		c.Set(CtxScopes, claims.Scopes)
-		// Write scopes info into request context (used by service/auth.go).
+		// 数据范围双通道(Gin claims 之外的第二条写入)将在 Task 4 收敛到
+		// ScopeContext;此处暂保留,维持 service/auth.go 的读取源不变。
 		for _, sc := range claims.Scopes {
 			if sc.Dimension == "dept" {
 				reqCtx := contextkeys.WithDataScope(c.Request.Context(), sc.Level)

@@ -50,23 +50,16 @@ func ScopeResolverHandler(sr *datascope.ScopeResolver) gin.HandlerFunc {
 	}
 }
 
-// extractClaims 从 gin.Context 提取 JWT claims（需要在 Auth 中间件之后运行）。
+// extractClaims 从 gin.Context 提取 Auth 中间件注入的完整 JWT claims。
+// 单一来源:不再由 CtxScopes/CtxUserID 两个散值重建影子 Claims 对象。
 func extractClaims(c *gin.Context) *jwt.Claims {
-	scopesRaw, exists := c.Get(CtxScopes)
+	raw, exists := c.Get(CtxClaims)
 	if !exists {
 		return nil
 	}
-	scopes, ok := scopesRaw.([]jwt.ScopeClaim)
+	claims, ok := raw.(*jwt.Claims)
 	if !ok {
 		return nil
 	}
-	userIDRaw, exists := c.Get(CtxUserID)
-	if !exists {
-		return nil
-	}
-	userID, ok := userIDRaw.(uint64)
-	if !ok {
-		return nil
-	}
-	return &jwt.Claims{UserID: userID, Scopes: scopes}
+	return claims
 }

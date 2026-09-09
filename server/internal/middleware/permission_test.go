@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/datascope"
+	"github.com/tangwy-t/webmanager-server/internal/pkg/jwt"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/logger"
 )
 
@@ -44,7 +45,7 @@ func TestPermissionGuardFallbackCarriesScopeContext(t *testing.T) {
 	guard := NewPermissionGuard(authSvc, stubPermStore{}, stubCfgGateway{}, logger.NewNop())
 
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
-	c.Set(CtxUserID, uint64(1))
+	c.Set(CtxClaims, &jwt.Claims{UserID: 1})
 	sc := &datascope.ScopeContext{UserID: 1, Dimensions: map[string]*datascope.ResolvedDimension{
 		datascope.DimRole: {Level: datascope.ScopeCustom, AllowedIDs: []uint64{1, 2}},
 	}}

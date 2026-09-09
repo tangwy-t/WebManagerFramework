@@ -8,6 +8,7 @@ import (
 
 	"github.com/tangwy-t/webmanager-server/internal/pkg/app"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/apperror"
+	"github.com/tangwy-t/webmanager-server/internal/pkg/jwt"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/logger"
 
 	"github.com/gin-gonic/gin"
@@ -44,20 +45,21 @@ func NewPermissionGuard(authSvc AuthServiceInterface, permStore SessionStoreInte
 func (g *PermissionGuard) Permission(requiredPerm string) gin.HandlerFunc {
 	authSvc, permStore, cfgProv, logger := g.authSvc, g.permStore, g.cfgProv, g.logger
 	return func(c *gin.Context) {
-		userIDVal, exists := c.Get(CtxUserID)
+		claimsRaw, exists := c.Get(CtxClaims)
 		if !exists {
-			logger.Error("permission check: userID not found in context")
+			logger.Error("permission check: claims not found in context")
 			app.Error(c, apperror.Unauthorized("未登录或 token 已过期"))
 			c.Abort()
 			return
 		}
-		uid, ok := userIDVal.(uint64)
+		claims, ok := claimsRaw.(*jwt.Claims)
 		if !ok {
-			logger.Error("permission check: userID has unexpected type", zap.Any("userID", userIDVal))
+			logger.Error("permission check: claims has unexpected type", zap.Any("claims", claimsRaw))
 			app.Error(c, apperror.Internal("服务器内部错误"))
 			c.Abort()
 			return
 		}
+		uid := claims.UserID
 		logger.Debug("permission check", zap.Uint64("userId", uid), zap.String("requiredPerm", requiredPerm))
 
 		// Check session store cache
