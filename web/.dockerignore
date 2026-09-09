@@ -13,3 +13,5 @@ logs
 # 排除后 docker 构建会因 TS2304(找不到 ref/watch/ElMessage 等)失败。
 docs
 .npmrc
+# 本地 pnpm store(离线安装/CI 缓存产物),不是源码,避免拖进构建上下文
+.pnpm-store
