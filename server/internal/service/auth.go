@@ -415,15 +415,24 @@ func (s *AuthService) GetUserInfo(ctx context.Context) (*response.UserInfoResp, 
 		perms = []string{}
 	}
 
-	dataScope, _ := contextkeys.DataScopeFromCtx(ctx)
-	deptID, _ := contextkeys.DeptIDFromCtx(ctx)
-
 	resp := &response.UserInfoResp{}
 	util.CopyEntity(resp, user, s.logger)
 	resp.Permissions = perms
 	resp.Roles = roleCodes
-	resp.DataScope = dataScope
-	resp.DeptID = deptID
+
+	// 授权上下文收敛:范围口径唯一来源是 ScopeContext(ScopeResolverHandler
+	// 注入,与查询过滤同源)。旧实现在此无条件用 contextkeys.DataScope/DeptID
+	// 覆写实体值,ScopeSelf 用户(无 dept 维度)会被覆写为 0/0 丢掉真实部门。
+	// 新语义:dept 维度取解析 Level/SelfID;self 维度只定 DataScope=5,
+	// DeptID 保留实体值;其余情形保持实体值。
+	if sc, has := datascope.ScopeContextFromCtx(ctx); has && sc != nil {
+		if d, ok := sc.Dimensions["dept"]; ok && d != nil {
+			resp.DataScope = d.Level
+			resp.DeptID = d.SelfID
+		} else if d, ok := sc.Dimensions["self"]; ok && d != nil {
+			resp.DataScope = d.Level
+		}
+	}
 	return resp, nil
 }
 

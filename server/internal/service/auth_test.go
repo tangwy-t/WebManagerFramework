@@ -277,3 +277,71 @@ func TestScopeCtxForFailingDimensionFallsBack(t *testing.T) {
 		t.Fatalf("降级维度 = %+v, 应保留 claim 原始 Level/SelfID", dim)
 	}
 }
+
+// newGetUserInfoService 构造 GetUserInfo 所需依赖的最小 AuthService。
+func newGetUserInfoService(repo AuthRepositoryInterface) *AuthService {
+	return NewAuthService(nil, repo, logger.NewNop(), nil, nil, nil, "", nil)
+}
+
+func userInfoCtx(deptID *uint64) *entity.SysUser {
+	return &entity.SysUser{Username: "u", DeptID: deptID}
+}
+
+func wantDeptID(t *testing.T, got, want uint64) {
+	t.Helper()
+	if got != want {
+		t.Fatalf("DeptID = %d, want %d", got, want)
+	}
+}
+
+// TestGetUserInfoScopeFromScopeContext 数据范围口径以 ScopeContext 为准:
+// dept 维度取解析 Level/SelfID;self 维度取 DataScope=5 且保留实体 DeptID;
+// 无 ScopeContext 时全部保留实体值(不再有 0 覆写)。
+func TestGetUserInfoScopeFromScopeContext(t *testing.T) {
+	dept7 := uint64(7)
+
+	t.Run("dept dimension overrides both", func(t *testing.T) {
+		svc := newGetUserInfoService(&stubAuthRepo{findByIDUser: userInfoCtx(&dept7)})
+		ctx := contextkeys.WithUserID(context.Background(), 1)
+		sc := &datascope.ScopeContext{UserID: 1, Dimensions: map[string]*datascope.ResolvedDimension{
+			"dept": {Level: 3, SelfID: 42},
+		}}
+		resp, err := svc.GetUserInfo(datascope.WithScopeContext(ctx, sc))
+		if err != nil {
+			t.Fatalf("GetUserInfo: %v", err)
+		}
+		if resp.DataScope != 3 {
+			t.Fatalf("DataScope = %d, want 3", resp.DataScope)
+		}
+		wantDeptID(t, resp.DeptID, 42)
+	})
+
+	t.Run("self dimension keeps entity dept", func(t *testing.T) {
+		svc := newGetUserInfoService(&stubAuthRepo{findByIDUser: userInfoCtx(&dept7)})
+		ctx := contextkeys.WithUserID(context.Background(), 1)
+		sc := &datascope.ScopeContext{UserID: 1, Dimensions: map[string]*datascope.ResolvedDimension{
+			"self": {Level: datascope.ScopeSelf, SelfID: 1},
+		}}
+		resp, err := svc.GetUserInfo(datascope.WithScopeContext(ctx, sc))
+		if err != nil {
+			t.Fatalf("GetUserInfo: %v", err)
+		}
+		if resp.DataScope != datascope.ScopeSelf {
+			t.Fatalf("DataScope = %d, want %d(self)", resp.DataScope, datascope.ScopeSelf)
+		}
+		wantDeptID(t, resp.DeptID, 7)
+	})
+
+	t.Run("no scope context keeps entity values", func(t *testing.T) {
+		svc := newGetUserInfoService(&stubAuthRepo{findByIDUser: userInfoCtx(&dept7)})
+		ctx := contextkeys.WithUserID(context.Background(), 1)
+		resp, err := svc.GetUserInfo(ctx)
+		if err != nil {
+			t.Fatalf("GetUserInfo: %v", err)
+		}
+		if resp.DataScope != 0 {
+			t.Fatalf("DataScope = %d, want 0(实体口径)", resp.DataScope)
+		}
+		wantDeptID(t, resp.DeptID, 7)
+	})
+}
