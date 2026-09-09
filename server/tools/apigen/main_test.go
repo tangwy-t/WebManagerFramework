@@ -56,6 +56,7 @@ type UserResp struct {
 	Counts    map[string]int64   ` + "`json:\"counts\"`" + `
 	Children  []UserResp         ` + "`json:\"children,omitempty\"`" + `
 	Brief     *RoleBriefResp     ` + "`json:\"brief,omitempty\"`" + `
+	Peers     []*RoleBriefResp   ` + "`json:\"peers,omitempty\"`" + `
 	Any       interface{}        ` + "`json:\"any\"`" + `
 }
 `)
@@ -91,6 +92,7 @@ declare namespace Api {
       counts: Record<string, number>
       children?: Api.System.UserResp[]
       brief?: Api.Auth.RoleBriefResp | null
+      peers?: (Api.Auth.RoleBriefResp | null)[]
       any: unknown
     }
   }

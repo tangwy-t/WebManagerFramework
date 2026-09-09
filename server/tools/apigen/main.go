@@ -296,6 +296,10 @@ func tsType(e ast.Expr, reg *registry) (string, error) {
 		if err != nil {
 			return "", err
 		}
+		// 并集元素需加括号:(T | null)[] 正确,T | null[] 会解析成 T | (null[])。
+		if strings.Contains(inner, " | ") {
+			inner = "(" + inner + ")"
+		}
 		return inner + "[]", nil
 	case *ast.MapType:
 		k, err := tsType(t.Key, reg)

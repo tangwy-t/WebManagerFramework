@@ -376,7 +376,7 @@ declare namespace Api {
     interface FlameNode {
       name: string
       value: number
-      children?: Api.Monitor.FlameNode | null[]
+      children?: (Api.Monitor.FlameNode | null)[]
     }
 
     interface PprofTopFunc {
