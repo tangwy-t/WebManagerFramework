@@ -63,15 +63,9 @@ func Auth(cfgProv ConfigGetterInterface, tokenStore TokenStoreInterface, logger 
 
 		c.Set(CtxClaims, claims)
 		c.Request = c.Request.WithContext(contextkeys.WithUserID(c.Request.Context(), claims.UserID))
-		// 数据范围双通道(Gin claims 之外的第二条写入)将在 Task 4 收敛到
-		// ScopeContext;此处暂保留,维持 service/auth.go 的读取源不变。
-		for _, sc := range claims.Scopes {
-			if sc.Dimension == "dept" {
-				reqCtx := contextkeys.WithDataScope(c.Request.Context(), sc.Level)
-				c.Request = c.Request.WithContext(contextkeys.WithDeptID(reqCtx, sc.SelfID))
-				break
-			}
-		}
+		// 数据范围口径唯一来源是 datascope.ScopeContext(ScopeResolverHandler
+		// 按 claims.Scopes 解析后注入请求 ctx,与查询过滤同源);不再在此
+		// 写入 DataScope/DeptID 双通道键。
 		c.Next()
 	}
 }
