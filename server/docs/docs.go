@@ -4088,7 +4088,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/serverstats.Snapshot"
+                                            "$ref": "#/definitions/response.ServerHistorySnapshot"
                                         }
                                     }
                                 }
@@ -4212,7 +4212,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/database.HistorySnapshot"
+                                            "$ref": "#/definitions/response.SQLHistorySnapshot"
                                         }
                                     }
                                 }
@@ -6979,64 +6979,6 @@ const docTemplate = `{
                 }
             }
         },
-        "database.HistoryPoint": {
-            "type": "object",
-            "properties": {
-                "avg_ms": {
-                    "type": "number"
-                },
-                "count": {
-                    "type": "integer"
-                },
-                "error_count": {
-                    "type": "integer"
-                },
-                "max_ms": {
-                    "type": "number"
-                },
-                "p50_ms": {
-                    "type": "number"
-                },
-                "p95_ms": {
-                    "type": "number"
-                },
-                "p99_ms": {
-                    "type": "number"
-                },
-                "qps": {
-                    "type": "number"
-                },
-                "slow_count": {
-                    "type": "integer"
-                },
-                "timestamp": {
-                    "type": "string"
-                }
-            }
-        },
-        "database.HistorySnapshot": {
-            "type": "object",
-            "properties": {
-                "buckets": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/database.HistoryPoint"
-                    }
-                },
-                "recent_qps": {
-                    "type": "number"
-                },
-                "slow_threshold_ms": {
-                    "type": "integer"
-                },
-                "step_seconds": {
-                    "type": "integer"
-                },
-                "window_seconds": {
-                    "type": "integer"
-                }
-            }
-        },
         "database.QueryEntry": {
             "type": "object",
             "properties": {
@@ -8952,6 +8894,119 @@ const docTemplate = `{
                 }
             }
         },
+        "response.SQLHistoryPoint": {
+            "type": "object",
+            "properties": {
+                "avg_ms": {
+                    "type": "number"
+                },
+                "count": {
+                    "type": "integer"
+                },
+                "error_count": {
+                    "type": "integer"
+                },
+                "max_ms": {
+                    "type": "number"
+                },
+                "p50_ms": {
+                    "type": "number"
+                },
+                "p95_ms": {
+                    "type": "number"
+                },
+                "p99_ms": {
+                    "type": "number"
+                },
+                "qps": {
+                    "type": "number"
+                },
+                "slow_count": {
+                    "type": "integer"
+                },
+                "timestamp": {
+                    "type": "string"
+                }
+            }
+        },
+        "response.SQLHistorySnapshot": {
+            "type": "object",
+            "properties": {
+                "buckets": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/response.SQLHistoryPoint"
+                    }
+                },
+                "recent_qps": {
+                    "type": "number"
+                },
+                "slow_threshold_ms": {
+                    "type": "integer"
+                },
+                "step_seconds": {
+                    "type": "integer"
+                },
+                "window_seconds": {
+                    "type": "integer"
+                }
+            }
+        },
+        "response.ServerHistoryPoint": {
+            "type": "object",
+            "properties": {
+                "cpu": {
+                    "type": "number"
+                },
+                "disk": {
+                    "type": "number"
+                },
+                "gcNum": {
+                    "type": "integer"
+                },
+                "gcPauseMs": {
+                    "type": "number"
+                },
+                "goroutines": {
+                    "type": "number"
+                },
+                "heapAlloc": {
+                    "type": "number"
+                },
+                "load1": {
+                    "type": "number"
+                },
+                "memSys": {
+                    "type": "number"
+                },
+                "sysMem": {
+                    "type": "number"
+                },
+                "timestamp": {
+                    "type": "string"
+                },
+                "uptime": {
+                    "type": "integer"
+                }
+            }
+        },
+        "response.ServerHistorySnapshot": {
+            "type": "object",
+            "properties": {
+                "buckets": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/response.ServerHistoryPoint"
+                    }
+                },
+                "step_seconds": {
+                    "type": "integer"
+                },
+                "window_seconds": {
+                    "type": "integer"
+                }
+            }
+        },
         "response.ServerInfo": {
             "type": "object",
             "properties": {
@@ -9203,61 +9258,6 @@ const docTemplate = `{
                 },
                 "username": {
                     "type": "string"
-                }
-            }
-        },
-        "serverstats.Bucket": {
-            "type": "object",
-            "properties": {
-                "cpu": {
-                    "type": "number"
-                },
-                "disk": {
-                    "type": "number"
-                },
-                "gcNum": {
-                    "type": "integer"
-                },
-                "gcPauseMs": {
-                    "type": "number"
-                },
-                "goroutines": {
-                    "type": "number"
-                },
-                "heapAlloc": {
-                    "type": "number"
-                },
-                "load1": {
-                    "type": "number"
-                },
-                "memSys": {
-                    "type": "number"
-                },
-                "sysMem": {
-                    "type": "number"
-                },
-                "timestamp": {
-                    "type": "string"
-                },
-                "uptime": {
-                    "type": "integer"
-                }
-            }
-        },
-        "serverstats.Snapshot": {
-            "type": "object",
-            "properties": {
-                "buckets": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/serverstats.Bucket"
-                    }
-                },
-                "step_seconds": {
-                    "type": "integer"
-                },
-                "window_seconds": {
-                    "type": "integer"
                 }
             }
         }

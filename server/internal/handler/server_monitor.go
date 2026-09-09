@@ -140,7 +140,7 @@ func (h *ServerMonitorHandler) ServeHTTP(c *gin.Context) {
 // @Security     BearerAuth
 // @Param        window  query     string  false  "时间窗口,如 15m,1h(默认 15m,范围 1m~24h)"
 // @Param        step    query     string  false  "桶粒度,如 3s,10s(默认 window/180,最小 1s)"
-// @Success      200     {object}  app.Response{data=serverstats.Snapshot}  "查询成功"
+// @Success      200     {object}  app.Response{data=response.ServerHistorySnapshot}  "查询成功"
 // @Failure      400     {object}  app.Response  "参数无效"
 // @Failure      401     {object}  app.Response  "未登录"
 // @Failure      403     {object}  app.Response  "无权限"
@@ -188,7 +188,33 @@ func (h *ServerMonitorHandler) GetHistory(c *gin.Context) {
 		app.Error(c, err)
 		return
 	}
-	app.Success(c, snap)
+	app.Success(c, serverHistorySnapshotFromStats(snap))
+}
+
+// serverHistorySnapshotFromStats 把存储层快照适配为 HTTP 契约 DTO
+// (字段与 JSON 形状逐一对应,不产生线上行为变化)。
+func serverHistorySnapshotFromStats(src *serverstats.Snapshot) *response.ServerHistorySnapshot {
+	dst := &response.ServerHistorySnapshot{
+		WindowSeconds: src.WindowSeconds,
+		StepSeconds:   src.StepSeconds,
+		Buckets:       make([]response.ServerHistoryPoint, 0, len(src.Buckets)),
+	}
+	for _, b := range src.Buckets {
+		dst.Buckets = append(dst.Buckets, response.ServerHistoryPoint{
+			Timestamp:  b.Timestamp,
+			CPU:        b.CPU,
+			MemSys:     b.MemSys,
+			HeapAlloc:  b.HeapAlloc,
+			SysMem:     b.SysMem,
+			Goroutines: b.Goroutines,
+			GCNum:      b.GCNum,
+			GCPauseMs:  b.GCPauseMs,
+			Disk:       b.Disk,
+			Load1:      b.Load1,
+			Uptime:     b.Uptime,
+		})
+	}
+	return dst
 }
 
 // collectAndPublish 采集一轮完整指标并发布为新快照。

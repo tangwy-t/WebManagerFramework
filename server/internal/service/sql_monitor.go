@@ -7,6 +7,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/tangwy-t/webmanager-server/internal/model/dto/response"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/database"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/logger"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/sqlhistory"
@@ -40,7 +41,7 @@ type historyCacheKey struct {
 }
 
 type historyCacheEntry struct {
-	snap *database.HistorySnapshot
+	snap *response.SQLHistorySnapshot
 	at   time.Time
 }
 
@@ -124,11 +125,11 @@ func (s *SQLMonitorService) getStatsCached(window time.Duration) *database.Stats
 	return snap
 }
 
-// GetHistory 返回指定窗口内按 step 分桶的时序快照。
+// GetHistory 返回指定窗口内按 step 分桶的时序快照(HTTP DTO)。
 // store 非空:读 Redis 滚动窗口(3s 采样、保留 24h、跨重启)。
 // store 为空:回退 ring buffer 现场计算(行为与改造前一致)。
 // Redis 读失败返回 error,由 handler 统一 500。
-func (s *SQLMonitorService) GetHistory(ctx context.Context, window, step time.Duration) (*database.HistorySnapshot, error) {
+func (s *SQLMonitorService) GetHistory(ctx context.Context, window, step time.Duration) (*response.SQLHistorySnapshot, error) {
 	if s.store != nil {
 		snap, err := s.store.Query(ctx, window, step)
 		if err != nil {
@@ -140,7 +141,7 @@ func (s *SQLMonitorService) GetHistory(ctx context.Context, window, step time.Du
 }
 
 // getHistoryFromBuffer 旧路径:ring buffer 现场分桶 + 1s TTL 单飞缓存。
-func (s *SQLMonitorService) getHistoryFromBuffer(window, step time.Duration) *database.HistorySnapshot {
+func (s *SQLMonitorService) getHistoryFromBuffer(window, step time.Duration) *response.SQLHistorySnapshot {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -150,7 +151,7 @@ func (s *SQLMonitorService) getHistoryFromBuffer(window, step time.Duration) *da
 		return e.snap
 	}
 
-	snap := s.stats.SnapshotHistory(window, step)
+	snap := historyFromStats(s.stats.SnapshotHistory(window, step))
 
 	if len(s.histCache) >= snapshotCacheMaxEntries {
 		s.histCache = make(map[historyCacheKey]historyCacheEntry)
@@ -159,18 +160,44 @@ func (s *SQLMonitorService) getHistoryFromBuffer(window, step time.Duration) *da
 	return snap
 }
 
-// snapshotFromSQL 把 sqlhistory.Snapshot 适配为 database.HistorySnapshot,
+// snapshotFromSQL 把 sqlhistory.Snapshot 适配为 response.SQLHistorySnapshot,
 // 并回填慢查询阈值(store 不感知 SQLStats 配置)。
-func snapshotFromSQL(src *sqlhistory.Snapshot, thrMs int64) *database.HistorySnapshot {
-	dst := &database.HistorySnapshot{
+func snapshotFromSQL(src *sqlhistory.Snapshot, thrMs int64) *response.SQLHistorySnapshot {
+	dst := &response.SQLHistorySnapshot{
 		WindowSeconds:   src.WindowSeconds,
 		StepSeconds:     src.StepSeconds,
 		SlowThresholdMs: thrMs,
 		RecentQPS:       src.RecentQPS,
-		Buckets:         make([]database.HistoryPoint, 0, len(src.Buckets)),
+		Buckets:         make([]response.SQLHistoryPoint, 0, len(src.Buckets)),
 	}
 	for _, b := range src.Buckets {
-		dst.Buckets = append(dst.Buckets, database.HistoryPoint{
+		dst.Buckets = append(dst.Buckets, response.SQLHistoryPoint{
+			Timestamp:  b.Timestamp,
+			Count:      b.Count,
+			QPS:        b.QPS,
+			AvgMs:      b.AvgMs,
+			P50Ms:      b.P50Ms,
+			P95Ms:      b.P95Ms,
+			P99Ms:      b.P99Ms,
+			MaxMs:      b.MaxMs,
+			ErrorCount: b.ErrorCount,
+			SlowCount:  b.SlowCount,
+		})
+	}
+	return dst
+}
+
+// historyFromStats 把 ring buffer 快照适配为 HTTP DTO(慢查询阈值原样透传)。
+func historyFromStats(src *database.HistorySnapshot) *response.SQLHistorySnapshot {
+	dst := &response.SQLHistorySnapshot{
+		WindowSeconds:   src.WindowSeconds,
+		StepSeconds:     src.StepSeconds,
+		SlowThresholdMs: src.SlowThresholdMs,
+		RecentQPS:       src.RecentQPS,
+		Buckets:         make([]response.SQLHistoryPoint, 0, len(src.Buckets)),
+	}
+	for _, b := range src.Buckets {
+		dst.Buckets = append(dst.Buckets, response.SQLHistoryPoint{
 			Timestamp:  b.Timestamp,
 			Count:      b.Count,
 			QPS:        b.QPS,

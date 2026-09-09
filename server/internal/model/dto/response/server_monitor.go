@@ -1,5 +1,7 @@
 package response
 
+import "github.com/tangwy-t/webmanager-server/internal/pkg/util"
+
 // ServerMonitorResp is the top-level response for /api/v1/monitor/server.
 type ServerMonitorResp struct {
 	Server     ServerInfo    `json:"server"`
@@ -106,4 +108,28 @@ type DiskInfo struct {
 	FreeGB       float64 `json:"freeGB"`
 	UsagePercent float64 `json:"usagePercent"`
 	Error        string  `json:"error,omitempty"`
+}
+
+// ServerHistoryPoint 服务器监控历史时序的单桶指标。
+// 指针字段为 nil 时 JSON 省略:表示桶内没有任何采样点提供该指标
+// (与改造前的 serverstats.Bucket 完全一致)。
+type ServerHistoryPoint struct {
+	Timestamp  util.JSONTime `json:"timestamp"`
+	CPU        *float64      `json:"cpu,omitempty"`
+	MemSys     *float64      `json:"memSys,omitempty"`
+	HeapAlloc  *float64      `json:"heapAlloc,omitempty"`
+	SysMem     *float64      `json:"sysMem,omitempty"`
+	Goroutines *float64      `json:"goroutines,omitempty"`
+	GCNum      *uint32       `json:"gcNum,omitempty"`
+	GCPauseMs  *float64      `json:"gcPauseMs,omitempty"`
+	Disk       *float64      `json:"disk,omitempty"`
+	Load1      *float64      `json:"load1,omitempty"`
+	Uptime     *int64        `json:"uptime,omitempty"`
+}
+
+// ServerHistorySnapshot 服务器监控历史时序查询响应(HTTP 契约)。
+type ServerHistorySnapshot struct {
+	WindowSeconds int64                `json:"window_seconds"`
+	StepSeconds   int64                `json:"step_seconds"`
+	Buckets       []ServerHistoryPoint `json:"buckets"`
 }

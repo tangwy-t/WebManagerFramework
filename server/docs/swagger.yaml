@@ -75,44 +75,6 @@ definitions:
       slow_threshold_ms:
         type: integer
     type: object
-  database.HistoryPoint:
-    properties:
-      avg_ms:
-        type: number
-      count:
-        type: integer
-      error_count:
-        type: integer
-      max_ms:
-        type: number
-      p50_ms:
-        type: number
-      p95_ms:
-        type: number
-      p99_ms:
-        type: number
-      qps:
-        type: number
-      slow_count:
-        type: integer
-      timestamp:
-        type: string
-    type: object
-  database.HistorySnapshot:
-    properties:
-      buckets:
-        items:
-          $ref: '#/definitions/database.HistoryPoint'
-        type: array
-      recent_qps:
-        type: number
-      slow_threshold_ms:
-        type: integer
-      step_seconds:
-        type: integer
-      window_seconds:
-        type: integer
-    type: object
   database.QueryEntry:
     properties:
       duration_ms:
@@ -1407,6 +1369,80 @@ definitions:
       status:
         type: integer
     type: object
+  response.SQLHistoryPoint:
+    properties:
+      avg_ms:
+        type: number
+      count:
+        type: integer
+      error_count:
+        type: integer
+      max_ms:
+        type: number
+      p50_ms:
+        type: number
+      p95_ms:
+        type: number
+      p99_ms:
+        type: number
+      qps:
+        type: number
+      slow_count:
+        type: integer
+      timestamp:
+        type: string
+    type: object
+  response.SQLHistorySnapshot:
+    properties:
+      buckets:
+        items:
+          $ref: '#/definitions/response.SQLHistoryPoint'
+        type: array
+      recent_qps:
+        type: number
+      slow_threshold_ms:
+        type: integer
+      step_seconds:
+        type: integer
+      window_seconds:
+        type: integer
+    type: object
+  response.ServerHistoryPoint:
+    properties:
+      cpu:
+        type: number
+      disk:
+        type: number
+      gcNum:
+        type: integer
+      gcPauseMs:
+        type: number
+      goroutines:
+        type: number
+      heapAlloc:
+        type: number
+      load1:
+        type: number
+      memSys:
+        type: number
+      sysMem:
+        type: number
+      timestamp:
+        type: string
+      uptime:
+        type: integer
+    type: object
+  response.ServerHistorySnapshot:
+    properties:
+      buckets:
+        items:
+          $ref: '#/definitions/response.ServerHistoryPoint'
+        type: array
+      step_seconds:
+        type: integer
+      window_seconds:
+        type: integer
+    type: object
   response.ServerInfo:
     properties:
       buildTime:
@@ -1575,42 +1611,6 @@ definitions:
         type: integer
       username:
         type: string
-    type: object
-  serverstats.Bucket:
-    properties:
-      cpu:
-        type: number
-      disk:
-        type: number
-      gcNum:
-        type: integer
-      gcPauseMs:
-        type: number
-      goroutines:
-        type: number
-      heapAlloc:
-        type: number
-      load1:
-        type: number
-      memSys:
-        type: number
-      sysMem:
-        type: number
-      timestamp:
-        type: string
-      uptime:
-        type: integer
-    type: object
-  serverstats.Snapshot:
-    properties:
-      buckets:
-        items:
-          $ref: '#/definitions/serverstats.Bucket'
-        type: array
-      step_seconds:
-        type: integer
-      window_seconds:
-        type: integer
     type: object
 info:
   contact:
@@ -4147,7 +4147,7 @@ paths:
             - $ref: '#/definitions/app.Response'
             - properties:
                 data:
-                  $ref: '#/definitions/serverstats.Snapshot'
+                  $ref: '#/definitions/response.ServerHistorySnapshot'
               type: object
         "400":
           description: 参数无效
@@ -4221,7 +4221,7 @@ paths:
             - $ref: '#/definitions/app.Response'
             - properties:
                 data:
-                  $ref: '#/definitions/database.HistorySnapshot'
+                  $ref: '#/definitions/response.SQLHistorySnapshot'
               type: object
         "400":
           description: 参数无效

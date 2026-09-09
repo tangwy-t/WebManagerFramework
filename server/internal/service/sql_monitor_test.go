@@ -11,6 +11,7 @@ import (
 	"github.com/alicebob/miniredis/v2"
 	goredis "github.com/redis/go-redis/v9"
 
+	"github.com/tangwy-t/webmanager-server/internal/model/dto/response"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/database"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/sqlhistory"
 )
@@ -192,5 +193,25 @@ func TestSQLMonitorService_SampleOnceThrottlesWarn(t *testing.T) {
 
 	if log.warns != 1 {
 		t.Fatalf("warns = %d, want 1(30s 内节流)", log.warns)
+	}
+}
+
+// TestGetHistoryReturnsResponseDTO 两个历史路径(Redis 与 ring buffer)
+// 都必须返回 response.SQLHistorySnapshot(HTTP 契约),而非底层存储类型。
+func TestGetHistoryReturnsResponseDTO(t *testing.T) {
+	// ring buffer 回退路径
+	svc := NewSQLMonitorService(newTestSQLStats(), nil, nil)
+	snap, err := svc.GetHistory(context.Background(), time.Minute, time.Second)
+	if err != nil {
+		t.Fatalf("回退路径: %v", err)
+	}
+	if snap == nil || snap.WindowSeconds != 60 {
+		t.Fatalf("回退路径快照 = %+v, want window=60", snap)
+	}
+	if _, ok := any(snap).(*database.HistorySnapshot); ok {
+		t.Fatal("GetHistory 不应再返回底层 database.HistorySnapshot")
+	}
+	if _, ok := any(snap).(*response.SQLHistorySnapshot); !ok {
+		t.Fatal("GetHistory 应返回 response.SQLHistorySnapshot")
 	}
 }

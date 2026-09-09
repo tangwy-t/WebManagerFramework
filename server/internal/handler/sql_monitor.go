@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/tangwy-t/webmanager-server/internal/model/dto/response"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/app"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/apperror"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/database"
@@ -16,7 +17,7 @@ import (
 type SQLMonitorServiceInterface interface {
 	GetStats() *database.StatsSnapshot
 	GetStatsWindow(window time.Duration) *database.StatsSnapshot
-	GetHistory(ctx context.Context, window, step time.Duration) (*database.HistorySnapshot, error)
+	GetHistory(ctx context.Context, window, step time.Duration) (*response.SQLHistorySnapshot, error)
 }
 
 // SQLMonitorHandler 暴露 SQL 监控 HTTP 端点。
@@ -74,7 +75,7 @@ func (h *SQLMonitorHandler) GetStats(c *gin.Context) {
 // @Security     BearerAuth
 // @Param        window  query     string  false  "时间窗口，如 5m,1h（默认 15m，范围 1m~24h）"
 // @Param        step    query     string  false  "桶粒度，如 3s,10s（默认 window/180，最小 1s）"
-// @Success      200     {object}  app.Response{data=database.HistorySnapshot}  "查询成功"
+// @Success      200     {object}  app.Response{data=response.SQLHistorySnapshot}  "查询成功"
 // @Failure      400     {object}  app.Response  "参数无效"
 // @Failure      401     {object}  app.Response  "未登录"
 // @Failure      403     {object}  app.Response  "无权限"
