@@ -2,12 +2,14 @@ package database
 
 import (
 	"container/heap"
-	"github.com/tangwy-t/webmanager-server/internal/pkg/util"
 	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/tangwy-t/webmanager-server/internal/pkg/metricshistory"
+	"github.com/tangwy-t/webmanager-server/internal/pkg/util"
 )
 
 // 操作类型索引
@@ -23,10 +25,6 @@ var opNames = [5]string{"SELECT", "INSERT", "UPDATE", "DELETE", "OTHER"}
 
 // maxSQLLen 是 ring buffer 中存储的 SQL 最大长度（字符数），超出部分截断。
 const maxSQLLen = 512
-
-// maxHistoryBuckets 是历史时序快照最多返回的桶数。窗口过大或粒度过细时
-// 自动放大 step,避免单次响应体积失控、前端图表点数过多。
-const maxHistoryBuckets = 4000
 
 // QueryEntry 记录单次查询的元数据。
 type QueryEntry struct {
@@ -465,6 +463,8 @@ func (s *SQLStats) buildSlowQueryList(entries []QueryEntry) []QueryEntry {
 // SnapshotHistory 返回最近 window 内按 step 分桶的时序快照。
 // 桶边界按绝对时间对齐(Unix 秒整除 step),两次轮询得到的桶划分保持稳定,
 // 空桶会被剔除:前端图表直接按返回的 timestamp 排布,不产生误导性零值。
+// 参数夹取(step<1s 取 1s、window<step 取 step)后交给 metricshistory
+// 共享分桶方案,与 Redis 路径的 serverstats / sqlhistory 同源。
 func (s *SQLStats) SnapshotHistory(window, step time.Duration) *HistorySnapshot {
 	now := time.Now()
 
@@ -477,42 +477,38 @@ func (s *SQLStats) SnapshotHistory(window, step time.Duration) *HistorySnapshot 
 		windowSec = stepSec
 	}
 
-	// 桶数超限时向上放大 step,保证响应体积可控
-	nBuckets := int(windowSec / stepSec)
-	if nBuckets > maxHistoryBuckets {
-		stepSec = (windowSec + maxHistoryBuckets - 1) / maxHistoryBuckets
-		nBuckets = int(windowSec / stepSec)
+	// 夹取后参数必合法(stepSec>=1、windowSec>=stepSec);错误分支仅防御。
+	b, err := metricshistory.AlignBucketsAt(now, time.Duration(windowSec)*time.Second, time.Duration(stepSec)*time.Second)
+	if err != nil {
+		return &HistorySnapshot{
+			WindowSeconds:   windowSec,
+			StepSeconds:     stepSec,
+			SlowThresholdMs: s.slowThresholdMs,
+		}
 	}
 
-	cutoff := now.Add(-time.Duration(windowSec) * time.Second)
-	t0 := cutoff.Unix()
-	t0 -= t0 % stepSec
-
-	points := make([]HistoryPoint, nBuckets)
-	durs := make([][]float64, nBuckets)
+	points := make([]HistoryPoint, b.N)
+	durs := make([][]float64, b.N)
 	for i := range points {
-		points[i].Timestamp = util.JSONTime(time.Unix(t0+int64(i)*stepSec, 0))
+		points[i].Timestamp = util.JSONTime(b.Timestamp(i))
 	}
 
 	// 当前最近一个 step 内的实时 QPS
-	recentCut := now.Add(-time.Duration(stepSec) * time.Second)
+	recentCut := b.RecentCut()
 	var recentCount int64
 
 	s.walkEntries(func(e QueryEntry) {
 		ts := time.Time(e.Timestamp)
-		if ts.Before(cutoff) {
+		if ts.Before(b.Cutoff()) {
 			return
 		}
 		if !ts.Before(recentCut) {
 			recentCount++
 		}
-		pos := int((ts.Unix() - t0) / stepSec)
 		// 边界桶:当前秒内、与快照 now 同秒的记录恰好落在 [now, now+step)
-		// 半开区间外,归入最后一个桶,避免最新秒的数据被丢弃。
-		if pos == nBuckets {
-			pos = nBuckets - 1
-		}
-		if pos < 0 || pos >= nBuckets {
+		// 半开区间外,由 b.Pos 折叠进最后一桶,避免最新秒的数据被丢弃。
+		pos, ok := b.Pos(ts.Unix())
+		if !ok {
 			return
 		}
 		p := &points[pos]
@@ -529,13 +525,13 @@ func (s *SQLStats) SnapshotHistory(window, step time.Duration) *HistorySnapshot 
 		durs[pos] = append(durs[pos], e.DurationMs)
 	})
 
-	buckets := make([]HistoryPoint, 0, nBuckets)
+	buckets := make([]HistoryPoint, 0, b.N)
 	for i := range points {
 		p := &points[i]
 		if p.Count == 0 {
 			continue
 		}
-		p.QPS = util.Round2(float64(p.Count) / float64(stepSec))
+		p.QPS = util.Round2(float64(p.Count) / float64(b.StepSec))
 		var totalMs float64
 		for _, d := range durs[i] {
 			totalMs += d
@@ -551,10 +547,10 @@ func (s *SQLStats) SnapshotHistory(window, step time.Duration) *HistorySnapshot 
 	}
 
 	return &HistorySnapshot{
-		WindowSeconds:   windowSec,
-		StepSeconds:     stepSec,
+		WindowSeconds:   b.WindowSec,
+		StepSeconds:     b.StepSec,
 		SlowThresholdMs: s.slowThresholdMs,
-		RecentQPS:       util.Round2(float64(recentCount) / float64(stepSec)),
+		RecentQPS:       util.Round2(float64(recentCount) / float64(b.StepSec)),
 		Buckets:         buckets,
 	}
 }
