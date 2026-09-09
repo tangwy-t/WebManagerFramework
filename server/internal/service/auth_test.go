@@ -13,6 +13,7 @@ import (
 	"github.com/tangwy-t/webmanager-server/internal/pkg/contextkeys"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/crypto"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/datascope"
+	"github.com/tangwy-t/webmanager-server/internal/pkg/jwt"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/logger"
 	"gorm.io/gorm"
 )
@@ -243,5 +244,36 @@ func TestGetUserPermissionsNoScopeCtxNoMarker(t *testing.T) {
 	}
 	if len(perms) != 1 || slices.Contains(perms, "admin") {
 		t.Fatalf("perms = %v, want 无 admin 标记(无 scope ctx 时防御性不加)", perms)
+	}
+}
+
+// failingDimResolver 在 Resolve 时始终报错,用于验证 scopeCtxFor 降级路径。
+type failingDimResolver struct{}
+
+func (failingDimResolver) DimensionType() string { return "boom" }
+func (failingDimResolver) Resolve(context.Context, int8, uint64, uint64) (*datascope.ResolvedDimension, error) {
+	return nil, errors.New("boom resolve failed")
+}
+
+// TestScopeCtxForFailingDimensionFallsBack 维度解析失败时,scopeCtxFor 必须
+// 把降级维度写入 ScopeContext —— 与 middleware.ScopeResolverHandler 同口径。
+// 此前此处 continue 跳过写入,导致登录/刷新路径的 ScopeContext 缺失维度,
+// scope 插件在该维度上不做任何过滤(解析失败静默放大为全量可见)。
+func TestScopeCtxForFailingDimensionFallsBack(t *testing.T) {
+	resolver := datascope.NewScopeResolver([]datascope.DimensionResolver{failingDimResolver{}}, logger.NewNop())
+	repo := &stubAuthRepo{findByIDUser: &entity.SysUser{}}
+	svc := NewAuthService(nil, repo, logger.NewNop(), nil, nil, nil, "", resolver)
+
+	ctx := svc.scopeCtxFor(context.Background(), 1, []jwt.ScopeClaim{{Dimension: "boom", Level: 4, SelfID: 9}})
+	sc, ok := datascope.ScopeContextFromCtx(ctx)
+	if !ok {
+		t.Fatal("scopeCtxFor 应注入 ScopeContext")
+	}
+	dim, ok := sc.Dimensions["boom"]
+	if !ok || dim == nil {
+		t.Fatal("解析失败时降级维度必须写入 Dimensions(与 middleware.ScopeResolverHandler 对齐)")
+	}
+	if dim.Level != 4 || dim.SelfID != 9 {
+		t.Fatalf("降级维度 = %+v, 应保留 claim 原始 Level/SelfID", dim)
 	}
 }

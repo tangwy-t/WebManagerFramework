@@ -180,7 +180,10 @@ func (s *AuthService) scopeCtxFor(ctx context.Context, userID uint64, scopes []j
 				zap.String("dimension", claim.Dimension),
 				zap.Int8("level", claim.Level),
 				zap.Error(err))
-			dim = &datascope.ResolvedDimension{Level: claim.Level, SelfID: claim.SelfID}
+			// 降级与 middleware.ScopeResolverHandler 完全一致:保留 claim
+			// 原始 Level/SelfID 并写入 Dimensions。此前此处 continue 跳过写入,
+			// 维度缺失意味着 scope 插件不过滤该维度——解析失败被静默放大为全量可见。
+			sc.Dimensions[claim.Dimension] = &datascope.ResolvedDimension{Level: claim.Level, SelfID: claim.SelfID}
 			continue
 		}
 		sc.Dimensions[claim.Dimension] = dim
