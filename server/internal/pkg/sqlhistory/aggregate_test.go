@@ -3,6 +3,8 @@ package sqlhistory
 import (
 	"testing"
 	"time"
+
+	"github.com/tangwy-t/webmanager-server/internal/pkg/metricshistory"
 )
 
 // pt 构造一个采样点:T 为 now 前 offsetSec 秒,count=count,各耗时字段=v。
@@ -11,6 +13,15 @@ func pt(now time.Time, offsetSec int64, count int64, v float64) Point {
 		T:     now.Add(-time.Duration(offsetSec) * time.Second).UnixMilli(),
 		Count: count, AvgMs: v, P50Ms: v, P95Ms: v, P99Ms: v, MaxMs: v,
 	}
+}
+
+// bucketsFor 构造测试用分桶方案(与 Query 路径同源;测试参数固定合法)。
+func bucketsFor(now time.Time, window, step time.Duration) metricshistory.Buckets {
+	b, err := metricshistory.AlignBucketsAt(now, window, step)
+	if err != nil {
+		panic(err)
+	}
+	return b
 }
 
 // TestAggregateBuckets 验证绝对时间对齐、count 求和、count 加权平均
@@ -23,7 +34,7 @@ func TestAggregateBuckets(t *testing.T) {
 		pt(now, 3, 1, 100), // pos=2,独立桶
 	}
 
-	snap, err := aggregate(points, 5*time.Second, time.Second, now)
+	snap, err := aggregate(points, bucketsFor(now, 5*time.Second, time.Second))
 	if err != nil {
 		t.Fatalf("aggregate: %v", err)
 	}
@@ -58,7 +69,7 @@ func TestAggregateBuckets(t *testing.T) {
 // TestAggregateIgnoresOutdated 窗口外的点不参与任何统计。
 func TestAggregateIgnoresOutdated(t *testing.T) {
 	now := time.Date(2026, 9, 3, 20, 0, 30, 0, time.Local)
-	snap, err := aggregate([]Point{pt(now, 30, 1, 50)}, 10*time.Second, time.Second, now)
+	snap, err := aggregate([]Point{pt(now, 30, 1, 50)}, bucketsFor(now, 10*time.Second, time.Second))
 	if err != nil {
 		t.Fatalf("aggregate: %v", err)
 	}
@@ -74,26 +85,12 @@ func TestAggregateIgnoresOutdated(t *testing.T) {
 // > 4000 → step = ceil(86400/4000) = 22s。
 func TestAggregateBucketCap(t *testing.T) {
 	now := time.Date(2026, 9, 3, 20, 0, 0, 0, time.Local)
-	snap, err := aggregate([]Point{pt(now, 0, 1, 1)}, 24*time.Hour, time.Second, now)
+	snap, err := aggregate([]Point{pt(now, 0, 1, 1)}, bucketsFor(now, 24*time.Hour, time.Second))
 	if err != nil {
 		t.Fatalf("aggregate: %v", err)
 	}
 	if snap.StepSeconds != 22 {
 		t.Fatalf("step_seconds = %d, want 22 (自动放大)", snap.StepSeconds)
-	}
-}
-
-// TestAggregateParamErrors 非法参数。
-func TestAggregateParamErrors(t *testing.T) {
-	now := time.Now()
-	if _, err := aggregate(nil, 0, time.Second, now); err == nil {
-		t.Fatal("window<=0 应报错")
-	}
-	if _, err := aggregate(nil, time.Minute, 500*time.Millisecond, now); err == nil {
-		t.Fatal("step<1s 应报错")
-	}
-	if _, err := aggregate(nil, time.Second, time.Minute, now); err == nil {
-		t.Fatal("step>window 应报错")
 	}
 }
 
@@ -106,7 +103,7 @@ func TestAggregateQuantizesToTwoDecimals(t *testing.T) {
 		pt(now, 1, 3, 1.23), // 同一 3s 桶:count=3,各耗时字段 1.23
 		pt(now, 2, 4, 2.34), // 同一 3s 桶:count=4,各耗时字段 2.34
 	}
-	snap, err := aggregate(points, 9*time.Second, 3*time.Second, now)
+	snap, err := aggregate(points, bucketsFor(now, 9*time.Second, 3*time.Second))
 	if err != nil {
 		t.Fatalf("aggregate: %v", err)
 	}
