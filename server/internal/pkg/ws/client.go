@@ -21,15 +21,15 @@ const (
 	kickTimeout    = 5 * time.Second
 )
 
-// Context keys for client state stored in the embedded context.
-// ctxKeyUserID is contextkeys.UserID — the canonical identity key also used
-// by the auth middleware, so services can read the user ID from the ws
-// client's context via contextkeys.UserIDFromCtx.
-var (
-	ctxKeyUserID    = contextkeys.UserID
-	ctxKeyAuthed    = "ws:authed"
-	ctxKeyKicked    = "ws:kicked"
-	ctxKeyKickToken = "ws:kickToken"
+// ws 客户端私有状态键(连接级,非身份):类型化避免与字符串键冲突。
+// 身份(userID)不在此列:统一走 contextkeys.UserID,与 HTTP Auth 中间件
+// 注入的键同源,服务层用 contextkeys.UserIDFromCtx 即可读取。
+type wsStateKey string
+
+const (
+	ctxKeyAuthed    wsStateKey = "ws:authed"
+	ctxKeyKicked    wsStateKey = "ws:kicked"
+	ctxKeyKickToken wsStateKey = "ws:kickToken"
 )
 
 // Client represents a single WebSocket connection.
@@ -60,17 +60,14 @@ func NewClient(hub HubInterface, conn *websocket.Conn, logger logger.LoggerInter
 func (c *Client) UserID() uint64 {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	id, _ := c.Value(ctxKeyUserID).(uint64)
+	id, _ := contextkeys.UserIDFromCtx(c.Context)
 	return id
 }
 
 func (c *Client) SetUserID(userID uint64) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.Context = context.WithValue(
-		context.WithValue(c.Context, ctxKeyUserID, userID),
-		ctxKeyAuthed, true,
-	)
+	c.Context = context.WithValue(contextkeys.WithUserID(c.Context, userID), ctxKeyAuthed, true)
 }
 
 func (c *Client) IsAuthed() bool {
