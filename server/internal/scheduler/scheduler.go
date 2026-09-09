@@ -14,6 +14,7 @@ import (
 	"github.com/tangwy-t/webmanager-server/internal/model/entity"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/lifecycle"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/logger"
+	"github.com/tangwy-t/webmanager-server/internal/service"
 	"go.uber.org/zap"
 )
 
@@ -79,9 +80,7 @@ func NewScheduler(
 
 	// 注册 config:changed PubSub Handler（热更新）
 	s.broker.Subscribe(eventConfigChanged, func(ctx context.Context, eventType string, payload []byte) error {
-		var msg struct {
-			Key string `json:"key"`
-		}
+		var msg service.ConfigChangedMsg
 		if err := json.Unmarshal(payload, &msg); err != nil {
 			s.logger.Warn("scheduler: failed to parse config:changed message", zap.Error(err))
 			return nil

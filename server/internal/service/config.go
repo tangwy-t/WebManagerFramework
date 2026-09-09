@@ -59,6 +59,13 @@ const (
 	ConfigChangedChannel = "config.changed"
 )
 
+// ConfigChangedMsg 是 config.changed Pub/Sub 消息载荷。
+// 发布侧(configWarm/configInvalidate)与订阅侧(scheduler 热更新)共享此类型,
+// 字段名即协议:{"key":"sys.xxx"}。修改需同步订阅方解析。
+type ConfigChangedMsg struct {
+	Key string `json:"key"`
+}
+
 type ConfigService struct {
 	repo      ConfigRepositoryInterface
 	hashStore HashStoreInterface
@@ -180,7 +187,7 @@ func (s *ConfigService) configWarm(ctx context.Context, key, value string) {
 		}
 	}
 	if s.broker != nil {
-		msg := map[string]string{"key": key}
+		msg := ConfigChangedMsg{Key: key}
 		if err := s.broker.Publish(ctx, ConfigChangedChannel, msg); err != nil {
 			s.logger.Warn("ConfigService.configWarm publish failed",
 				zap.String("key", key), zap.Error(err))
@@ -198,7 +205,7 @@ func (s *ConfigService) configInvalidate(ctx context.Context, key string) {
 		}
 	}
 	if s.broker != nil {
-		msg := map[string]string{"key": key}
+		msg := ConfigChangedMsg{Key: key}
 		if err := s.broker.Publish(ctx, ConfigChangedChannel, msg); err != nil {
 			s.logger.Warn("ConfigService.configInvalidate publish failed",
 				zap.String("key", key), zap.Error(err))
