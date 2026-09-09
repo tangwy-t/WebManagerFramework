@@ -16,12 +16,8 @@ const historyKey = "monitor:server:history"
 const maxPoints = 43200
 
 // sampleStepSeconds 采样周期(秒),与 handler 的 defaultSampleInterval(2s)一致;
-// Query 按该值估算需要回读的最新条数(列表头部)。
+// 窗口取点启发式按该值估算需要回读的最新条数(列表头部)。
 const sampleStepSeconds = 2
-
-// maxHistoryBuckets 单次查询最多返回的桶数;窗口过大或步长过细时
-// aggregate 会自动放大 step,保证响应体积可控(与 SQL history 同值)。
-const maxHistoryBuckets = 4000
 
 // Point 一次采样的原始指标,即写入 Redis 的 JSON 形状。
 // 可能采集不到的指标用指针表达"缺值"。

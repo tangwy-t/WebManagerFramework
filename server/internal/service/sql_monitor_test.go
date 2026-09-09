@@ -1,7 +1,9 @@
 package service
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
 	"time"
@@ -14,6 +16,7 @@ import (
 	"github.com/tangwy-t/webmanager-server/internal/model/dto/response"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/database"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/sqlhistory"
+	"github.com/tangwy-t/webmanager-server/internal/pkg/util"
 )
 
 // newTestSQLStats 构造最小 SQLStats,写入两条记录供快照读取。
@@ -213,5 +216,69 @@ func TestGetHistoryReturnsResponseDTO(t *testing.T) {
 	}
 	if _, ok := any(snap).(*response.SQLHistorySnapshot); !ok {
 		t.Fatal("GetHistory 应返回 response.SQLHistorySnapshot")
+	}
+}
+
+// TestHistoryAdaptersPreserveJSONShape 适配器必须保形:新契约(HTTP DTO)与
+// 旧契约(database.HistorySnapshot 同值对象)的 JSON 序列化逐字节一致,
+// 即前端契约零变化。覆盖 sqlhistory→DTO 与 database→DTO 双路径。
+func TestHistoryAdaptersPreserveJSONShape(t *testing.T) {
+	ts := util.JSONTime(time.Unix(1800000, 0))
+	dbSnap := &database.HistorySnapshot{
+		WindowSeconds:   60,
+		StepSeconds:     3,
+		SlowThresholdMs: 200,
+		RecentQPS:       1.23,
+		Buckets: []database.HistoryPoint{{
+			Timestamp:  ts,
+			Count:      2,
+			QPS:        0.67,
+			AvgMs:      25.5,
+			P50Ms:      20,
+			P95Ms:      40.1,
+			P99Ms:      50,
+			MaxMs:      50,
+			ErrorCount: 1,
+			SlowCount:  1,
+		}},
+	}
+	sqlSnap := &sqlhistory.Snapshot{
+		WindowSeconds: 60,
+		StepSeconds:   3,
+		RecentQPS:     1.23,
+		Buckets: []sqlhistory.Bucket{{
+			Timestamp:  ts,
+			Count:      2,
+			QPS:        0.67,
+			AvgMs:      25.5,
+			P50Ms:      20,
+			P95Ms:      40.1,
+			P99Ms:      50,
+			MaxMs:      50,
+			ErrorCount: 1,
+			SlowCount:  1,
+		}},
+	}
+
+	// 旧契约基线:改造前接口直接序列化 database.HistorySnapshot。
+	oldBytes, err := json.Marshal(dbSnap)
+	if err != nil {
+		t.Fatalf("marshal old: %v", err)
+	}
+
+	// 新契约 ×2 路径。
+	newFromSQL, err := json.Marshal(snapshotFromSQL(sqlSnap, 200))
+	if err != nil {
+		t.Fatalf("marshal dto(sql): %v", err)
+	}
+	if !bytes.Equal(oldBytes, newFromSQL) {
+		t.Fatalf("sql 路径 JSON 漂移:\nold=%s\nnew=%s", oldBytes, newFromSQL)
+	}
+	newFromBuf, err := json.Marshal(historyFromStats(dbSnap))
+	if err != nil {
+		t.Fatalf("marshal dto(buffer): %v", err)
+	}
+	if !bytes.Equal(oldBytes, newFromBuf) {
+		t.Fatalf("buffer 路径 JSON 漂移:\nold=%s\nnew=%s", oldBytes, newFromBuf)
 	}
 }

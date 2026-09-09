@@ -64,7 +64,7 @@ func TestSnapshotHistoryAggregates(t *testing.T) {
 }
 
 // TestSnapshotHistoryBucketCap 验证桶数超限时 step 自动放大:
-// 24h @ 1s = 86400 桶 > maxHistoryBuckets(4000),step 应放大为 ceil(86400/4000)=22s。
+// 24h @ 1s = 86400 桶 > 桶数上限(metricshistory 4000),step 应放大为 ceil(86400/4000)=22s。
 func TestSnapshotHistoryBucketCap(t *testing.T) {
 	stats := NewSQLStats(64, 200*time.Millisecond)
 	snap := stats.SnapshotHistory(24*time.Hour, time.Second)
