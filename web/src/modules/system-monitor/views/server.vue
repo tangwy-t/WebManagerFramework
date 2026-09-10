@@ -404,7 +404,7 @@
   import type { LineDataItem } from '@/types/component/chart'
   import { fetchServerHistory, fetchServerStats } from '../api'
   import type { ServerHistory, ServerHistoryPoint } from '../api'
-  import { buildSparkSeries, sparkPath, type SparkResult } from '../composables/use-spark-series'
+  import { buildSparkSeries, sparkPath } from '../composables/use-spark-series'
   // 纯格式化 / 阈值配色工具(原散落在本文件,已抽出并配套单测)
   import {
     clamp01,

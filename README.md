@@ -20,6 +20,7 @@ An enterprise-grade RBAC (Role-Based Access Control) administration framework, b
 - [配置说明 / Configuration](#配置说明--configuration)
 - [权限体系 / Permission Model](#权限体系--permission-model)
 - [内置业务模块 / Built-in Modules](#内置业务模块--built-in-modules)
+- [响应契约 / Response Contract](#响应契约--response-contract)
 - [API 文档 / API Documentation](#api-文档--api-documentation)
 - [开发规范 / Development Conventions](#开发规范--development-conventions)
 - [License 与致谢 / License & Acknowledgements](#license-与致谢--license--acknowledgements)
@@ -255,6 +256,38 @@ Frontend dynamic routes are generated from backend-delivered menus + permission 
 | 通知公告 / Notices | `system-notice` | 公告发布、已读聚合 / announces & read aggregation |
 | 系统监控 / Monitor | `system-monitor` | 服务端 / SQL / Redis 缓存 / pprof / server, SQL, Redis, pprof |
 | 个人中心 / Profile | `system-user-center` | 账号设置、登录活动 / account settings, login activity |
+
+---
+
+## 响应契约 / Response Contract
+
+所有接口统一返回 `{ code, msg, data }` 信封，**同时**携带 HTTP 状态码与业务码。
+两者是**互不相交**的两个命名空间，消费时必须分开使用：
+
+| | HTTP 状态码 | 业务码 |
+|---|---|---|
+| 取值 | 200 / 400 / 401 / 403 / 404 / 500 … | 0 / 10001 / 10002 / 40000 / 40400 / 50000 … |
+| 读取处 | `error.response.status`（前端）、响应行（后端） | 信封 `code` 字段 |
+| 前端对应 | `ApiStatus.*`（`utils/http/status.ts`） | `BizCode.*`（同文件） |
+| 后端对应 | `AppError.HTTPStatus` | `apperror.Code*` 常量 |
+
+- **成功**恒为 HTTP 200 + `code: 0`（见 `app.Success`）。
+- **失败**由 `app.Error` 同时给出两者：HTTP 状态取 `AppError.HTTPStatus`，
+  信封 `code` 取 `AppError.Code`。
+- 因此不存在"二者只能选一"的情况 —— 按手上的字段选对应枚举即可。
+
+⚠️ **不要把两者混用。** 例如把成功判定写成 `code === ApiStatus.unauthorized`
+是恒不成立的：后端未授权业务码是 `10001`，永不等于 HTTP `401`，
+该分支会让**每一个成功响应都被误判为失败**。
+`web/src/utils/http/status.test.ts` 与 `interceptor.test.ts` 已用断言锁定这一点。
+
+All endpoints share one envelope, `{ code, msg, data }`, carrying **both** an HTTP
+status and a business code. These are two **disjoint** namespaces and must be used
+separately: HTTP status via `error.response.status` (frontend) / the status line
+(backend), and the business code via the envelope's `code` field. Success is
+always HTTP 200 with `code: 0`; failures carry both, set from `AppError.HTTPStatus`
+and `AppError.Code` respectively. Mixing them is a bug — comparing a business code
+against an HTTP status is always false.
 
 ---
 
