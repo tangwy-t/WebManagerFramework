@@ -8,7 +8,7 @@
  */
 import axios, { AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from 'axios'
 import { useUserStore } from '@/store/modules/user'
-import { ApiStatus } from './status'
+import { ApiStatus, BizCode } from './status'
 import { HttpError, handleError, showError, showSuccess } from './error'
 import { BaseResponse } from '@/types'
 
@@ -81,7 +81,15 @@ axiosInstance.interceptors.response.use(
     // blob 下载走原始二进制数据,不做 {code,msg,data} 信封解包
     if (response.config.responseType === 'blob') return response
     const { code, msg } = response.data
-    if (code === ApiStatus.unauthorized) return response
+    // 成功判定:后端 app.Success 恒返回 HTTP 200 + 信封 code 0,
+    // 所以这里比较的是**业务码** BizCode.ok(=0),而非 HTTP 状态码。
+    //
+    // 注意区分两个命名空间(见 utils/http/status.ts):
+    //   - 业务码由 response.data.code 读取 → 与 BizCode.* 比较
+    //   - HTTP 状态由 error.response.status 读取 → 与 ApiStatus.* 比较
+    // 把 ApiStatus(HTTP)用于业务码比较会恒为 false:
+    // 后端未授权业务码是 10001,永不等于 HTTP 401。
+    if (code === BizCode.ok) return response
     throw createHttpError(msg || '请求失败', code)
   },
   async (error) => {
@@ -171,7 +179,7 @@ async function refreshAccessToken(): Promise<string> {
     throw createHttpError(msg || '登录状态已失效，请重新登录', ApiStatus.unauthorized)
   }
 
-  if (fresh.data.code === ApiStatus.success && fresh.data.data) {
+  if (fresh.data.code === BizCode.ok && fresh.data.data) {
     const { accessToken, refreshToken: nextRefresh } = fresh.data.data
     useUserStore().setToken(accessToken, nextRefresh)
     return accessToken
@@ -179,7 +187,9 @@ async function refreshAccessToken(): Promise<string> {
   // 2xx 但业务码非成功:同样保留服务端 msg。
   throw createHttpError(
     fresh.data.msg || '登录状态已失效，请重新登录',
-    fresh.data.code ?? ApiStatus.unauthorized
+    // 业务码缺失时兜底为未授权业务码(而非 HTTP 401):
+    // 这里构造的是 HttpError 的 code,下游按业务码语义使用。
+    fresh.data.code ?? BizCode.unauthorized
   )
 }
 
