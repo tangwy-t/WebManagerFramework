@@ -134,6 +134,7 @@ func OperationLogMiddleware(svc OperationLogServiceInterface, logger logger.Logg
 //   - OperationLogService.Create 会用该 ctx 调 userRepo.FindByID 反查用户名,
 //     失去 scope 后这次查询不再受数据权限约束(跨部门读取);
 //   - 审计链路与运行时请求的过滤口径不一致,审计结果无法互相印证。
+//
 // 这里在 goroutine 外同步取出(gin.Context 非并发安全),再注入新 ctx。
 func saveOperationLog(c *gin.Context, writer *bodyCaptureWriter, startTime time.Time, requestParams string, svc OperationLogServiceInterface, logger logger.LoggerInterface) {
 	// Extract values before the goroutine (gin.Context is not goroutine-safe).

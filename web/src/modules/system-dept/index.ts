@@ -1,4 +1,5 @@
 import type { PluginManifest } from '@/types/plugin'
+import { PermDeptList } from '@/enums/permission'
 
 const plugin: PluginManifest = {
   name: 'system-dept',
@@ -11,7 +12,7 @@ const plugin: PluginManifest = {
       meta: {
         title: '部门管理',
         icon: 'ri:organization-chart',
-        authMark: 'system:dept:list'
+        authMark: PermDeptList
       }
     }
   ]

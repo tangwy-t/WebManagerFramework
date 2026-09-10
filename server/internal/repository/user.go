@@ -53,17 +53,10 @@ func (r *UserRepo) applyUserFilters(db *gorm.DB, query *request.UserQuery) *gorm
 
 func (r *UserRepo) FindPage(ctx context.Context, query *request.UserQuery) ([]entity.SysUser, int64, error) {
 	// Count without Preload to avoid unnecessary JOIN overhead.
-	var total int64
 	countDB := r.applyUserFilters(r.db.WithContext(ctx).Model(&entity.SysUser{}), query)
-	if err := countDB.Count(&total).Error; err != nil {
-		return nil, 0, err
-	}
-
-	dataDB := r.applyUserFilters(r.db.WithContext(ctx).Model(&entity.SysUser{}), query)
-	dataDB = dataDB.Preload("Dept").Preload("Roles")
-	var users []entity.SysUser
-	err := dataDB.Offset(query.Offset()).Limit(query.GetPageSize()).Order("id DESC").Find(&users).Error
-	return users, total, err
+	dataDB := r.applyUserFilters(r.db.WithContext(ctx).Model(&entity.SysUser{}), query).
+		Preload("Dept").Preload("Roles").Order("id DESC")
+	return paginate[entity.SysUser](countDB, dataDB, query)
 }
 
 func (r *UserRepo) FindByID(ctx context.Context, id uint64) (*entity.SysUser, error) {

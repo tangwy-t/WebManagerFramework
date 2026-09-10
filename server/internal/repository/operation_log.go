@@ -46,16 +46,9 @@ func (r *OperationLogRepo) applyFilters(db *gorm.DB, query *request.OperationLog
 }
 
 func (r *OperationLogRepo) FindPage(ctx context.Context, query *request.OperationLogQuery) ([]entity.SysOperationLog, int64, error) {
-	var total int64
 	countDB := r.applyFilters(r.db.WithContext(ctx).Model(&entity.SysOperationLog{}), query)
-	if err := countDB.Count(&total).Error; err != nil {
-		return nil, 0, err
-	}
-
-	var logs []entity.SysOperationLog
-	dataDB := r.applyFilters(r.db.WithContext(ctx).Model(&entity.SysOperationLog{}), query)
-	err := dataDB.Offset(query.Offset()).Limit(query.GetPageSize()).Order("id DESC").Find(&logs).Error
-	return logs, total, err
+	dataDB := r.applyFilters(r.db.WithContext(ctx).Model(&entity.SysOperationLog{}), query).Order("id DESC")
+	return paginate[entity.SysOperationLog](countDB, dataDB, query)
 }
 
 func (r *OperationLogRepo) Create(ctx context.Context, log *entity.SysOperationLog) error {

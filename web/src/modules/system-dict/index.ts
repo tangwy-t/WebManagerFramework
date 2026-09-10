@@ -1,4 +1,5 @@
 import type { PluginManifest } from '@/types/plugin'
+import { PermDictDataList, PermDictTypeList } from '@/enums/permission'
 
 const plugin: PluginManifest = {
   name: 'system-dict',
@@ -11,7 +12,7 @@ const plugin: PluginManifest = {
       meta: {
         title: '字典管理',
         icon: 'ri:book-2-line',
-        authMark: 'system:dict:type:list'
+        authMark: PermDictTypeList
       }
     },
     {
@@ -22,7 +23,7 @@ const plugin: PluginManifest = {
         title: '字典数据',
         icon: 'ri:list-check-3',
         isHide: true,
-        authMark: 'system:dict:data:list'
+        authMark: PermDictDataList
       }
     }
   ]

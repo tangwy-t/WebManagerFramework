@@ -156,7 +156,7 @@
           </button>
 
           <ArtButtonTable
-            v-perm="'system:file:upload'"
+            v-perm="PermFileUpload"
             class="!mr-0"
             icon="ri:upload-2-line"
             iconClass="bg-theme/12 text-theme"
@@ -198,7 +198,7 @@
             />
             <ArtButtonTable
               v-else
-              v-perm="'system:file:upload'"
+              v-perm="PermFileUpload"
               icon="ri:upload-2-line"
               iconClass="bg-theme/12 text-theme"
               title="立即上传"
@@ -329,7 +329,7 @@
         >
         <span class="batch-divider" />
         <ArtButtonTable
-          v-perm="'system:file:download'"
+          v-perm="PermFileDownload"
           class="!mr-0"
           icon="ri:download-2-line"
           iconClass="bg-theme/12 text-theme"
@@ -338,7 +338,7 @@
           @click="handleDownload(selectedRows)"
         />
         <ArtButtonTable
-          v-perm="'system:file:delete'"
+          v-perm="PermFileDelete"
           class="!mr-0"
           icon="ri:delete-bin-5-line"
           iconClass="bg-danger/12 text-danger"
@@ -364,6 +364,7 @@
 </template>
 
 <script setup lang="ts">
+  import { PermFileDelete, PermFileDownload, PermFileUpload } from '@/enums/permission'
   import { computed, h, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue'
   import { ElMessage, ElMessageBox } from 'element-plus'
   import { useDebounceFn, useStorage } from '@vueuse/core'

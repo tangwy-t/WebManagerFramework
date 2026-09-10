@@ -31,17 +31,8 @@ func (r *JobRepo) applyFilters(db *gorm.DB, query *request.JobQuery) *gorm.DB {
 }
 
 func (r *JobRepo) FindPage(ctx context.Context, query *request.JobQuery) ([]entity.SysJob, int64, error) {
-	var list []entity.SysJob
-	var total int64
-	db := r.db.WithContext(ctx).Model(&entity.SysJob{})
-	db = r.applyFilters(db, query)
-	if err := db.Count(&total).Error; err != nil {
-		return nil, 0, err
-	}
-	if err := db.Offset(query.Offset()).Limit(query.GetPageSize()).Order("id DESC").Find(&list).Error; err != nil {
-		return nil, 0, err
-	}
-	return list, total, nil
+	db := r.applyFilters(r.db.WithContext(ctx).Model(&entity.SysJob{}), query)
+	return paginate[entity.SysJob](db, db.Order("id DESC"), query)
 }
 
 func (r *JobRepo) FindByID(ctx context.Context, id uint64) (*entity.SysJob, error) {

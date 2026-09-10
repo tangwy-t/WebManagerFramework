@@ -43,16 +43,9 @@ func (r *LoginLogRepo) applyFilters(db *gorm.DB, query *request.LoginLogQuery) *
 }
 
 func (r *LoginLogRepo) FindPage(ctx context.Context, query *request.LoginLogQuery) ([]entity.SysLoginLog, int64, error) {
-	var total int64
 	countDB := r.applyFilters(r.db.WithContext(ctx).Model(&entity.SysLoginLog{}), query)
-	if err := countDB.Count(&total).Error; err != nil {
-		return nil, 0, err
-	}
-
-	var logs []entity.SysLoginLog
-	dataDB := r.applyFilters(r.db.WithContext(ctx).Model(&entity.SysLoginLog{}), query)
-	err := dataDB.Offset(query.Offset()).Limit(query.GetPageSize()).Order("id DESC").Find(&logs).Error
-	return logs, total, err
+	dataDB := r.applyFilters(r.db.WithContext(ctx).Model(&entity.SysLoginLog{}), query).Order("id DESC")
+	return paginate[entity.SysLoginLog](countDB, dataDB, query)
 }
 
 func (r *LoginLogRepo) Create(ctx context.Context, log *entity.SysLoginLog) error {

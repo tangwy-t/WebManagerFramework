@@ -14,8 +14,8 @@
     "fix": "eslint --fix",
     "test": "vitest run",
     "lint:prettier": "prettier --write \"**/*.{js,cjs,ts,json,tsx,vue,html,md}\"",
-    "gen:api": "cd ../server && go run ./tools/apigen -out ../web/src/types/api/api.generated.d.ts",
-    "check:api-types": "cd ../server && go run ./tools/apigen -out ../web/src/types/api/api.generated.d.ts && cd ../web && git diff --exit-code -- src/types/api/api.generated.d.ts"
+    "gen:api": "cd ../server && go run ./tools/apigen -out ../web/src/types/api/api.generated.d.ts -permout ../web/src/enums/permission.ts",
+    "check:api-types": "cd ../server && go run ./tools/apigen -out ../web/src/types/api/api.generated.d.ts -permout ../web/src/enums/permission.ts && cd ../web && git diff --exit-code -- src/types/api/api.generated.d.ts src/enums/permission.ts && node scripts/check-permissions.mjs"
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.2",

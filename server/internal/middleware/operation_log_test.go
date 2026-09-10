@@ -192,6 +192,7 @@ func TestOperationLogMiddlewareSkipsGET(t *testing.T) {
 		// pass
 	}
 }
+
 // TestOperationLogMiddlewarePreservesScopeContext 是 P0 回归测试。
 //
 // 历史缺陷:saveOperationLog 在 goroutine 内用裸 context.Background()

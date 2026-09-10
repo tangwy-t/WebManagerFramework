@@ -27,12 +27,12 @@ type FlameNode struct {
 
 // PprofTopFunc 热点函数一行。
 type PprofTopFunc struct {
-	Fn    string `json:"fn"` // 完整函数名
-	Name  string `json:"name"` // 缩短展示名
-	File  string `json:"file"`
-	Line  int    `json:"line"`
-	Flat  int64  `json:"flat"`
-	Cum   int64  `json:"cum"`
+	Fn   string `json:"fn"`   // 完整函数名
+	Name string `json:"name"` // 缩短展示名
+	File string `json:"file"`
+	Line int    `json:"line"`
+	Flat int64  `json:"flat"`
+	Cum  int64  `json:"cum"`
 }
 
 // PprofProfileResponse 单个 profile 的火焰树 + 热点函数。

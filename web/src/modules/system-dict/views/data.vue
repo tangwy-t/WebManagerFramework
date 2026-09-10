@@ -18,7 +18,7 @@
             @click="back"
           />
           <ArtButtonTable
-            v-perm="'system:dict:data:add'"
+            v-perm="PermDictDataAdd"
             type="add"
             title="新增数据"
             @click="openDataDialog()"
@@ -34,6 +34,7 @@
 </template>
 
 <script setup lang="ts">
+  import { PermDictDataAdd } from '@/enums/permission'
   import { ref, h } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
   import { ElTag, ElMessage, ElMessageBox } from 'element-plus'

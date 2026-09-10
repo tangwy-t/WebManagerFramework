@@ -19,12 +19,7 @@
         @refresh="loadList"
       >
         <template #left>
-          <ArtButtonTable
-            v-perm="'system:job:add'"
-            type="add"
-            title="新增任务"
-            @click="openDialog()"
-          />
+          <ArtButtonTable v-perm="PermJobAdd" type="add" title="新增任务" @click="openDialog()" />
         </template>
       </ArtTableHeader>
 
@@ -59,6 +54,7 @@
 </template>
 
 <script setup lang="ts">
+  import { PermJobAdd } from '@/enums/permission'
   import { reactive, ref, h, computed } from 'vue'
   import { ElMessage, ElMessageBox, ElSwitch, ElTooltip } from 'element-plus'
   import { useTableColumns } from '@/hooks/core/useTableColumns'
@@ -290,7 +286,12 @@
       fixed: 'right',
       formatter: (row) =>
         h('div', { class: 'flex items-center' }, [
-          h(ArtButtonTable, { type: 'edit', title: '编辑', auth: 'system:job:edit', onClick: () => openDialog(row) }),
+          h(ArtButtonTable, {
+            type: 'edit',
+            title: '编辑',
+            auth: 'system:job:edit',
+            onClick: () => openDialog(row)
+          }),
           h(ArtButtonTable, {
             icon: 'ri:play-circle-line',
             iconClass:

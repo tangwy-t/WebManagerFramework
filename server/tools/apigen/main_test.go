@@ -29,17 +29,17 @@ import (
 
 // UserInfoResp 登录用户信息。
 type UserInfoResp struct {
-	ID    uint64      ` + "`json:\"id,string\"`" + `
-	Name  string      ` + "`json:\"name\"`" + `
-	Admin bool        ` + "`json:\"admin\"`" + `
-	Seen  *time.Time  ` + "`json:\"seen,omitempty\"`" + `
-	Skip  string      ` + "`json:\"-\"`" + `
+	ID    uint64      `+"`json:\"id,string\"`"+`
+	Name  string      `+"`json:\"name\"`"+`
+	Admin bool        `+"`json:\"admin\"`"+`
+	Seen  *time.Time  `+"`json:\"seen,omitempty\"`"+`
+	Skip  string      `+"`json:\"-\"`"+`
 }
 
 // RoleBriefResp 角色简要信息。
 type RoleBriefResp struct {
-	ID   uint64 ` + "`json:\"id,string\"`" + `
-	Name string ` + "`json:\"name\"`" + `
+	ID   uint64 `+"`json:\"id,string\"`"+`
+	Name string `+"`json:\"name\"`"+`
 }
 `)
 	writeSample(t, dir, "user.go", `package response
@@ -48,16 +48,16 @@ import "github.com/tangwy-t/webmanager-server/internal/pkg/util"
 
 // UserResp 用户详情。
 type UserResp struct {
-	ID        uint64             ` + "`json:\"id,string\"`" + `
-	DeptID    util.JsonUint64    ` + "`json:\"deptId,string\"`" + `
-	MenuIDs   util.JsonUint64Slice ` + "`json:\"menuIds\"`" + `
-	RealName  *string            ` + "`json:\"realName,omitempty\"`" + `
-	Created   util.JSONTime      ` + "`json:\"createdAt\"`" + `
-	Counts    map[string]int64   ` + "`json:\"counts\"`" + `
-	Children  []UserResp         ` + "`json:\"children,omitempty\"`" + `
-	Brief     *RoleBriefResp     ` + "`json:\"brief,omitempty\"`" + `
-	Peers     []*RoleBriefResp   ` + "`json:\"peers,omitempty\"`" + `
-	Any       interface{}        ` + "`json:\"any\"`" + `
+	ID        uint64             `+"`json:\"id,string\"`"+`
+	DeptID    util.JsonUint64    `+"`json:\"deptId,string\"`"+`
+	MenuIDs   util.JsonUint64Slice `+"`json:\"menuIds\"`"+`
+	RealName  *string            `+"`json:\"realName,omitempty\"`"+`
+	Created   util.JSONTime      `+"`json:\"createdAt\"`"+`
+	Counts    map[string]int64   `+"`json:\"counts\"`"+`
+	Children  []UserResp         `+"`json:\"children,omitempty\"`"+`
+	Brief     *RoleBriefResp     `+"`json:\"brief,omitempty\"`"+`
+	Peers     []*RoleBriefResp   `+"`json:\"peers,omitempty\"`"+`
+	Any       interface{}        `+"`json:\"any\"`"+`
 }
 `)
 
@@ -108,7 +108,7 @@ func TestGenPackageRejectsUnknownFileMapping(t *testing.T) {
 	writeSample(t, dir, "mystery.go", `package response
 
 type X struct {
-	A string ` + "`json:\"a\"`" + `
+	A string `+"`json:\"a\"`"+`
 }
 `)
 	if _, err := genPackage(dir); err == nil {
@@ -123,7 +123,7 @@ func TestGenPackageRejectsUnknownSelectorType(t *testing.T) {
 import "otherpkg"
 
 type Y struct {
-	A otherpkg.Foreign ` + "`json:\"a\"`" + `
+	A otherpkg.Foreign `+"`json:\"a\"`"+`
 }
 `)
 	if _, err := genPackage(dir); err == nil {
@@ -137,14 +137,14 @@ func TestGenPackageInlinesEmbeddedFields(t *testing.T) {
 
 // Base 基础字段。
 type Base struct {
-	ID   uint64 ` + "`json:\"id,string\"`" + `
-	Name string ` + "`json:\"name\"`" + `
+	ID   uint64 `+"`json:\"id,string\"`"+`
+	Name string `+"`json:\"name\"`"+`
 }
 
 // DeptResp 部门详情(内嵌 Base)。
 type DeptResp struct {
 	Base
-	Parent uint64 ` + "`json:\"parent,string\"`" + `
+	Parent uint64 `+"`json:\"parent,string\"`"+`
 }
 `)
 	got, err := genPackage(dir)

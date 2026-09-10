@@ -124,10 +124,10 @@ func seedNoticeReadAll(t *testing.T, db *gorm.DB) {
 	read := entity.NoticeReadStatusRead
 	rt := time.Date(2026, 9, 1, 11, 0, 0, 0, time.UTC)
 	rows := []entity.SysNoticeUser{
-		{BaseEntity: entity.BaseEntity{ID: 1}, NoticeID: 11, UserID: 1, ReadStatus: unread},                    // → 翻已读
-		{BaseEntity: entity.BaseEntity{ID: 2}, NoticeID: 12, UserID: 1, ReadStatus: read, ReadTime: &rt},        // 幂等
-		{BaseEntity: entity.BaseEntity{ID: 3}, NoticeID: 14, UserID: 1, ReadStatus: read, ReadTime: &rt},        // 幂等
-		{BaseEntity: entity.BaseEntity{ID: 4}, NoticeID: 10, UserID: 2, ReadStatus: unread},                     // 他人,不动
+		{BaseEntity: entity.BaseEntity{ID: 1}, NoticeID: 11, UserID: 1, ReadStatus: unread},              // → 翻已读
+		{BaseEntity: entity.BaseEntity{ID: 2}, NoticeID: 12, UserID: 1, ReadStatus: read, ReadTime: &rt}, // 幂等
+		{BaseEntity: entity.BaseEntity{ID: 3}, NoticeID: 14, UserID: 1, ReadStatus: read, ReadTime: &rt}, // 幂等
+		{BaseEntity: entity.BaseEntity{ID: 4}, NoticeID: 10, UserID: 2, ReadStatus: unread},              // 他人,不动
 	}
 	for i := range rows {
 		if err := db.Create(&rows[i]).Error; err != nil {

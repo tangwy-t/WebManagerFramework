@@ -18,7 +18,7 @@
         <template #left>
           <div class="toolbar-left">
             <ArtButtonTable
-              v-perm="'system:role:add'"
+              v-perm="PermRoleAdd"
               type="add"
               title="新增角色"
               @click="openDialog()"
@@ -27,7 +27,7 @@
             <!-- 排序有改动时出现（同菜单管理「保存排序」） -->
             <ArtButtonTable
               v-if="sortDirtyCount > 0"
-              v-perm="'system:role:sort'"
+              v-perm="PermRoleSort"
               icon="ri:save-2-line"
               iconClass="bg-warning/12 text-warning"
               :title="`保存排序 (${sortDirtyCount})`"
@@ -37,7 +37,7 @@
             <!-- 批量操作（有勾选时出现） -->
             <template v-if="selectedRows.length">
               <ArtButtonTable
-                v-perm="'system:role:delete'"
+                v-perm="PermRoleDelete"
                 icon="ri:delete-bin-5-line"
                 iconClass="bg-danger/12 text-danger"
                 :title="`批量删除 (${selectedRows.length})`"
@@ -85,6 +85,7 @@
 </template>
 
 <script setup lang="ts">
+  import { PermRoleAdd, PermRoleDelete, PermRoleSort } from '@/enums/permission'
   import { computed, h, reactive, ref } from 'vue'
   import { ElMessage, ElMessageBox, ElSwitch, ElTag } from 'element-plus'
   import { useTableColumns } from '@/hooks/core/useTableColumns'
@@ -372,7 +373,12 @@
       return h(ElTag, { size: 'small', type: 'info', effect: 'plain' }, () => '内置角色')
     }
     return h('div', { class: 'flex items-center' }, [
-      h(ArtButtonTable, { type: 'edit', title: '编辑', auth: 'system:role:edit', onClick: () => openDialog(row) }),
+      h(ArtButtonTable, {
+        type: 'edit',
+        title: '编辑',
+        auth: 'system:role:edit',
+        onClick: () => openDialog(row)
+      }),
       h(ArtButtonTable, {
         icon: 'ri:user-add-line',
         iconClass: 'bg-secondary/12 text-secondary',
@@ -380,7 +386,12 @@
         auth: 'system:role:assign',
         onClick: () => openUserDrawer(row)
       }),
-      h(ArtButtonTable, { type: 'delete', title: '删除', auth: 'system:role:delete', onClick: () => onRemove(row) })
+      h(ArtButtonTable, {
+        type: 'delete',
+        title: '删除',
+        auth: 'system:role:delete',
+        onClick: () => onRemove(row)
+      })
     ])
   }
 

@@ -1,4 +1,5 @@
 import type { PluginManifest } from '@/types/plugin'
+import { PermLogLoginList, PermLogOperationList } from '@/enums/permission'
 
 const plugin: PluginManifest = {
   name: 'system-log',
@@ -11,7 +12,7 @@ const plugin: PluginManifest = {
       meta: {
         title: '操作日志',
         icon: 'ri:file-list-3-line',
-        authMark: 'system:log:operation:list'
+        authMark: PermLogOperationList
       }
     },
     {
@@ -21,7 +22,7 @@ const plugin: PluginManifest = {
       meta: {
         title: '登录日志',
         icon: 'ri:login-circle-line',
-        authMark: 'system:log:login:list'
+        authMark: PermLogLoginList
       }
     }
   ]

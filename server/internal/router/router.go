@@ -15,6 +15,7 @@ import (
 	"github.com/tangwy-t/webmanager-server/internal/pkg/app"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/config"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/logger"
+	"github.com/tangwy-t/webmanager-server/internal/pkg/permission"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/session"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/version"
 	wsPkg "github.com/tangwy-t/webmanager-server/internal/pkg/ws"
@@ -215,36 +216,36 @@ func Setup(deps Dependencies) *gin.Engine {
 		users := auth.Group("/users")
 		users.Use(middleware.SetModuleName("用户管理"))
 		{
-			users.GET("", perm("system:user:list"), deps.System.UserHdl.List)
-			users.GET("/:id", perm("system:user:query"), deps.System.UserHdl.GetByID)
-			users.POST("", perm("system:user:add"), deps.System.UserHdl.Create)
-			users.PUT("/:id", perm("system:user:edit"), deps.System.UserHdl.UpdateUserInfo)
-			users.PUT("/:id/roles", perm("system:user:assign"), deps.System.UserHdl.AssignRoles)
-			users.DELETE("/:id", perm("system:user:delete"), deps.System.UserHdl.Delete)
-			users.POST("/:id/enable", perm("system:user:enable"), deps.System.UserHdl.Enable)
-			users.POST("/:id/disable", perm("system:user:disable"), deps.System.UserHdl.Disable)
-			users.POST("/:id/password/reset", perm("system:user:reset"), deps.System.UserHdl.ResetPassword)
-			users.POST("/:id/unlock", perm("system:user:unlock"), deps.System.UserHdl.Unlock)
+			users.GET("", perm(permission.PermUserList), deps.System.UserHdl.List)
+			users.GET("/:id", perm(permission.PermUserQuery), deps.System.UserHdl.GetByID)
+			users.POST("", perm(permission.PermUserAdd), deps.System.UserHdl.Create)
+			users.PUT("/:id", perm(permission.PermUserEdit), deps.System.UserHdl.UpdateUserInfo)
+			users.PUT("/:id/roles", perm(permission.PermUserAssign), deps.System.UserHdl.AssignRoles)
+			users.DELETE("/:id", perm(permission.PermUserDelete), deps.System.UserHdl.Delete)
+			users.POST("/:id/enable", perm(permission.PermUserEnable), deps.System.UserHdl.Enable)
+			users.POST("/:id/disable", perm(permission.PermUserDisable), deps.System.UserHdl.Disable)
+			users.POST("/:id/password/reset", perm(permission.PermUserReset), deps.System.UserHdl.ResetPassword)
+			users.POST("/:id/unlock", perm(permission.PermUserUnlock), deps.System.UserHdl.Unlock)
 		}
 
 		// 角色管理
 		roles := auth.Group("/roles")
 		roles.Use(middleware.SetModuleName("角色管理"))
 		{
-			roles.GET("", perm("system:role:list"), deps.System.RoleHdl.List)
+			roles.GET("", perm(permission.PermRoleList), deps.System.RoleHdl.List)
 			// 角色下拉·白名单(仅登录,响应已按 RoleOptionResp 瘦身不含授权明细):
 			// 用户/公告表单均需引用角色列表做选择器。
 			roles.GET("/all", deps.System.RoleHdl.GetAll)
-			roles.GET("/:id", perm("system:role:query"), deps.System.RoleHdl.GetByID)
-			roles.POST("", perm("system:role:add"), deps.System.RoleHdl.Create)
-			roles.PUT("/:id", perm("system:role:edit"), deps.System.RoleHdl.Update)
-			roles.PUT("/sort", perm("system:role:sort"), deps.System.RoleHdl.UpdateSort)
-			roles.PUT("/:id/status", perm("system:role:status"), deps.System.RoleHdl.UpdateStatus)
-			roles.DELETE("/:id", perm("system:role:delete"), deps.System.RoleHdl.Delete)
+			roles.GET("/:id", perm(permission.PermRoleQuery), deps.System.RoleHdl.GetByID)
+			roles.POST("", perm(permission.PermRoleAdd), deps.System.RoleHdl.Create)
+			roles.PUT("/:id", perm(permission.PermRoleEdit), deps.System.RoleHdl.Update)
+			roles.PUT("/sort", perm(permission.PermRoleSort), deps.System.RoleHdl.UpdateSort)
+			roles.PUT("/:id/status", perm(permission.PermRoleStatus), deps.System.RoleHdl.UpdateStatus)
+			roles.DELETE("/:id", perm(permission.PermRoleDelete), deps.System.RoleHdl.Delete)
 			// 分配用户(角色维度):复用 UserHdl,join 表 sys_user_role 归用户域维护
-			roles.GET("/:id/users", perm("system:role:assign"), deps.System.UserHdl.ListByRole)
-			roles.POST("/:id/users", perm("system:role:assign"), deps.System.UserHdl.AddRoleUsers)
-			roles.DELETE("/:id/users", perm("system:role:assign"), deps.System.UserHdl.RemoveRoleUsers)
+			roles.GET("/:id/users", perm(permission.PermRoleAssign), deps.System.UserHdl.ListByRole)
+			roles.POST("/:id/users", perm(permission.PermRoleAssign), deps.System.UserHdl.AddRoleUsers)
+			roles.DELETE("/:id/users", perm(permission.PermRoleAssign), deps.System.UserHdl.RemoveRoleUsers)
 		}
 
 		// 菜单管理
@@ -258,11 +259,11 @@ func Setup(deps Dependencies) *gin.Engine {
 			// 仅返回其角色已分配的菜单(等价若依 selectMenuTreeByUserId)。
 			// 角色授权表单同样消费此树(对齐若依 treeselect,登录即可)。
 			menus.GET("", deps.System.MenuHdl.FindTree)
-			menus.GET("/:id", perm("system:menu:query"), deps.System.MenuHdl.GetByID)
-			menus.POST("", perm("system:menu:add"), deps.System.MenuHdl.Create)
-			menus.PUT("/sort", perm("system:menu:sort"), deps.System.MenuHdl.UpdateSort)
-			menus.PUT("/:id", perm("system:menu:edit"), deps.System.MenuHdl.Update)
-			menus.DELETE("/:id", perm("system:menu:delete"), deps.System.MenuHdl.Delete)
+			menus.GET("/:id", perm(permission.PermMenuQuery), deps.System.MenuHdl.GetByID)
+			menus.POST("", perm(permission.PermMenuAdd), deps.System.MenuHdl.Create)
+			menus.PUT("/sort", perm(permission.PermMenuSort), deps.System.MenuHdl.UpdateSort)
+			menus.PUT("/:id", perm(permission.PermMenuEdit), deps.System.MenuHdl.Update)
+			menus.DELETE("/:id", perm(permission.PermMenuDelete), deps.System.MenuHdl.Delete)
 		}
 
 		// 部门管理
@@ -273,42 +274,42 @@ func Setup(deps Dependencies) *gin.Engine {
 			// 树内容无需手工裁剪:sys_dept 声明 dept/self 维度数据范围,datascope
 			// 自动按当前用户部门范围过滤(只暴露其可见的组织子树)。写操作仍挂权限码。
 			depts.GET("", deps.System.DeptHdl.FindTree)
-			depts.GET("/:id", perm("system:dept:query"), deps.System.DeptHdl.GetByID)
-			depts.POST("", perm("system:dept:add"), deps.System.DeptHdl.Create)
-			depts.PUT("/sort", perm("system:dept:sort"), deps.System.DeptHdl.UpdateSort)
-			depts.PUT("/:id", perm("system:dept:edit"), deps.System.DeptHdl.Update)
-			depts.DELETE("/:id", perm("system:dept:delete"), deps.System.DeptHdl.Delete)
+			depts.GET("/:id", perm(permission.PermDeptQuery), deps.System.DeptHdl.GetByID)
+			depts.POST("", perm(permission.PermDeptAdd), deps.System.DeptHdl.Create)
+			depts.PUT("/sort", perm(permission.PermDeptSort), deps.System.DeptHdl.UpdateSort)
+			depts.PUT("/:id", perm(permission.PermDeptEdit), deps.System.DeptHdl.Update)
+			depts.DELETE("/:id", perm(permission.PermDeptDelete), deps.System.DeptHdl.Delete)
 		}
 
 		// 操作日志
 		opLogs := auth.Group("/logs/operation")
 		opLogs.Use(middleware.SetModuleName("操作日志"))
 		{
-			opLogs.GET("", perm("system:log:operation:list"), deps.Monitor.OpLogHdl.FindPage)
-			opLogs.DELETE("", perm("system:log:operation:delete"), deps.Monitor.OpLogHdl.DeleteBefore)
+			opLogs.GET("", perm(permission.PermLogOperationList), deps.Monitor.OpLogHdl.FindPage)
+			opLogs.DELETE("", perm(permission.PermLogOperationDelete), deps.Monitor.OpLogHdl.DeleteBefore)
 		}
 
 		// 登录日志
 		loginLogs := auth.Group("/logs/login")
 		loginLogs.Use(middleware.SetModuleName("登录日志"))
 		{
-			loginLogs.GET("", perm("system:log:login:list"), deps.Monitor.LoginLogHdl.FindPage)
+			loginLogs.GET("", perm(permission.PermLogLoginList), deps.Monitor.LoginLogHdl.FindPage)
 		}
 
 		// 字典管理
 		dictTypes := auth.Group("/dict/types")
 		dictTypes.Use(middleware.SetModuleName("字典管理"))
 		{
-			dictTypes.GET("", perm("system:dict:type:list"), deps.Dict.DictTypeHdl.List)
-			dictTypes.GET("/:id", perm("system:dict:type:query"), deps.Dict.DictTypeHdl.GetByID)
-			dictTypes.POST("", perm("system:dict:type:add"), deps.Dict.DictTypeHdl.Create)
-			dictTypes.PUT("/:id", perm("system:dict:type:edit"), deps.Dict.DictTypeHdl.Update)
-			dictTypes.DELETE("/:id", perm("system:dict:type:delete"), deps.Dict.DictTypeHdl.Delete)
-			dictTypes.GET("/:id/data", perm("system:dict:data:list"), deps.Dict.DictDataHdl.ListByType)
-			dictTypes.GET("/:id/data/:dataId", perm("system:dict:data:query"), deps.Dict.DictDataHdl.GetByID)
-			dictTypes.POST("/:id/data", perm("system:dict:data:add"), deps.Dict.DictDataHdl.Create)
-			dictTypes.PUT("/:id/data/:dataId", perm("system:dict:data:edit"), deps.Dict.DictDataHdl.Update)
-			dictTypes.DELETE("/:id/data/:dataId", perm("system:dict:data:delete"), deps.Dict.DictDataHdl.Delete)
+			dictTypes.GET("", perm(permission.PermDictTypeList), deps.Dict.DictTypeHdl.List)
+			dictTypes.GET("/:id", perm(permission.PermDictTypeQuery), deps.Dict.DictTypeHdl.GetByID)
+			dictTypes.POST("", perm(permission.PermDictTypeAdd), deps.Dict.DictTypeHdl.Create)
+			dictTypes.PUT("/:id", perm(permission.PermDictTypeEdit), deps.Dict.DictTypeHdl.Update)
+			dictTypes.DELETE("/:id", perm(permission.PermDictTypeDelete), deps.Dict.DictTypeHdl.Delete)
+			dictTypes.GET("/:id/data", perm(permission.PermDictDataList), deps.Dict.DictDataHdl.ListByType)
+			dictTypes.GET("/:id/data/:dataId", perm(permission.PermDictDataQuery), deps.Dict.DictDataHdl.GetByID)
+			dictTypes.POST("/:id/data", perm(permission.PermDictDataAdd), deps.Dict.DictDataHdl.Create)
+			dictTypes.PUT("/:id/data/:dataId", perm(permission.PermDictDataEdit), deps.Dict.DictDataHdl.Update)
+			dictTypes.DELETE("/:id/data/:dataId", perm(permission.PermDictDataDelete), deps.Dict.DictDataHdl.Delete)
 		}
 
 		// 字典消费查询（仅需登录，无需权限码）
@@ -323,21 +324,21 @@ func Setup(deps Dependencies) *gin.Engine {
 		notices := auth.Group("/notices")
 		notices.Use(middleware.SetModuleName("通知公告"))
 		{
-			notices.GET("", perm("system:notice:list"), deps.Monitor.NoticeHdl.List)
-			notices.GET("/target-users", perm("system:notice:list"), deps.Monitor.NoticeHdl.TargetUsers)
+			notices.GET("", perm(permission.PermNoticeList), deps.Monitor.NoticeHdl.List)
+			notices.GET("/target-users", perm(permission.PermNoticeList), deps.Monitor.NoticeHdl.TargetUsers)
 			// 用户公告收件箱·白名单(仅登录,服务端按接收范围过滤,对齐若依 listTop):
 			// 与 /notices/:id/read 白名单配套,普通用户也能拉取可见公告与未读数。
 			notices.GET("/my", deps.Monitor.NoticeHdl.MyNotices)
 			// 批量已读·白名单(与 /my、/:id/read 配套):幂等可重复调用。
 			notices.POST("/read-all", deps.Monitor.NoticeHdl.MarkAllRead)
-			notices.GET("/:id", perm("system:notice:query"), deps.Monitor.NoticeHdl.GetByID)
-			notices.POST("", perm("system:notice:add"), deps.Monitor.NoticeHdl.Create)
-			notices.PUT("/:id", perm("system:notice:edit"), deps.Monitor.NoticeHdl.Update)
-			notices.DELETE("/:id", perm("system:notice:delete"), deps.Monitor.NoticeHdl.Delete)
-			notices.POST("/:id/publish", perm("system:notice:publish"), deps.Monitor.NoticeHdl.Publish)
-			notices.POST("/:id/revoke", perm("system:notice:publish"), deps.Monitor.NoticeHdl.Revoke)
+			notices.GET("/:id", perm(permission.PermNoticeQuery), deps.Monitor.NoticeHdl.GetByID)
+			notices.POST("", perm(permission.PermNoticeAdd), deps.Monitor.NoticeHdl.Create)
+			notices.PUT("/:id", perm(permission.PermNoticeEdit), deps.Monitor.NoticeHdl.Update)
+			notices.DELETE("/:id", perm(permission.PermNoticeDelete), deps.Monitor.NoticeHdl.Delete)
+			notices.POST("/:id/publish", perm(permission.PermNoticePublish), deps.Monitor.NoticeHdl.Publish)
+			notices.POST("/:id/revoke", perm(permission.PermNoticePublish), deps.Monitor.NoticeHdl.Revoke)
 			notices.POST("/:id/read", deps.Monitor.NoticeHdl.MarkRead)
-			notices.GET("/:id/read-users", perm("system:notice:list"), deps.Monitor.NoticeHdl.ReadUsers)
+			notices.GET("/:id/read-users", perm(permission.PermNoticeList), deps.Monitor.NoticeHdl.ReadUsers)
 		}
 
 		// 服务监控
@@ -347,26 +348,26 @@ func Setup(deps Dependencies) *gin.Engine {
 			server := monitor.Group("/server")
 			server.Use(middleware.SetModuleName("服务器监控"))
 			{
-				server.GET("/stats", perm("system:server:list"), deps.Monitor.ServerMonitorHdl.ServeHTTP)
-				server.GET("/history", perm("system:server:list"), deps.Monitor.ServerMonitorHdl.GetHistory)
+				server.GET("/stats", perm(permission.PermServerList), deps.Monitor.ServerMonitorHdl.ServeHTTP)
+				server.GET("/history", perm(permission.PermServerList), deps.Monitor.ServerMonitorHdl.GetHistory)
 			}
 
 			// 缓存管理
 			cache := monitor.Group("/cache")
 			cache.Use(middleware.SetModuleName("缓存管理"))
 			{
-				cache.GET("/keys", perm("system:cache:list"), deps.Monitor.CacheHdl.ListKeys)
-				cache.GET("/keys/value", perm("system:cache:query"), deps.Monitor.CacheHdl.GetKeyValue)
-				cache.DELETE("/keys", perm("system:cache:delete"), deps.Monitor.CacheHdl.DeleteKeys)
-				cache.GET("/stats", perm("system:cache:list"), deps.Monitor.CacheHdl.GetStats)
+				cache.GET("/keys", perm(permission.PermCacheList), deps.Monitor.CacheHdl.ListKeys)
+				cache.GET("/keys/value", perm(permission.PermCacheQuery), deps.Monitor.CacheHdl.GetKeyValue)
+				cache.DELETE("/keys", perm(permission.PermCacheDelete), deps.Monitor.CacheHdl.DeleteKeys)
+				cache.GET("/stats", perm(permission.PermCacheList), deps.Monitor.CacheHdl.GetStats)
 			}
 
 			// SQL监控
 			sql := monitor.Group("/sql")
 			sql.Use(middleware.SetModuleName("SQL监控"))
 			{
-				sql.GET("/stats", perm("system:sql:list"), deps.Monitor.SqlMonitorHdl.GetStats)
-				sql.GET("/history", perm("system:sql:list"), deps.Monitor.SqlMonitorHdl.GetHistory)
+				sql.GET("/stats", perm(permission.PermSqlList), deps.Monitor.SqlMonitorHdl.GetStats)
+				sql.GET("/history", perm(permission.PermSqlList), deps.Monitor.SqlMonitorHdl.GetHistory)
 			}
 
 			// pprof 动态启停 + UI 渲染数据接口
@@ -374,27 +375,27 @@ func Setup(deps Dependencies) *gin.Engine {
 			pprofGroup.Use(middleware.SetModuleName("pprof性能分析"))
 			{
 				// 状态概览始终可访问(仅报告开关/倒计时/profile 清单)
-				pprofGroup.GET("/status", perm("system:pprof:list"), deps.Monitor.PprofHdl.HandleStatus)
-				pprofGroup.POST("/enable", perm("system:pprof:enable"), deps.Monitor.PprofHdl.HandleEnable)
-				pprofGroup.POST("/disable", perm("system:pprof:disable"), deps.Monitor.PprofHdl.HandleDisable)
+				pprofGroup.GET("/status", perm(permission.PermPprofList), deps.Monitor.PprofHdl.HandleStatus)
+				pprofGroup.POST("/enable", perm(permission.PermPprofEnable), deps.Monitor.PprofHdl.HandleEnable)
+				pprofGroup.POST("/disable", perm(permission.PermPprofDisable), deps.Monitor.PprofHdl.HandleDisable)
 				// 火焰图数据与原始端点同样受 enabled 开关保护
-				pprofGroup.GET("/profile/:name", middleware.PprofGuard(deps.Infra.ConfigProv), perm("system:pprof:list"), deps.Monitor.PprofHdl.HandleProfileFlame)
+				pprofGroup.GET("/profile/:name", middleware.PprofGuard(deps.Infra.ConfigProv), perm(permission.PermPprofList), deps.Monitor.PprofHdl.HandleProfileFlame)
 			}
 			pprofDebug := monitor.Group("/debug/pprof")
 			pprofDebug.Use(middleware.PprofGuard(deps.Infra.ConfigProv))
-			pprofDebug.GET("/*any", perm("system:pprof:list"), handler.AdaptPprof())
+			pprofDebug.GET("/*any", perm(permission.PermPprofList), handler.AdaptPprof())
 		}
 
 		// 参数配置
 		configs := auth.Group("/configs")
 		configs.Use(middleware.SetModuleName("参数配置"))
 		{
-			configs.GET("", perm("system:config:list"), deps.Config.ConfigHdl.List)
-			configs.GET("/:id", perm("system:config:query"), deps.Config.ConfigHdl.GetByID)
-			configs.POST("", perm("system:config:add"), deps.Config.ConfigHdl.Create)
-			configs.PUT("/:id", perm("system:config:edit"), deps.Config.ConfigHdl.Update)
-			configs.DELETE("/:id", perm("system:config:delete"), deps.Config.ConfigHdl.Delete)
-			configs.GET("/key/:key", perm("system:config:query"), deps.Config.ConfigHdl.GetByKey)
+			configs.GET("", perm(permission.PermConfigList), deps.Config.ConfigHdl.List)
+			configs.GET("/:id", perm(permission.PermConfigQuery), deps.Config.ConfigHdl.GetByID)
+			configs.POST("", perm(permission.PermConfigAdd), deps.Config.ConfigHdl.Create)
+			configs.PUT("/:id", perm(permission.PermConfigEdit), deps.Config.ConfigHdl.Update)
+			configs.DELETE("/:id", perm(permission.PermConfigDelete), deps.Config.ConfigHdl.Delete)
+			configs.GET("/key/:key", perm(permission.PermConfigQuery), deps.Config.ConfigHdl.GetByKey)
 		}
 
 		// 定时任务管理
@@ -402,36 +403,36 @@ func Setup(deps Dependencies) *gin.Engine {
 		jobs.Use(middleware.SetModuleName("定时任务管理"))
 		{
 			// 固定路径必须在 :id 之前注册！
-			jobs.GET("/targets", perm("system:job:list"), deps.Job.JobHdl.GetTargets)
-			jobs.GET("/health", perm("system:job:list"), deps.Job.JobHdl.GetHealth)
+			jobs.GET("/targets", perm(permission.PermJobList), deps.Job.JobHdl.GetTargets)
+			jobs.GET("/health", perm(permission.PermJobList), deps.Job.JobHdl.GetHealth)
 			// 日志
-			jobs.GET("/logs", perm("system:job:log:list"), deps.Job.JobHdl.FindLogs)
-			jobs.DELETE("/logs", perm("system:job:log:delete"), deps.Job.JobHdl.DeleteLogs)
+			jobs.GET("/logs", perm(permission.PermJobLogList), deps.Job.JobHdl.FindLogs)
+			jobs.DELETE("/logs", perm(permission.PermJobLogDelete), deps.Job.JobHdl.DeleteLogs)
 			// CRUD
-			jobs.GET("", perm("system:job:list"), deps.Job.JobHdl.List)
-			jobs.GET("/:id", perm("system:job:query"), deps.Job.JobHdl.GetByID)
-			jobs.POST("", perm("system:job:add"), deps.Job.JobHdl.Create)
-			jobs.PUT("/:id", perm("system:job:edit"), deps.Job.JobHdl.Update)
-			jobs.DELETE("/:id", perm("system:job:delete"), deps.Job.JobHdl.Delete)
+			jobs.GET("", perm(permission.PermJobList), deps.Job.JobHdl.List)
+			jobs.GET("/:id", perm(permission.PermJobQuery), deps.Job.JobHdl.GetByID)
+			jobs.POST("", perm(permission.PermJobAdd), deps.Job.JobHdl.Create)
+			jobs.PUT("/:id", perm(permission.PermJobEdit), deps.Job.JobHdl.Update)
+			jobs.DELETE("/:id", perm(permission.PermJobDelete), deps.Job.JobHdl.Delete)
 			// Status
-			jobs.POST("/:id/pause", perm("system:job:pause"), deps.Job.JobHdl.Pause)
-			jobs.POST("/:id/resume", perm("system:job:execute"), deps.Job.JobHdl.Resume)
+			jobs.POST("/:id/pause", perm(permission.PermJobPause), deps.Job.JobHdl.Pause)
+			jobs.POST("/:id/resume", perm(permission.PermJobExecute), deps.Job.JobHdl.Resume)
 			// RunOnce
-			jobs.POST("/:id/run", perm("system:job:once"), deps.Job.JobHdl.RunOnce)
+			jobs.POST("/:id/run", perm(permission.PermJobOnce), deps.Job.JobHdl.RunOnce)
 		}
 
 		// 文件管理
 		files := auth.Group("/files")
 		files.Use(middleware.SetModuleName("文件管理"))
 		{
-			files.GET("", perm("system:file:list"), deps.File.FileHdl.List)
-			files.GET("/stats", perm("system:file:list"), deps.File.FileHdl.Stats)
-			files.POST("", perm("system:file:upload"), deps.File.FileHdl.Upload)
-			files.PUT("/:id", perm("system:file:edit"), deps.File.FileHdl.Rename)
-			files.DELETE("", perm("system:file:delete"), deps.File.FileHdl.DeleteMany)
-			files.GET("/:id/thumbnail", perm("system:file:list"), deps.File.FileHdl.Thumbnail)
-			files.GET("/:id/download", perm("system:file:download"), deps.File.FileHdl.Download)
-			files.GET("/:id/preview", perm("system:file:download"), deps.File.FileHdl.Preview)
+			files.GET("", perm(permission.PermFileList), deps.File.FileHdl.List)
+			files.GET("/stats", perm(permission.PermFileList), deps.File.FileHdl.Stats)
+			files.POST("", perm(permission.PermFileUpload), deps.File.FileHdl.Upload)
+			files.PUT("/:id", perm(permission.PermFileEdit), deps.File.FileHdl.Rename)
+			files.DELETE("", perm(permission.PermFileDelete), deps.File.FileHdl.DeleteMany)
+			files.GET("/:id/thumbnail", perm(permission.PermFileList), deps.File.FileHdl.Thumbnail)
+			files.GET("/:id/download", perm(permission.PermFileDownload), deps.File.FileHdl.Download)
+			files.GET("/:id/preview", perm(permission.PermFileDownload), deps.File.FileHdl.Preview)
 		}
 	}
 

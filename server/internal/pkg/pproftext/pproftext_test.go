@@ -1,4 +1,4 @@
-package handler
+package pproftext
 
 import (
 	"testing"
@@ -70,20 +70,20 @@ func TestParseProfileText_EmptyMutex(t *testing.T) {
 	}
 }
 
-func TestBuildPprofProfile_FlameAndTop(t *testing.T) {
+func TestBuildProfile_FlameAndTop(t *testing.T) {
 	withResolveFunc(t, map[uint64]funcFrame{
 		0x1: {name: "github.com/x/server/internal/pkg/root.Root", file: "/src/r.go", line: 1},
 		0x2: {name: "github.com/x/server/internal/pkg/mid.Mid", file: "/src/m.go", line: 2},
 		0x3: {name: "internal/pkg/leaf.LeafA", file: "/src/a.go", line: 3},
 		0x4: {name: "internal/pkg/leaf.LeafB", file: "/src/b.go", line: 4},
 	})
-	def, _ := pprofDefFor("heap")
+	def, _ := DefFor("heap")
 	// 采样行 @ 后 pc 为叶在前:0x3/0x4 为叶,0x1 为根
 	text := []byte("heap profile: 40: 4000 [40: 4000] @ heap/1048576\n" +
 		"10: 1000 [10: 1000] @ 0x3 0x2 0x1\n" +
 		"20: 3000 [20: 3000] @ 0x4 0x2 0x1\n")
 
-	resp := BuildPprofProfile(def, text, 2)
+	resp := BuildProfile(def, text, 2)
 	if resp.TotalValue != 4000 || resp.SampleCount != 2 {
 		t.Fatalf("total=%d samples=%d (want 4000/2)", resp.TotalValue, resp.SampleCount)
 	}
@@ -124,15 +124,15 @@ func TestBuildPprofProfile_FlameAndTop(t *testing.T) {
 	}
 }
 
-func TestBuildPprofProfile_ZeroValueSamplesSkipped(t *testing.T) {
+func TestBuildProfile_ZeroValueSamplesSkipped(t *testing.T) {
 	withResolveFunc(t, map[uint64]funcFrame{
 		0x1: {name: "pkg.A", file: "a.go", line: 1},
 	})
-	def, _ := pprofDefFor("heap")
+	def, _ := DefFor("heap")
 	text := []byte("heap profile: 0: 0 [0: 0] @ heap/1048576\n" +
 		"0: 0 [0: 0] @ 0x1\n" +
 		"5: 5 [5: 5] @ 0x1\n")
-	resp := BuildPprofProfile(def, text, 10)
+	resp := BuildProfile(def, text, 10)
 	if resp.TotalValue != 5 {
 		t.Fatalf("total = %d (want 5,0 值采样应跳过)", resp.TotalValue)
 	}
@@ -141,15 +141,15 @@ func TestBuildPprofProfile_ZeroValueSamplesSkipped(t *testing.T) {
 	}
 }
 
-func TestBuildPprofProfile_GoroutineFlatSemantics(t *testing.T) {
+func TestBuildProfile_GoroutineFlatSemantics(t *testing.T) {
 	withResolveFunc(t, map[uint64]funcFrame{
 		0xa: {name: "pkg.A", file: "a.go", line: 1},
 		0xb: {name: "pkg.B", file: "b.go", line: 2},
 	})
-	def, _ := pprofDefFor("goroutine")
+	def, _ := DefFor("goroutine")
 	// "@ 0xa 0xb":0xa 叶(A),0xb 根(B) → 样本2 flat 归 A
 	text := []byte("goroutine profile: total 4\n1 @ 0xa\n3 @ 0xa 0xb\n")
-	resp := BuildPprofProfile(def, text, 10)
+	resp := BuildProfile(def, text, 10)
 	if resp.TotalValue != 4 {
 		t.Fatalf("total = %d (want 4)", resp.TotalValue)
 	}
@@ -163,19 +163,19 @@ func TestBuildPprofProfile_GoroutineFlatSemantics(t *testing.T) {
 	}
 }
 
-func TestBuildPprofProfile_ChildrenPruned(t *testing.T) {
+func TestBuildProfile_ChildrenPruned(t *testing.T) {
 	frames := map[uint64]funcFrame{0x5: {name: "pkg/leaf.Common", file: "c.go", line: 1}}
 	for i := 0; i < 250; i++ {
 		frames[uint64(0x100+i)] = funcFrame{name: "pkg/top.Fn" + string(rune('a'+i%26)) + string(rune('0'+i/26%10)) + string(rune('0'+i/100)), file: "t.go", line: i}
 	}
 	withResolveFunc(t, frames)
-	def, _ := pprofDefFor("heap")
+	def, _ := DefFor("heap")
 	// 250 个互不相同的根帧:每个采样 "@ 0x5 0x<top>"(叶 Common 在前,根 FnX 在后)
 	text := "heap profile: 250: 250 [250: 250] @ heap/1048576\n"
 	for i := 0; i < 250; i++ {
 		text += "1: 1 [1: 1] @ 0x5 0x" + hexOf(0x100+i) + "\n"
 	}
-	resp := BuildPprofProfile(def, []byte(text), 5)
+	resp := BuildProfile(def, []byte(text), 5)
 	if !resp.Truncated {
 		t.Fatal("超过 maxFlameChildren 应置 truncated")
 	}
@@ -221,7 +221,7 @@ func TestPprofStatusEntries(t *testing.T) {
 	}
 	t.Cleanup(func() { pprofProfileCount = orig })
 
-	entries := pprofStatusEntries()
+	entries := StatusEntries()
 	if len(entries) != 8 {
 		t.Fatalf("entries len = %d (want 8)", len(entries))
 	}

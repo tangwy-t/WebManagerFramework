@@ -1,4 +1,4 @@
-package handler
+package pproftext
 
 // 本文件把 runtime/pprof 的 text 输出（p.WriteTo(w, 1)）解析为火焰图树与热点函数表。
 //
@@ -39,44 +39,44 @@ const (
 	familyBlock                      // "<count> <cycles> @ 0x…"
 )
 
-type profileDef struct {
+type ProfileDef struct {
 	name       string // 路由/展示名
-	lookup     string // runtime/pprof.Lookup 名
+	Lookup     string // runtime/pprof.Lookup 名
 	desc       string
-	category   string // snapshot | capture
+	Category   string // snapshot | capture
 	sampleType string
 	unit       string
 	valueIdx   int // 主采样值在采样值数组中的下标
 	family     profileFamily
 }
 
-var pprofProfileDefs = []profileDef{
-	{name: "goroutine", lookup: "goroutine", desc: "当前全部 goroutine 的调用栈快照", category: "snapshot", sampleType: "goroutine", unit: "个", valueIdx: 0, family: familyCount},
-	{name: "heap", lookup: "heap", desc: "当前仍存活对象的内存分配", category: "snapshot", sampleType: "inuse_space", unit: "B", valueIdx: 3, family: familyHeap},
-	{name: "allocs", lookup: "allocs", desc: "进程启动以来的全部内存分配", category: "snapshot", sampleType: "alloc_space", unit: "B", valueIdx: 1, family: familyHeap},
-	{name: "block", lookup: "block", desc: "阻塞在锁 / 通道同步上的等待统计", category: "snapshot", sampleType: "contentions", unit: "次", valueIdx: 0, family: familyBlock},
-	{name: "mutex", lookup: "mutex", desc: "互斥锁竞争等待统计", category: "snapshot", sampleType: "contentions", unit: "次", valueIdx: 0, family: familyBlock},
-	{name: "threadcreate", lookup: "threadcreate", desc: "线程创建事件堆栈", category: "snapshot", sampleType: "threadcreate", unit: "个", valueIdx: 0, family: familyCount},
-	{name: "profile", desc: "CPU 使用采样，按设定时长采集后下载", category: "capture"},
-	{name: "trace", desc: "Go 执行跟踪，按设定时长采集后下载", category: "capture"},
+var pprofProfileDefs = []ProfileDef{
+	{name: "goroutine", Lookup: "goroutine", desc: "当前全部 goroutine 的调用栈快照", Category: "snapshot", sampleType: "goroutine", unit: "个", valueIdx: 0, family: familyCount},
+	{name: "heap", Lookup: "heap", desc: "当前仍存活对象的内存分配", Category: "snapshot", sampleType: "inuse_space", unit: "B", valueIdx: 3, family: familyHeap},
+	{name: "allocs", Lookup: "allocs", desc: "进程启动以来的全部内存分配", Category: "snapshot", sampleType: "alloc_space", unit: "B", valueIdx: 1, family: familyHeap},
+	{name: "block", Lookup: "block", desc: "阻塞在锁 / 通道同步上的等待统计", Category: "snapshot", sampleType: "contentions", unit: "次", valueIdx: 0, family: familyBlock},
+	{name: "mutex", Lookup: "mutex", desc: "互斥锁竞争等待统计", Category: "snapshot", sampleType: "contentions", unit: "次", valueIdx: 0, family: familyBlock},
+	{name: "threadcreate", Lookup: "threadcreate", desc: "线程创建事件堆栈", Category: "snapshot", sampleType: "threadcreate", unit: "个", valueIdx: 0, family: familyCount},
+	{name: "profile", desc: "CPU 使用采样，按设定时长采集后下载", Category: "capture"},
+	{name: "trace", desc: "Go 执行跟踪，按设定时长采集后下载", Category: "capture"},
 }
 
-var pprofDefByName = func() map[string]profileDef {
-	m := make(map[string]profileDef, len(pprofProfileDefs))
+var pprofDefByName = func() map[string]ProfileDef {
+	m := make(map[string]ProfileDef, len(pprofProfileDefs))
 	for _, d := range pprofProfileDefs {
 		m[d.name] = d
 	}
 	return m
 }()
 
-func pprofDefFor(name string) (profileDef, bool) {
+func DefFor(name string) (ProfileDef, bool) {
 	d, ok := pprofDefByName[name]
 	return d, ok
 }
 
-// pprofLookup 供 HandleProfileFlame 使用;pprofProfileCount 供 status
+// Lookup 供 HandleProfileFlame 使用;pprofProfileCount 供 status
 // 概览使用(包级变量以便测试注入)。
-var pprofLookup = func(name string) *pprof.Profile { return pprof.Lookup(name) }
+var Lookup = func(name string) *pprof.Profile { return pprof.Lookup(name) }
 
 var pprofProfileCount = func(name string) (int, bool) {
 	p := pprof.Lookup(name)
@@ -86,19 +86,19 @@ var pprofProfileCount = func(name string) (int, bool) {
 	return p.Count(), true
 }
 
-// pprofStatusEntries 生成 status 接口的 profile 概览条目。
-func pprofStatusEntries() []response.PprofProfileEntry {
+// StatusEntries 生成 status 接口的 profile 概览条目。
+func StatusEntries() []response.PprofProfileEntry {
 	entries := make([]response.PprofProfileEntry, 0, len(pprofProfileDefs))
 	for _, d := range pprofProfileDefs {
 		e := response.PprofProfileEntry{
 			Name:        d.name,
 			Description: d.desc,
-			Category:    d.category,
+			Category:    d.Category,
 			Unit:        d.unit,
 		}
-		if d.category != "capture" && d.lookup != "" {
+		if d.Category != "capture" && d.Lookup != "" {
 			// Lookup 内部是原子读，成本极低，可按秒级轮询。
-			if count, ok := pprofProfileCount(d.lookup); ok {
+			if count, ok := pprofProfileCount(d.Lookup); ok {
 				e.Count = count
 			}
 		}
@@ -246,9 +246,9 @@ type topAcc struct {
 	cum  int64
 }
 
-// BuildPprofProfile 解析 profile text 并构建火焰树 + 热点函数表。
+// BuildProfile 解析 profile text 并构建火焰树 + 热点函数表。
 // topN 为热点函数行数（由上层 clamp）。
-func BuildPprofProfile(def profileDef, data []byte, topN int) *response.PprofProfileResponse {
+func BuildProfile(def ProfileDef, data []byte, topN int) *response.PprofProfileResponse {
 	samples := parseProfileText(def.family, data)
 
 	root := newBuildNode("", "root")

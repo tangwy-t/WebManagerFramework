@@ -1,4 +1,5 @@
 import type { PluginManifest } from '@/types/plugin'
+import { PermRoleList } from '@/enums/permission'
 
 const plugin: PluginManifest = {
   name: 'system-role',
@@ -11,7 +12,7 @@ const plugin: PluginManifest = {
       meta: {
         title: '角色管理',
         icon: 'ri:shield-user-line',
-        authMark: 'system:role:list'
+        authMark: PermRoleList
       }
     }
   ]

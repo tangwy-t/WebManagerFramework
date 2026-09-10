@@ -18,16 +18,11 @@
         @refresh="loadList"
       >
         <template #left>
-          <ArtButtonTable
-            v-perm="'system:dept:add'"
-            type="add"
-            title="新增部门"
-            @click="openDialog()"
-          />
+          <ArtButtonTable v-perm="PermDeptAdd" type="add" title="新增部门" @click="openDialog()" />
           <!-- 排序有改动时出现(样式与角色管理一致) -->
           <ArtButtonTable
             v-if="sortDirtyCount > 0"
-            v-perm="'system:dept:sort'"
+            v-perm="PermDeptSort"
             icon="ri:save-2-line"
             iconClass="bg-warning/12 text-warning"
             :title="`保存排序 (${sortDirtyCount})`"
@@ -70,6 +65,7 @@
 </template>
 
 <script setup lang="ts">
+  import { PermDeptAdd, PermDeptSort } from '@/enums/permission'
   import { computed, ref, h } from 'vue'
   import { ElMessage, ElMessageBox } from 'element-plus'
   import { useTableColumns } from '@/hooks/core/useTableColumns'
@@ -233,7 +229,12 @@
       fixed: 'right',
       formatter: (row) =>
         h('div', { class: 'flex items-center' }, [
-          h(ArtButtonTable, { type: 'edit', title: '修改', auth: 'system:dept:edit', onClick: () => openDialog(row) }),
+          h(ArtButtonTable, {
+            type: 'edit',
+            title: '修改',
+            auth: 'system:dept:edit',
+            onClick: () => openDialog(row)
+          }),
           h(ArtButtonTable, {
             icon: 'ri:add-fill',
             iconClass: 'bg-theme/12 text-theme',
@@ -248,7 +249,12 @@
                 style: { opacity: 0.5, cursor: 'not-allowed' },
                 title: '请先删除子部门'
               })
-            : h(ArtButtonTable, { type: 'delete', title: '删除', auth: 'system:dept:delete', onClick: () => onRemove(row) })
+            : h(ArtButtonTable, {
+                type: 'delete',
+                title: '删除',
+                auth: 'system:dept:delete',
+                onClick: () => onRemove(row)
+              })
         ])
     }
   ])

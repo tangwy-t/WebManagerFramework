@@ -18,16 +18,11 @@
         @refresh="loadList"
       >
         <template #left>
-          <ArtButtonTable
-            v-perm="'system:menu:add'"
-            type="add"
-            title="新增菜单"
-            @click="openDialog()"
-          />
+          <ArtButtonTable v-perm="PermMenuAdd" type="add" title="新增菜单" @click="openDialog()" />
           <!-- 排序有改动时出现(样式与角色管理一致) -->
           <ArtButtonTable
             v-if="sortDirtyCount > 0"
-            v-perm="'system:menu:sort'"
+            v-perm="PermMenuSort"
             icon="ri:save-2-line"
             iconClass="bg-warning/12 text-warning"
             :title="`保存排序 (${sortDirtyCount})`"
@@ -70,6 +65,7 @@
 </template>
 
 <script setup lang="ts">
+  import { PermMenuAdd, PermMenuSort } from '@/enums/permission'
   import { computed, ref, h } from 'vue'
   import { ElMessage, ElMessageBox, ElTag } from 'element-plus'
   import { useTableColumns } from '@/hooks/core/useTableColumns'
@@ -296,7 +292,12 @@
       fixed: 'right',
       formatter: (row) =>
         h('div', { class: 'flex items-center' }, [
-          h(ArtButtonTable, { type: 'edit', title: '修改', auth: 'system:menu:edit', onClick: () => openDialog(row) }),
+          h(ArtButtonTable, {
+            type: 'edit',
+            title: '修改',
+            auth: 'system:menu:edit',
+            onClick: () => openDialog(row)
+          }),
           h(ArtButtonTable, {
             icon: 'ri:add-fill',
             iconClass: 'bg-theme/12 text-theme',
@@ -311,7 +312,12 @@
                 style: { opacity: 0.5, cursor: 'not-allowed' },
                 title: '请先删除子菜单'
               })
-            : h(ArtButtonTable, { type: 'delete', title: '删除', auth: 'system:menu:delete', onClick: () => onRemove(row) })
+            : h(ArtButtonTable, {
+                type: 'delete',
+                title: '删除',
+                auth: 'system:menu:delete',
+                onClick: () => onRemove(row)
+              })
         ])
     }
   ])

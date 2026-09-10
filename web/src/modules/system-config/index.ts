@@ -1,4 +1,5 @@
 import type { PluginManifest } from '@/types/plugin'
+import { PermConfigList } from '@/enums/permission'
 
 const plugin: PluginManifest = {
   name: 'system-config',
@@ -11,7 +12,7 @@ const plugin: PluginManifest = {
       meta: {
         title: '参数配置',
         icon: 'ri:settings-3-line',
-        authMark: 'system:config:list'
+        authMark: PermConfigList
       }
     }
   ]

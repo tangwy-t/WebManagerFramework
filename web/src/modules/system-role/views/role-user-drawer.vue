@@ -47,7 +47,7 @@
         <ElTableColumn label="操作" width="76" align="center" fixed="right">
           <template #default="{ row }">
             <ArtButtonTable
-              v-perm="'system:role:assign'"
+              v-perm="PermRoleAssign"
               type="delete"
               title="移除"
               @click="onRemove(row)"
@@ -79,7 +79,7 @@
           @click="visible = false"
         />
         <ArtButtonTable
-          v-perm="'system:role:assign'"
+          v-perm="PermRoleAssign"
           icon="ri:user-add-line"
           iconClass="bg-theme/12 text-theme"
           title="添加用户"
@@ -141,6 +141,7 @@
 </template>
 
 <script setup lang="ts">
+  import { PermRoleAssign } from '@/enums/permission'
   import { reactive, ref } from 'vue'
   import { ElMessage, ElMessageBox } from 'element-plus'
   import defaultAvatar from '@imgs/user/avatar.webp'

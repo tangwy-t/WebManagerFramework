@@ -17,7 +17,7 @@
       >
         <template #left>
           <ArtButtonTable
-            v-perm="'system:log:operation:delete'"
+            v-perm="PermLogOperationDelete"
             type="delete"
             title="清空日志"
             @click="onClear"
@@ -38,6 +38,7 @@
 </template>
 
 <script setup lang="ts">
+  import { PermLogOperationDelete } from '@/enums/permission'
   import { reactive, ref, h, computed } from 'vue'
   import { ElMessage, ElMessageBox, ElTag } from 'element-plus'
   import { useTableColumns } from '@/hooks/core/useTableColumns'
@@ -222,7 +223,12 @@
       fixed: 'right',
       formatter: (row) =>
         h('div', { class: 'flex items-center' }, [
-          h(ArtButtonTable, { type: 'view', title: '查看详情', auth: 'system:log:operation:list', onClick: () => viewDetail(row) })
+          h(ArtButtonTable, {
+            type: 'view',
+            title: '查看详情',
+            auth: 'system:log:operation:list',
+            onClick: () => viewDetail(row)
+          })
         ])
     }
   ])

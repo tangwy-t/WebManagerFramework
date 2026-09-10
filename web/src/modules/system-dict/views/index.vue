@@ -19,7 +19,7 @@
       >
         <template #left>
           <ArtButtonTable
-            v-perm="'system:dict:type:add'"
+            v-perm="PermDictTypeAdd"
             type="add"
             title="新增字典"
             @click="openTypeDialog()"
@@ -44,6 +44,7 @@
 </template>
 
 <script setup lang="ts">
+  import { PermDictTypeAdd } from '@/enums/permission'
   import { reactive, ref, h } from 'vue'
   import { useRouter } from 'vue-router'
   import { ElMessage, ElMessageBox } from 'element-plus'

@@ -33,16 +33,9 @@ func (r *DictTypeRepo) applyFilters(db *gorm.DB, query *request.DictTypeQuery) *
 }
 
 func (r *DictTypeRepo) FindPage(ctx context.Context, query *request.DictTypeQuery) ([]entity.SysDictType, int64, error) {
-	var total int64
 	countDB := r.applyFilters(r.db.WithContext(ctx).Model(&entity.SysDictType{}), query)
-	if err := countDB.Count(&total).Error; err != nil {
-		return nil, 0, err
-	}
-
-	var types []entity.SysDictType
-	dataDB := r.applyFilters(r.db.WithContext(ctx).Model(&entity.SysDictType{}), query)
-	err := dataDB.Offset(query.Offset()).Limit(query.GetPageSize()).Order("id DESC").Find(&types).Error
-	return types, total, err
+	dataDB := r.applyFilters(r.db.WithContext(ctx).Model(&entity.SysDictType{}), query).Order("id DESC")
+	return paginate[entity.SysDictType](countDB, dataDB, query)
 }
 
 func (r *DictTypeRepo) FindByID(ctx context.Context, id uint64) (*entity.SysDictType, error) {

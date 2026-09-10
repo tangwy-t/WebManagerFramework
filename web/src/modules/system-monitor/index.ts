@@ -1,4 +1,5 @@
 import type { PluginManifest } from '@/types/plugin'
+import { PermCacheList, PermPprofList, PermServerList, PermSqlList } from '@/enums/permission'
 
 const plugin: PluginManifest = {
   name: 'system-monitor',
@@ -11,7 +12,7 @@ const plugin: PluginManifest = {
       meta: {
         title: '服务器监控',
         icon: 'ri:server-line',
-        authMark: 'system:server:list'
+        authMark: PermServerList
       }
     },
     {
@@ -21,7 +22,7 @@ const plugin: PluginManifest = {
       meta: {
         title: '缓存管理',
         icon: 'ri:database-2-line',
-        authMark: 'system:cache:list'
+        authMark: PermCacheList
       }
     },
     {
@@ -31,7 +32,7 @@ const plugin: PluginManifest = {
       meta: {
         title: 'SQL监控',
         icon: 'ri:terminal-box-line',
-        authMark: 'system:sql:list'
+        authMark: PermSqlList
       }
     },
     {
@@ -41,7 +42,7 @@ const plugin: PluginManifest = {
       meta: {
         title: 'pprof 性能分析',
         icon: 'ri:fire-line',
-        authMark: 'system:pprof:list'
+        authMark: PermPprofList
       }
     }
   ]

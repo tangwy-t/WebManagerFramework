@@ -61,18 +61,10 @@ func (r *FileRepo) applyFilters(db *gorm.DB, q *request.FileQuery) *gorm.DB {
 
 // FindPage 分页查询文件列表,返回数据与总数。
 func (r *FileRepo) FindPage(ctx context.Context, q *request.FileQuery) ([]entity.SysFile, int64, error) {
-	var total int64
-	if err := r.applyFilters(r.db.WithContext(ctx).Model(&entity.SysFile{}), q).Count(&total).Error; err != nil {
-		return nil, 0, err
-	}
-
-	var files []entity.SysFile
-	err := r.applyFilters(r.db.WithContext(ctx).Model(&entity.SysFile{}), q).
-		Order(fileSortClause(q.SortBy, q.SortOrder)).
-		Offset(q.Offset()).
-		Limit(q.GetPageSize()).
-		Find(&files).Error
-	return files, total, err
+	countDB := r.applyFilters(r.db.WithContext(ctx).Model(&entity.SysFile{}), q)
+	dataDB := r.applyFilters(r.db.WithContext(ctx).Model(&entity.SysFile{}), q).
+		Order(fileSortClause(q.SortBy, q.SortOrder))
+	return paginate[entity.SysFile](countDB, dataDB, q)
 }
 
 // FindByID 按主键查询单个文件;不存在返回 (nil, nil)。

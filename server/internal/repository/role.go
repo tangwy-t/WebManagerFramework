@@ -34,16 +34,9 @@ func (r *RoleRepo) applyRoleFilters(db *gorm.DB, query *request.RoleQuery) *gorm
 }
 
 func (r *RoleRepo) FindPage(ctx context.Context, query *request.RoleQuery) ([]entity.SysRole, int64, error) {
-	var total int64
 	countDB := r.applyRoleFilters(r.db.WithContext(ctx).Model(&entity.SysRole{}), query)
-	if err := countDB.Count(&total).Error; err != nil {
-		return nil, 0, err
-	}
-
-	dataDB := r.applyRoleFilters(r.db.WithContext(ctx).Model(&entity.SysRole{}), query)
-	var roles []entity.SysRole
-	err := dataDB.Offset(query.Offset()).Limit(query.GetPageSize()).Order("sort ASC, id ASC").Find(&roles).Error
-	return roles, total, err
+	dataDB := r.applyRoleFilters(r.db.WithContext(ctx).Model(&entity.SysRole{}), query).Order("sort ASC, id ASC")
+	return paginate[entity.SysRole](countDB, dataDB, query)
 }
 
 // FindExistingIDs returns the subset of ids that exist in sys_role.

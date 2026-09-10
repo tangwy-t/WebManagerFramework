@@ -18,14 +18,39 @@ import DOMPurify from 'dompurify'
  * 刻意不放开 style 属性与任何事件处理器。
  */
 const ALLOWED_TAGS = [
-  'p', 'br', 'hr',
-  'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-  'ul', 'ol', 'li',
-  'a', 'img',
-  'table', 'thead', 'tbody', 'tr', 'th', 'td',
-  'blockquote', 'code', 'pre',
-  'strong', 'b', 'em', 'i', 'u', 's', 'span', 'div',
-  'sub', 'sup'
+  'p',
+  'br',
+  'hr',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+  'ul',
+  'ol',
+  'li',
+  'a',
+  'img',
+  'table',
+  'thead',
+  'tbody',
+  'tr',
+  'th',
+  'td',
+  'blockquote',
+  'code',
+  'pre',
+  'strong',
+  'b',
+  'em',
+  'i',
+  'u',
+  's',
+  'span',
+  'div',
+  'sub',
+  'sup'
 ]
 
 const ALLOWED_ATTR = ['href', 'src', 'alt', 'title', 'target', 'rel', 'colspan', 'rowspan']

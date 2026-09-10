@@ -1,4 +1,5 @@
 import type { PluginManifest } from '@/types/plugin'
+import { PermFileList } from '@/enums/permission'
 
 const plugin: PluginManifest = {
   name: 'system-file',
@@ -11,7 +12,7 @@ const plugin: PluginManifest = {
       meta: {
         title: '文件管理',
         icon: 'ri:drive-line',
-        authMark: 'system:file:list'
+        authMark: PermFileList
       }
     }
   ]

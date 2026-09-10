@@ -1,4 +1,5 @@
 import type { PluginManifest } from '@/types/plugin'
+import { PermUserList } from '@/enums/permission'
 
 const plugin: PluginManifest = {
   name: 'system-user',
@@ -11,7 +12,7 @@ const plugin: PluginManifest = {
       meta: {
         title: '用户管理',
         icon: 'ri:user-3-line',
-        authMark: 'system:user:list'
+        authMark: PermUserList
       }
     }
   ]

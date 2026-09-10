@@ -88,10 +88,20 @@ jobs:
           go-version: '1.26'
           cache-dependency-path: server/go.sum
 
-      # apigen 从 Go 响应 DTO 的 json tag 生成前端类型。
-      # 若生成结果与已提交文件不一致,说明有人改了 DTO 却忘了重新生成 ——
-      # 前端会继续按旧契约编译通过,直到运行时才炸。
+      # apigen 从 Go 响应 DTO 的 json tag 生成前端类型,并从
+      # internal/pkg/permission 生成前端权限码常量。
+      # 若生成结果与已提交文件不一致,说明有人改了 DTO / 权限码却忘了重新生成 ——
+      # 前端会继续按旧契约编译通过,直到运行时才炸。权限码漂移守卫再兜底扫描
+      # 前端残留的 system:xxx 字面量是否都仍合法。
       - name: Regenerate and diff
         run: |
-          cd server && go run ./tools/apigen -out ../web/src/types/api/api.generated.d.ts
-          cd .. && git diff --exit-code -- web/src/types/api/api.generated.d.ts
+          cd server && go run ./tools/apigen -out ../web/src/types/api/api.generated.d.ts -permout ../web/src/enums/permission.ts
+          cd .. && git diff --exit-code -- web/src/types/api/api.generated.d.ts web/src/enums/permission.ts
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20.19'
+
+      - name: Permission drift guard (frontend)
+        run: node scripts/check-permissions.mjs
+        working-directory: web

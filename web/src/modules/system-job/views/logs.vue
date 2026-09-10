@@ -27,7 +27,7 @@
             @click="back"
           />
           <ArtButtonTable
-            v-perm="'system:job:log:delete'"
+            v-perm="PermJobLogDelete"
             icon="ri:delete-bin-5-line"
             iconClass="bg-danger/12 text-danger"
             title="清理日志"
@@ -147,6 +147,7 @@
 </template>
 
 <script setup lang="ts">
+  import { PermJobLogDelete } from '@/enums/permission'
   import { reactive, ref, h } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
   import { ElMessage } from 'element-plus'
@@ -402,7 +403,12 @@
       fixed: 'right',
       formatter: (row) =>
         h('div', { class: 'flex items-center' }, [
-          h(ArtButtonTable, { type: 'view', title: '详情', auth: 'system:job:log:list', onClick: () => openDetail(row) })
+          h(ArtButtonTable, {
+            type: 'view',
+            title: '详情',
+            auth: 'system:job:log:list',
+            onClick: () => openDetail(row)
+          })
         ])
     }
   ])

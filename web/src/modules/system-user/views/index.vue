@@ -33,7 +33,7 @@
             <template #left>
               <div class="toolbar-left">
                 <ArtButtonTable
-                  v-perm="'system:user:add'"
+                  v-perm="PermUserAdd"
                   type="add"
                   title="新增用户"
                   @click="openDialog()"
@@ -51,7 +51,7 @@
                 <!-- 批量操作（有勾选时出现） -->
                 <template v-if="selectedRows.length">
                   <ArtButtonTable
-                    v-perm="'system:user:delete'"
+                    v-perm="PermUserDelete"
                     icon="ri:delete-bin-5-line"
                     iconClass="bg-danger/12 text-danger"
                     :title="`批量删除 (${selectedRows.length})`"
@@ -111,6 +111,7 @@
 </template>
 
 <script setup lang="ts">
+  import { PermUserAdd, PermUserDelete } from '@/enums/permission'
   import { computed, h, reactive, ref } from 'vue'
   import { ElSwitch, ElTag, ElTooltip, ElMessage, ElMessageBox } from 'element-plus'
   import { useWindowSize } from '@vueuse/core'
@@ -438,7 +439,12 @@
       return h(ElTag, { size: 'small', type: 'info', effect: 'plain' }, () => '内置管理员')
     }
     return h('div', { class: 'flex items-center' }, [
-      h(ArtButtonTable, { type: 'edit', title: '编辑', auth: 'system:user:edit', onClick: () => openDialog(row) }),
+      h(ArtButtonTable, {
+        type: 'edit',
+        title: '编辑',
+        auth: 'system:user:edit',
+        onClick: () => openDialog(row)
+      }),
       h(ArtButtonTable, {
         icon: 'ri:shield-user-line',
         iconClass: 'bg-info/12 text-info',

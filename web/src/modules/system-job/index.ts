@@ -1,4 +1,5 @@
 import type { PluginManifest } from '@/types/plugin'
+import { PermJobList, PermJobLogList } from '@/enums/permission'
 
 const plugin: PluginManifest = {
   name: 'system-job',
@@ -11,7 +12,7 @@ const plugin: PluginManifest = {
       meta: {
         title: '定时任务',
         icon: 'ri:timer-2-line',
-        authMark: 'system:job:list'
+        authMark: PermJobList
       }
     },
     {
@@ -22,7 +23,7 @@ const plugin: PluginManifest = {
         title: '任务日志',
         icon: 'ri:file-list-3-line',
         isHide: true,
-        authMark: 'system:job:log:list'
+        authMark: PermJobLogList
       }
     }
   ]

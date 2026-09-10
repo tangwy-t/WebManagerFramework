@@ -17,7 +17,7 @@
       >
         <template #left>
           <ArtButtonTable
-            v-perm="'system:notice:add'"
+            v-perm="PermNoticeAdd"
             type="add"
             title="新增通知"
             @click="openDialog()"
@@ -42,6 +42,7 @@
 </template>
 
 <script setup lang="ts">
+  import { PermNoticeAdd } from '@/enums/permission'
   import { reactive, ref, h, computed } from 'vue'
   import { ElMessage, ElMessageBox } from 'element-plus'
   import { useTableColumns } from '@/hooks/core/useTableColumns'

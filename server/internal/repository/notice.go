@@ -36,17 +36,8 @@ func (r *NoticeRepo) applyFilters(db *gorm.DB, query *request.NoticeQuery) *gorm
 }
 
 func (r *NoticeRepo) FindPage(ctx context.Context, query *request.NoticeQuery) ([]entity.SysNotice, int64, error) {
-	var list []entity.SysNotice
-	var total int64
-	db := r.db.WithContext(ctx).Model(&entity.SysNotice{})
-	db = r.applyFilters(db, query)
-	if err := db.Count(&total).Error; err != nil {
-		return nil, 0, err
-	}
-	if err := db.Offset(query.Offset()).Limit(query.GetPageSize()).Order("id DESC").Find(&list).Error; err != nil {
-		return nil, 0, err
-	}
-	return list, total, nil
+	db := r.applyFilters(r.db.WithContext(ctx).Model(&entity.SysNotice{}), query)
+	return paginate[entity.SysNotice](db, db.Order("id DESC"), query)
 }
 
 func (r *NoticeRepo) FindByID(ctx context.Context, id uint64) (*entity.SysNotice, error) {

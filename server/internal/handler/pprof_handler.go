@@ -14,6 +14,7 @@ import (
 	"github.com/tangwy-t/webmanager-server/internal/pkg/app"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/apperror"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/logger"
+	pproftext "github.com/tangwy-t/webmanager-server/internal/pkg/pproftext"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -183,7 +184,7 @@ func (h *PprofHandler) HandleStatus(c *gin.Context) {
 	resp := response.PprofStatusResponse{
 		Enabled:        enabled,
 		AutoOffSeconds: autoOffSec,
-		Profiles:       pprofStatusEntries(),
+		Profiles:       pproftext.StatusEntries(),
 	}
 	if enabled {
 		h.mu.Lock()
@@ -214,17 +215,17 @@ func (h *PprofHandler) HandleStatus(c *gin.Context) {
 // @Router       /monitor/pprof/profile/{name} [get]
 func (h *PprofHandler) HandleProfileFlame(c *gin.Context) {
 	name := strings.TrimSpace(c.Param("name"))
-	def, ok := pprofDefFor(name)
+	def, ok := pproftext.DefFor(name)
 	if !ok {
 		app.Error(c, apperror.BadRequest("不支持的 profile: "+name))
 		return
 	}
-	if def.category != "snapshot" {
+	if def.Category != "snapshot" {
 		app.Error(c, apperror.BadRequest("不支持的 profile: "+name+
 			"(仅快照类支持火焰图解析;采集类请 GET /api/v1/monitor/debug/pprof/"+name+"?seconds=N 下载原始数据)"))
 		return
 	}
-	if def.lookup == "" {
+	if def.Lookup == "" {
 		app.Error(c, apperror.BadRequest("不支持的 profile: "+name))
 		return
 	}
@@ -236,7 +237,7 @@ func (h *PprofHandler) HandleProfileFlame(c *gin.Context) {
 		}
 	}
 
-	p := pprofLookup(def.lookup)
+	p := pproftext.Lookup(def.Lookup)
 	if p == nil {
 		app.Error(c, apperror.BadRequest("profile 不存在: "+name))
 		return
@@ -248,5 +249,5 @@ func (h *PprofHandler) HandleProfileFlame(c *gin.Context) {
 		app.Error(c, err)
 		return
 	}
-	app.Success(c, BuildPprofProfile(def, buf.Bytes(), top))
+	app.Success(c, pproftext.BuildProfile(def, buf.Bytes(), top))
 }

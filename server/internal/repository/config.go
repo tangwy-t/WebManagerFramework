@@ -31,17 +31,8 @@ func (r *ConfigRepo) applyFilters(db *gorm.DB, query *request.ConfigQuery) *gorm
 }
 
 func (r *ConfigRepo) FindPage(ctx context.Context, query *request.ConfigQuery) ([]entity.SysConfig, int64, error) {
-	var list []entity.SysConfig
-	var total int64
-	db := r.db.WithContext(ctx).Model(&entity.SysConfig{})
-	db = r.applyFilters(db, query)
-	if err := db.Count(&total).Error; err != nil {
-		return nil, 0, err
-	}
-	if err := db.Offset(query.Offset()).Limit(query.GetPageSize()).Order("id ASC").Find(&list).Error; err != nil {
-		return nil, 0, err
-	}
-	return list, total, nil
+	db := r.applyFilters(r.db.WithContext(ctx).Model(&entity.SysConfig{}), query)
+	return paginate[entity.SysConfig](db, db.Order("id ASC"), query)
 }
 
 func (r *ConfigRepo) FindByID(ctx context.Context, id uint64) (*entity.SysConfig, error) {

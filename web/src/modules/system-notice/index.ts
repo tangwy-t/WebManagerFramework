@@ -1,4 +1,5 @@
 import type { PluginManifest } from '@/types/plugin'
+import { PermNoticeList } from '@/enums/permission'
 
 const plugin: PluginManifest = {
   name: 'system-notice',
@@ -11,7 +12,7 @@ const plugin: PluginManifest = {
       meta: {
         title: '通知公告',
         icon: 'ri:notification-3-line',
-        authMark: 'system:notice:list'
+        authMark: PermNoticeList
       }
     }
   ]

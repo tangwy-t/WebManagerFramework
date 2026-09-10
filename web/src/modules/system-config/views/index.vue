@@ -17,7 +17,7 @@
       >
         <template #left>
           <ArtButtonTable
-            v-perm="'system:config:add'"
+            v-perm="PermConfigAdd"
             type="add"
             title="新增参数"
             @click="openDialog()"
@@ -40,6 +40,7 @@
 </template>
 
 <script setup lang="ts">
+  import { PermConfigAdd } from '@/enums/permission'
   import { reactive, ref, h } from 'vue'
   import { ElMessage, ElMessageBox } from 'element-plus'
   import { useTableColumns } from '@/hooks/core/useTableColumns'
@@ -128,8 +129,18 @@
       fixed: 'right',
       formatter: (row) =>
         h('div', { class: 'flex items-center' }, [
-          h(ArtButtonTable, { type: 'edit', title: '编辑', auth: 'system:config:edit', onClick: () => openDialog(row) }),
-          h(ArtButtonTable, { type: 'delete', title: '删除', auth: 'system:config:delete', onClick: () => onRemove(row) })
+          h(ArtButtonTable, {
+            type: 'edit',
+            title: '编辑',
+            auth: 'system:config:edit',
+            onClick: () => openDialog(row)
+          }),
+          h(ArtButtonTable, {
+            type: 'delete',
+            title: '删除',
+            auth: 'system:config:delete',
+            onClick: () => onRemove(row)
+          })
         ])
     }
   ])
