@@ -135,7 +135,7 @@ func (h *Hub) handleAuth(c *Client, tokenStr string) {
 		h.logger.Warn("ws auth failed", zap.Error(err))
 		msg, _ := MarshalAuthErr("token invalid")
 		c.Send(msg)
-		time.AfterFunc(100*time.Millisecond, func() { c.conn.Close() })
+		time.AfterFunc(100*time.Millisecond, func() { c.closeConn() })
 		return
 	}
 
@@ -149,7 +149,7 @@ func (h *Hub) handleAuth(c *Client, tokenStr string) {
 			h.logger.Warn("ws auth rejected: token revoked")
 			msg, _ := MarshalAuthErr("token revoked")
 			c.Send(msg)
-			time.AfterFunc(100*time.Millisecond, func() { c.conn.Close() })
+			time.AfterFunc(100*time.Millisecond, func() { c.closeConn() })
 			return
 		}
 	}

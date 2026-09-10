@@ -36,7 +36,8 @@
  *
  * ## 注意事项
  *
- * - 该指令会直接移除 DOM 元素，而不是使用 v-if 隐藏
+ * - 无权限时隐藏元素(display:none),而非物理移除 —— 元素仍在 DOM 树中,
+ *   角色变化(updated 钩子)时可响应式恢复显示。
  * - 适用于基于角色的粗粒度权限控制
  * - 如需基于具体操作的细粒度权限控制，请使用 v-auth 指令
  *
@@ -45,6 +46,7 @@
  */
 
 import { useUserStore } from '@/store/modules/user'
+import { setElementVisibility } from './auth-permission'
 import { App, Directive, DirectiveBinding } from 'vue'
 
 export type RolesDirective = Directive<HTMLElement, string | string[]>
@@ -53,9 +55,9 @@ function checkRolePermission(el: HTMLElement, binding: DirectiveBinding<string |
   const userStore = useUserStore()
   const userRoles = userStore.getUserInfo.roles
 
-  // 如果用户角色为空或未定义，移除元素
+  // 如果用户角色为空或未定义，隐藏元素
   if (!userRoles?.length) {
-    removeElement(el)
+    setElementVisibility(el, false)
     return
   }
 
@@ -65,16 +67,7 @@ function checkRolePermission(el: HTMLElement, binding: DirectiveBinding<string |
   // 检查用户是否具有所需角色之一
   const hasPermission = requiredRoles.some((role: string) => userRoles.includes(role))
 
-  // 如果没有权限，安全地移除元素
-  if (!hasPermission) {
-    removeElement(el)
-  }
-}
-
-function removeElement(el: HTMLElement): void {
-  if (el.parentNode) {
-    el.parentNode.removeChild(el)
-  }
+  setElementVisibility(el, hasPermission)
 }
 
 const rolesDirective: RolesDirective = {

@@ -25,31 +25,23 @@
  *
  * ## 注意事项
  *
- * - 该指令直接移除 DOM 元素,而非使用 v-if 隐藏
+ * - 无权限时隐藏元素(display:none),而非物理移除 —— 元素仍在 DOM 树中,
+ *   权限变化(updated 钩子)时可响应式恢复显示;旧实现 removeChild 一旦移除
+ *   便无法恢复。
  * - 空值(空串/空数组)视为"无需权限",元素保留(与 v-perm 一致)
- * - 元素移除发生在 mounted,不做响应式恢复 —— 与 v-perm / v-roles
- *   的既有行为一致(权限变更需重新拉取用户信息并重建视图)
  *
  * @module directives/auth
  */
 
 import { useUserStore } from '@/store/modules/user'
-import { hasAuthPermission } from './auth-permission'
+import { hasAuthPermission, setElementVisibility } from './auth-permission'
 import { App, Directive, DirectiveBinding } from 'vue'
 
 export type AuthDirective = Directive<HTMLElement, string | string[]>
 
 function checkAuthPermission(el: HTMLElement, binding: DirectiveBinding<string | string[]>): void {
   const perms = useUserStore().info?.permissions ?? []
-  if (!hasAuthPermission(perms, binding.value)) {
-    removeElement(el)
-  }
-}
-
-function removeElement(el: HTMLElement): void {
-  if (el.parentNode) {
-    el.parentNode.removeChild(el)
-  }
+  setElementVisibility(el, hasAuthPermission(perms, binding.value))
 }
 
 const authDirective: AuthDirective = {

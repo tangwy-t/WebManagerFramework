@@ -525,3 +525,21 @@ func (s *RedisStore) CompareAndSwap(ctx context.Context, key, old, new string, t
 	}
 	return res == 1, nil
 }
+
+// SetAdd 向 key 对应的集合原子追加成员并刷新 TTL。
+// SADD 在 Redis 单线程内原子完成,并发追加不会丢失;TTL 通过 Expire
+// 在 SADD 后单独设置(集合首次创建时无 TTL,每次追加后统一刷新)。
+func (s *RedisStore) SetAdd(ctx context.Context, key, member string, ttl time.Duration) error {
+	if err := s.client.SAdd(ctx, key, member).Err(); err != nil {
+		return err
+	}
+	if ttl > 0 {
+		return s.client.Expire(ctx, key, ttl).Err()
+	}
+	return nil
+}
+
+// SetMembers 读取 key 对应集合的全部成员;key 不存在返回空切片。
+func (s *RedisStore) SetMembers(ctx context.Context, key string) ([]string, error) {
+	return s.client.SMembers(ctx, key).Result()
+}

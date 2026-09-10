@@ -41,6 +41,7 @@ import { RoutesAlias } from '@/router/routesAlias'
 import { resetRouterState, rememberPermissionFingerprint } from '@/router/guards/beforeEach'
 import { useMenuStore } from './menu'
 import { StorageConfig } from '@/utils/storage/storage-config'
+import { clearRememberedLogin } from '@/utils/auth/remember-login'
 import { fetchLogin, fetchGetUserInfo } from '@/api/auth'
 import { useSocketStore } from './socket'
 
@@ -133,14 +134,22 @@ export const useUserStore = defineStore(
     const logOut = () => {
       // 断开 WebSocket 连接，清理状态
       useSocketStore().disconnect()
-      // 保存当前用户 ID，用于下次登录时判断是否为同一用户
+      // 保存当前用户 ID，用于下次登录时判断是否为同一用户。
+      // 若 info 已为空(如 token 过期时 401 拦截器触发的登出,此时
+      // user/info 可能从未加载或已被清空),无法确定身份,应清除残留值
+      // 而非保留旧值,否则下次登录会误判为"同一用户"而不清标签页。
       const currentUserId = info.value.id
       if (currentUserId) {
         localStorage.setItem(StorageConfig.LAST_USER_ID_KEY, String(currentUserId))
+      } else {
+        localStorage.removeItem(StorageConfig.LAST_USER_ID_KEY)
       }
 
       // 清空用户信息
       info.value = {}
+      // 清除「记住密码」凭据:密码以 base64 明文落 localStorage,登出时
+      // 主动清除可避免共享设备/他人在本机还原出明文密码的残留风险。
+      clearRememberedLogin()
       // 重置登录状态
       isLogin.value = false
       // 重置锁屏状态

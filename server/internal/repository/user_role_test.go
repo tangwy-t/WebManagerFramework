@@ -133,6 +133,138 @@ func TestUserRepoAddUsersToRole_Idempotent(t *testing.T) {
 	}
 }
 
+// TestUserRepoReplaceRoles_MultipleRolesPersist 是"分配角色静默失效"的回归测试。
+//
+// 历史缺陷:ReplaceRoles 走 GORM 的 Association("Roles").Replace,join 行的 ID
+// 由内部 join schema 生成,不经过全局 id:generate 回调,因此每行 ID 恒为 0。
+// id 是主键,故只有第一行能落库 —— 给用户分配两个及以上角色时,第二个角色
+// 撞主键 (Duplicate entry '0' for key 'PRIMARY') 被 Association 吞掉,
+// 接口仍返回成功,表现为"角色只能赋予一次,且没有任何报错"。
+func TestUserRepoReplaceRoles_MultipleRolesPersist(t *testing.T) {
+	db := newUserRoleTestDB(t)
+	seedRole(t, db, 1, "admin")
+	seedRole(t, db, 2, "dev")
+	seedUser(t, db, 10, "alice") // 无角色
+	repo := NewUserRepository(db)
+	ctx := context.Background()
+
+	if err := repo.ReplaceRoles(ctx, 10, []uint64{1, 2}); err != nil {
+		t.Fatalf("ReplaceRoles: %v", err)
+	}
+
+	assertUserRoles(t, db, 10, 1, 2)
+	// join 行必须有非零雪花 ID:全零 ID 会再次触发主键冲突。
+	assertJoinIDsNonZero(t, db, 10)
+}
+
+// TestUserRepoReplaceRoles_SecondRoleAfterFirst 复刻线上时序:先只赋予一个角色,
+// 再追加第二个角色。旧实现下第二次调用静默丢失新增角色。
+func TestUserRepoReplaceRoles_SecondRoleAfterFirst(t *testing.T) {
+	db := newUserRoleTestDB(t)
+	seedRole(t, db, 1, "admin")
+	seedRole(t, db, 2, "dev")
+	seedUser(t, db, 10, "alice")
+	repo := NewUserRepository(db)
+	ctx := context.Background()
+
+	if err := repo.ReplaceRoles(ctx, 10, []uint64{1}); err != nil {
+		t.Fatalf("ReplaceRoles#1: %v", err)
+	}
+	assertUserRoles(t, db, 10, 1)
+
+	if err := repo.ReplaceRoles(ctx, 10, []uint64{1, 2}); err != nil {
+		t.Fatalf("ReplaceRoles#2: %v", err)
+	}
+	assertUserRoles(t, db, 10, 1, 2)
+	assertJoinIDsNonZero(t, db, 10)
+}
+
+// TestUserRepoReplaceRoles_ReplacesAndClears 锁定替换语义:重复提交同一角色不会
+// 产生重复行;传空集合会清空全部角色。
+func TestUserRepoReplaceRoles_ReplacesAndClears(t *testing.T) {
+	db := newUserRoleTestDB(t)
+	seedRole(t, db, 1, "admin")
+	seedRole(t, db, 2, "dev")
+	seedUser(t, db, 10, "alice", 1)
+	repo := NewUserRepository(db)
+	ctx := context.Background()
+
+	// 重复提交同一角色:不应产生重复行(uk_user_role 唯一索引兜底)。
+	if err := repo.ReplaceRoles(ctx, 10, []uint64{1, 1}); err != nil {
+		t.Fatalf("ReplaceRoles(dup input): %v", err)
+	}
+	assertUserRoles(t, db, 10, 1)
+
+	// 换成另一个角色:旧关联被删除。
+	if err := repo.ReplaceRoles(ctx, 10, []uint64{2}); err != nil {
+		t.Fatalf("ReplaceRoles(swap): %v", err)
+	}
+	assertUserRoles(t, db, 10, 2)
+
+	// 空集合:清空全部角色。
+	if err := repo.ReplaceRoles(ctx, 10, nil); err != nil {
+		t.Fatalf("ReplaceRoles(clear): %v", err)
+	}
+	assertUserRoles(t, db, 10)
+}
+
+// TestUserRepoCreateWithRoles_MultipleRolesPersist 覆盖创建用户时的同一缺陷:
+// 旧实现用 Association("Roles").Append,多角色只保留第一个。
+func TestUserRepoCreateWithRoles_MultipleRolesPersist(t *testing.T) {
+	db := newUserRoleTestDB(t)
+	seedRole(t, db, 1, "admin")
+	seedRole(t, db, 2, "dev")
+	repo := NewUserRepository(db)
+	ctx := context.Background()
+
+	user := &entity.SysUser{
+		BaseEntity: entity.BaseEntity{ID: 20},
+		Username:   "newbie",
+		Password:   "hashed",
+	}
+	if err := repo.CreateWithRoles(ctx, user, []uint64{1, 2}); err != nil {
+		t.Fatalf("CreateWithRoles: %v", err)
+	}
+
+	assertUserRoles(t, db, 20, 1, 2)
+	assertJoinIDsNonZero(t, db, 20)
+}
+
+// assertUserRoles 断言用户当前的 role_id 集合与 want 完全一致(与顺序无关)。
+func assertUserRoles(t *testing.T, db *gorm.DB, userID uint64, want ...uint64) {
+	t.Helper()
+	var got []uint64
+	if err := db.Table("sys_user_role").
+		Where("user_id = ?", userID).
+		Order("role_id").
+		Pluck("role_id", &got).Error; err != nil {
+		t.Fatalf("pluck user roles: %v", err)
+	}
+	if len(got) != len(want) {
+		t.Fatalf("user %d roles = %v, want %v", userID, got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("user %d roles = %v, want %v", userID, got, want)
+		}
+	}
+}
+
+// assertJoinIDsNonZero 断言 join 行都带有非零 ID。ID 恒为 0 时,第二行必然
+// 违反主键约束而被静默丢弃 —— 这正是本项目角色分配失效的根因。
+func assertJoinIDsNonZero(t *testing.T, db *gorm.DB, userID uint64) {
+	t.Helper()
+	var zeroCount int64
+	if err := db.Table("sys_user_role").
+		Where("user_id = ? AND id = 0", userID).
+		Count(&zeroCount).Error; err != nil {
+		t.Fatalf("count zero-id join rows: %v", err)
+	}
+	if zeroCount != 0 {
+		t.Fatalf("user %d has %d join row(s) with ID 0: snowflake callback did not run", userID, zeroCount)
+	}
+}
+
 func TestUserRepoRemoveUsersFromRole_ScopedToRole(t *testing.T) {
 	db := newUserRoleTestDB(t)
 	seedRole(t, db, 1, "admin")

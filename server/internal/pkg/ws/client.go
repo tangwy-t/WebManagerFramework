@@ -111,8 +111,15 @@ func (c *Client) Kick(reason string) {
 	c.mu.Unlock()
 	msg, _ := MarshalKicked(reason)
 	c.Send(msg)
+	// 5 秒兜底:若客户端收到踢出消息后未自行关闭,强制断开 TCP。
+	// 先查 done:连接已正常关闭(ReadPump/WritePump 退出)时不再触发,
+	// 避免对已关闭连接重复操作(closeConn 本身有 closeOnce,幂等,但
+	// 减少一次无意义的定时器回调)。
 	time.AfterFunc(kickTimeout, func() {
-		if c.IsKicked() {
+		select {
+		case <-c.done:
+			return
+		default:
 			c.closeConn()
 		}
 	})
@@ -183,6 +190,9 @@ func (c *Client) WritePump() {
 		select {
 		case message, ok := <-c.send:
 			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			// send 通道当前从不关闭(见 Close 的注释,关闭逻辑走 done),
+			// 此 !ok 分支不可达;保留仅为防御:若未来有人改为 close(send),
+			// 这里能安全退出而非 panic。
 			if !ok {
 				c.conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return

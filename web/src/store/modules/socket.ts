@@ -20,6 +20,10 @@ import type { ServerMessage, NoticeData } from '@/utils/socket/protocol'
 import { useUserStore } from './user'
 import { ElMessageBox } from 'element-plus'
 
+// 模块级 online 监听器引用:保证全局仅注册一次(幂等),避免 HMR/多实例
+// 下重复 addEventListener 累积监听器。
+let onlineHandler: (() => void) | undefined
+
 export const useSocketStore = defineStore(
   'socketStore',
   () => {
@@ -123,11 +127,14 @@ export const useSocketStore = defineStore(
       }
     )
 
-    // 断网恢复后自动重连，覆盖「重连次数耗尽后连接永久死亡」的场景
-    if (typeof window !== 'undefined') {
-      window.addEventListener('online', () => {
+    // 断网恢复后自动重连，覆盖「重连次数耗尽后连接永久死亡」的场景。
+    // 保存 handler 引用并幂等注册:setup store 正常只执行一次,但 HMR/测试
+    // 可能多次实例化,重复 addEventListener 会累积监听器泄漏。
+    if (typeof window !== 'undefined' && !onlineHandler) {
+      onlineHandler = () => {
         if (userStore.accessToken) connect()
-      })
+      }
+      window.addEventListener('online', onlineHandler)
     }
 
     return {

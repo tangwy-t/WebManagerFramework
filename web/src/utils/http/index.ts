@@ -94,9 +94,13 @@ axiosInstance.interceptors.response.use(
   },
   async (error) => {
     if (error.response?.status === ApiStatus.unauthorized) {
-      // 仅在已登录（存在 refreshToken）时刷新重放；登录/验证码等无 token 场景直接报错
-      if (useUserStore().refreshToken) {
-        const config = error.config as InternalAxiosRequestConfig
+      const config = error.config as InternalAxiosRequestConfig & { _retried?: boolean }
+      // 仅在已登录（存在 refreshToken）且未重放过时刷新重放；
+      // 登录/验证码等无 token 场景直接报错。_retried 防死循环:
+      // refresh 成功但新 token 立即又被判 401(时钟偏差/极短 TTL)时,
+      // 重放请求再次进入此处会因 _retried 直接放弃,而非无限递归。
+      if (useUserStore().refreshToken && !config._retried) {
+        config._retried = true
         const newToken = await refreshAndReplay(config)
         if (newToken) return axiosInstance.request(config)
         handleUnauthorizedError(error.response?.data?.msg || '未授权访问，请重新登录')

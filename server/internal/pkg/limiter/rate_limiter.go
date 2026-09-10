@@ -19,12 +19,15 @@ import (
 // ── 默认值常量 ─────────────────────────────────────────────────────
 
 const (
-	defaultGlobalEnabled    = true
-	defaultGlobalLimit      = 100
-	defaultGlobalWindowSecs = 60
-	defaultLoginEnabled     = true
-	defaultLoginLimit       = 10
-	defaultLoginWindowSecs  = 60
+	defaultGlobalEnabled     = true
+	defaultGlobalLimit       = 100
+	defaultGlobalWindowSecs  = 60
+	defaultLoginEnabled      = true
+	defaultLoginLimit        = 10
+	defaultLoginWindowSecs   = 60
+	defaultRefreshEnabled    = true
+	defaultRefreshLimit      = 30
+	defaultRefreshWindowSecs = 60
 )
 
 // ── Redis key 前缀 ─────────────────────────────────────────────────
@@ -53,6 +56,7 @@ var skippedRouteSuffixes = []string{
 //   - "/api/v2/login" 同理 → 匹配(与前缀无关)
 //   - "/xlogin"       不以 "/login" 结尾(缺分隔符)→ 不匹配
 //   - "/users/login-history" 不以 "/login" 结尾 → 不匹配
+//
 // 不需要额外做分隔符校验,前导斜杠已经承担了这个作用。
 func isSkippedRoute(fullPath string) bool {
 	for _, suffix := range skippedRouteSuffixes {
@@ -173,6 +177,15 @@ func (rl *RateLimiter) readLoginConfig(ctx context.Context) (enabled bool, limit
 	return
 }
 
+// readRefreshConfig 读取 refresh token 兑换限流配置。
+// refresh 是重放/枚举的核心目标,独立于登录与全局限流,额度更严格。
+func (rl *RateLimiter) readRefreshConfig(ctx context.Context) (enabled bool, limit, windowSecs int) {
+	enabled = rl.cfgProv.GetBool(ctx, "sys.rateLimit.refresh.enabled", defaultRefreshEnabled)
+	limit = rl.cfgProv.GetInt(ctx, "sys.rateLimit.refresh.limit", defaultRefreshLimit)
+	windowSecs = rl.cfgProv.GetInt(ctx, "sys.rateLimit.refresh.windowSecs", defaultRefreshWindowSecs)
+	return
+}
+
 // ── 中间件工厂方法 ──────────────────────────────────────────────────
 
 // GlobalRateLimit 返回全局限流中间件。
@@ -240,6 +253,24 @@ func (rl *RateLimiter) LoginRateLimit() gin.HandlerFunc {
 
 		key := fmt.Sprintf("ip:%s", c.ClientIP())
 		if !rl.enforce(c, key, limit, windowSecs, "rate limiter: login request rejected") {
+			return
+		}
+		c.Next()
+	}
+}
+
+// RefreshRateLimit 返回 refresh token 兑换接口独立限流中间件。
+// refresh token 是重放与暴力枚举的核心目标,挂独立且更严格的额度。
+func (rl *RateLimiter) RefreshRateLimit() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		enabled, limit, windowSecs := rl.readRefreshConfig(c.Request.Context())
+		if !enabled {
+			c.Next()
+			return
+		}
+
+		key := fmt.Sprintf("ip:%s", c.ClientIP())
+		if !rl.enforce(c, key, limit, windowSecs, "rate limiter: refresh request rejected") {
 			return
 		}
 		c.Next()

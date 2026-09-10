@@ -288,12 +288,16 @@ func (s *AuthService) Login(ctx context.Context, req *request.LoginReq, ip, user
 		return nil, apperror.Unauthorized("账号已被禁用，请联系管理员")
 	}
 
-	// Lock check (fail-open: Redis unavailable allows login to proceed)
+	// Lock check:与 IsCaptchaRequired 一致,fail-closed。锁定是账号爆破
+	// 防护的关键一环,Redis 不可用时若放行登录(fail-open),攻击者可在
+	// 故障窗口内无限爆破。宁可短暂拒绝登录(可用性受损),也不放行爆破。
 	if s.captchaSvc != nil {
 		locked, remaining, err := s.captchaSvc.IsLocked(ctx, user.ID)
 		if err != nil {
-			s.logger.Warn("failed to check lock status, failing open", zap.Uint64("userId", user.ID), zap.Error(err))
-		} else if locked {
+			s.logger.Error("failed to check lock status, failing closed", zap.Uint64("userId", user.ID), zap.Error(err))
+			return nil, apperror.Internal("账号锁定状态查询失败，请稍后重试")
+		}
+		if locked {
 			go s.recordLoginAsync(user.ID, user.Username, ip, userAgent, apperror.CodeAccountLocked, "账号已锁定")
 			return nil, apperror.AccountLocked(remaining)
 		}
@@ -598,11 +602,12 @@ func (s *AuthService) UploadAvatar(ctx context.Context, header *multipart.FileHe
 	fullPath := filepath.Join(dir, fileName)
 
 	// 清理该用户旧扩展名残留(上次为 png、这次为 webp 时),避免孤儿文件。
+	// 同时必须先删除与本次相同扩展名的旧文件:saveMultipart 以 O_EXCL 排他
+	// 创建,若同名文件已存在会直接 EEXIST 失败,导致「同扩展名重传头像」必错,
+	// 与「overwrite on re-upload」契约矛盾。
 	if stale, _ := filepath.Glob(filepath.Join(dir, fmt.Sprintf("%d.*", userID))); len(stale) > 0 {
 		for _, old := range stale {
-			if old != fullPath {
-				_ = os.Remove(old)
-			}
+			_ = os.Remove(old)
 		}
 	}
 

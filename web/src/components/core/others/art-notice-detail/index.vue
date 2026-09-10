@@ -49,7 +49,7 @@
         </div>
 
         <div class="nd-body">
-          <div v-if="hasContent" class="nd-content" v-html="detail.content" />
+          <div v-if="hasContent" class="nd-content" v-html="safeContent" />
           <div v-else class="nd-empty">
             <ArtSvgIcon icon="ri:file-list-3-line" />
             <span>{{ '暂无内容' }}</span>
@@ -73,6 +73,7 @@
   import { computed, ref } from 'vue'
   import ArtSvgIcon from '@/components/core/base/art-svg-icon/index.vue'
   import { useNoticeDict } from '@/modules/system-notice/composables/useNoticeDict'
+  import { sanitizeHtml } from '@/utils/ui/sanitize'
   import type { ArtNoticeDetailData } from './types'
 
   defineOptions({ name: 'ArtNoticeDetail' })
@@ -81,6 +82,9 @@
 
   const visible = ref(false)
   const detail = ref<ArtNoticeDetailData | null>(null)
+
+  // 正文为后端下发的富文本 HTML,渲染前必须消毒(防存储型 XSS)。
+  const safeContent = computed(() => sanitizeHtml(detail.value?.content ?? ''))
 
   const typeLabel = computed(() =>
     noticeDict.labelOf(

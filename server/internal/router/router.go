@@ -177,7 +177,7 @@ func Setup(deps Dependencies) *gin.Engine {
 		}
 
 		api.POST("/login", deps.Infra.RateLimiter.LoginRateLimit(), deps.Auth.AuthHdl.Login)
-		api.POST("/refresh", deps.Auth.AuthHdl.RefreshToken)
+		api.POST("/refresh", deps.Infra.RateLimiter.RefreshRateLimit(), deps.Auth.AuthHdl.RefreshToken)
 		api.POST("/captcha/generate", deps.Auth.AuthHdl.CaptchaGenerate)
 		// 头像图片输出:<img> 无法携带 Authorization 头,故公开(仅头像类低敏文件)。
 		api.GET("/user/avatar/:id", deps.Auth.AuthHdl.GetAvatar)

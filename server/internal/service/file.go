@@ -302,6 +302,15 @@ func saveMultipart(header *multipart.FileHeader, dstPath string, maxSize int64) 
 	if err != nil {
 		return 0, apperror.Internal("写入上传文件失败", err)
 	}
+	// 一旦文件创建成功,后续任何失败都必须删除已写文件:O_EXCL 建出的
+	// 半成品/超限文件若残留,调用方的 rollback 只会清理「已登记 savedKeys」,
+	// 未登记的本文件会永久残留为孤儿(磁盘泄漏)。故在此统一兜底清理。
+	removeOnError := true
+	defer func() {
+		if removeOnError {
+			_ = os.Remove(dstPath)
+		}
+	}()
 
 	n, copyErr := io.Copy(dst, io.LimitReader(src, maxSize+1))
 	closeErr := dst.Close()
@@ -314,6 +323,7 @@ func saveMultipart(header *multipart.FileHeader, dstPath string, maxSize int64) 
 	if n > maxSize {
 		return 0, apperror.BadRequest(fmt.Sprintf("%s 超过上传大小限制(%s)", header.Filename, formatFileBytes(maxSize)))
 	}
+	removeOnError = false
 	return n, nil
 }
 

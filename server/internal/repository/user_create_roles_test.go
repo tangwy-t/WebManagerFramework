@@ -23,7 +23,11 @@ func TestCreateWithRolesAssociation(t *testing.T) {
 	}
 	// Same callback set as production (id:generate + audit hooks).
 	database.NewCallbacks(nil).Register(db)
-	if err := db.AutoMigrate(&entity.SysUser{}, &entity.SysRole{}); err != nil {
+	// SysUserRole must be migrated explicitly: production registers it in
+	// MigrateAll, which is what gives sys_user_role its snowflake `id` column.
+	// Letting GORM auto-create the join table from the many2many tag produces a
+	// table without `id`, so every join-row insert would fail.
+	if err := db.AutoMigrate(&entity.SysUser{}, &entity.SysRole{}, &entity.SysUserRole{}); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
 

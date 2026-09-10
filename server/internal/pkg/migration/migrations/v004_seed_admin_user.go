@@ -2,6 +2,8 @@ package migrations
 
 import (
 	"fmt"
+	"log"
+	"os"
 
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
@@ -20,14 +22,26 @@ func init() {
 	})
 }
 
-// defaultAdminPassword 是 admin 用户的初始密码（写死，便于首次登录）。
-// 上线后务必立即登录并在“修改密码”中更换为强密码。
+// defaultAdminPassword 是 admin 用户的初始密码兜底值。仅当未通过环境
+// 变量 ADMIN_INITIAL_PASSWORD 注入强密码时使用。
+// 上线后务必立即登录并在"修改密码"中更换为强密码。
 const defaultAdminPassword = "admin123"
+
+// adminPasswordEnvKey 是 admin 初始密码的环境变量键。部署方应通过它注入
+// 强密码,避免使用内置兜底值 admin123。
+const adminPasswordEnvKey = "ADMIN_INITIAL_PASSWORD"
 
 // seedAdminUser 创建 admin 用户（密码哈希需 bcrypt，唯一非纯 INSERT 步骤），
 // 并将其绑定到超级管理员角色。
 func seedAdminUser(tx *gorm.DB) error {
-	hashed, salt, err := crypto.HashPassword(defaultAdminPassword, bcrypt.DefaultCost)
+	password := os.Getenv(adminPasswordEnvKey)
+	if password == "" {
+		// 未注入环境变量:退回内置兜底密码。这是已知弱凭据,仅保证
+		// 首次能登录;生产环境必须通过 ADMIN_INITIAL_PASSWORD 注入强密码。
+		password = defaultAdminPassword
+		log.Printf("警告: 未设置 %s,使用内置默认密码创建 admin 用户", adminPasswordEnvKey)
+	}
+	hashed, salt, err := crypto.HashPassword(password, bcrypt.DefaultCost)
 	if err != nil {
 		return err
 	}

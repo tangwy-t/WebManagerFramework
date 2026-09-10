@@ -13,11 +13,16 @@
  */
 import type { Directive } from 'vue'
 import { useUserStore } from '@/store/modules/user'
-import { hasAuthPermission } from './auth-permission'
+import { hasAuthPermission, setElementVisibility } from './auth-permission'
 
 export const perm: Directive<HTMLElement, string | string[]> = {
   mounted(el, binding) {
     const perms = useUserStore().info?.permissions ?? []
-    if (!hasAuthPermission(perms, binding.value)) el.parentNode?.removeChild(el)
+    setElementVisibility(el, hasAuthPermission(perms, binding.value))
+  },
+  updated(el, binding) {
+    // 权限变化时响应式恢复/隐藏:与 mounted 同逻辑,替代旧的「仅 mounted 移除一次」。
+    const perms = useUserStore().info?.permissions ?? []
+    setElementVisibility(el, hasAuthPermission(perms, binding.value))
   }
 }

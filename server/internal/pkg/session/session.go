@@ -47,48 +47,23 @@ func (s *SessionStore) StoreAccess(ctx context.Context, token string, userID uin
 
 // indexUserAccess 把 token 追加进该用户的 access 索引。
 //
-// 索引是 redis 中的 JSON 数组(普通 string 键),而非 Redis SET:
-// CacheStoreInterface 未暴露 SADD/SMEMBERS,引入新原语会让所有 FakeStore
-// 实现(test 侧)同步扩展。索引键与 access 键共用同一 TTL —— 二者
-// 生命周期一致,过期即整体消失,不存在悬挂引用。
+// 索引是 redis 中的集合(SetAdd 原子追加),而非普通 string 键。
+// 此前用「JSON 数组 + Get→append→Set」:并发登录(多设备同时登录同一
+// 用户)会互相覆盖,导致部分 token 索引丢失(改密/禁用后旧 token 无法
+// 批量吊销)。SetAdd 在 Redis 单线程内原子完成追加,从根上消除竞态。
 //
 // 索引写失败不阻断登录:索引只影响"能否一次性吊销全部 token",
 // 不影响 token 本身可用性;失败降级为"该次登录的 token 不参与批量吊销"
 // (逐 token 登出仍然有效),由调用方按运维告警跟进。
 func (s *SessionStore) indexUserAccess(ctx context.Context, userID uint64, token string, ttl time.Duration) error {
 	key := fmt.Sprintf("%s%d", UserAccessPrefix, userID)
-	tokens, err := s.loadAccessIndex(ctx, key)
-	if err != nil {
-		return err
-	}
-	tokens = append(tokens, token)
-	// 上限保护:索引无限增长会让单键体积随登录次数线性膨胀。
-	// 保留最近 maxAccessRevocation 个即可 —— 更早的 token 早已过期。
-	if len(tokens) > maxAccessRevocation {
-		tokens = tokens[len(tokens)-maxAccessRevocation:]
-	}
-	data, err := json.Marshal(tokens)
-	if err != nil {
-		return err
-	}
-	return s.cacheStore.Set(ctx, key, string(data), ttl)
+	return s.cacheStore.SetAdd(ctx, key, token, ttl)
 }
 
-// loadAccessIndex 读取用户的 access 索引;键不存在或内容损坏时返回空切片。
-// 损坏时返回空而非错误:索引是尽力而为的辅助结构,不应让登录失败。
+// loadAccessIndex 读取用户的 access 索引;键不存在时返回空切片。
+// 索引已改为 Redis 集合(SetAdd/SetMembers),读取走集合语义。
 func (s *SessionStore) loadAccessIndex(ctx context.Context, key string) ([]string, error) {
-	raw, err := s.cacheStore.Get(ctx, key)
-	if err != nil {
-		return nil, err
-	}
-	if raw == "" {
-		return nil, nil
-	}
-	var tokens []string
-	if err := json.Unmarshal([]byte(raw), &tokens); err != nil {
-		return nil, nil
-	}
-	return tokens, nil
+	return s.cacheStore.SetMembers(ctx, key)
 }
 
 func (s *SessionStore) StoreRefresh(ctx context.Context, userID uint64, token string, ttl time.Duration) error {

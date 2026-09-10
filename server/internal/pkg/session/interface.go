@@ -22,4 +22,10 @@ type CacheStoreInterface interface {
 	// 同一 refresh token 只能被兑换一次。先 Get 再 Delete 的两步写法在
 	// 并发下会双放行(两个请求都读到同一个旧 token),CAS 是唯一正确做法。
 	CompareAndSwap(ctx context.Context, key, old, new string, ttl time.Duration) (bool, error)
+	// SetAdd 向 key 对应的集合原子追加一个成员,并刷新 TTL。用于用户
+	// access token 反向索引:并发登录时 SADD 天然原子,不会像 Get+append+Set
+	// 那样互相覆盖丢失索引。key 首次写入时自动创建为集合。
+	SetAdd(ctx context.Context, key, member string, ttl time.Duration) error
+	// SetMembers 读取 key 对应集合的全部成员;key 不存在返回空切片。
+	SetMembers(ctx context.Context, key string) ([]string, error)
 }

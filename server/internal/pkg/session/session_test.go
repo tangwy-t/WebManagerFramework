@@ -2,6 +2,8 @@ package session
 
 import (
 	"context"
+	"encoding/json"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -65,6 +67,39 @@ func (f *fakeCache) CompareAndSwap(_ context.Context, key, old, new string, _ ti
 	}
 	f.data[key] = new
 	return true, nil
+}
+
+// SetAdd 用 JSON 数组模拟 Redis 集合:追加成员(去重)。
+// 与真实 RedisStore 的 SADD 语义对齐(成员去重、原子追加)。
+func (f *fakeCache) SetAdd(_ context.Context, key, member string, _ time.Duration) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	var members []string
+	if raw, ok := f.data[key]; ok && raw != "" {
+		_ = json.Unmarshal([]byte(raw), &members)
+	}
+	for _, m := range members {
+		if m == member {
+			return nil // 已存在,幂等
+		}
+	}
+	members = append(members, member)
+	raw, _ := json.Marshal(members)
+	f.data[key] = string(raw)
+	return nil
+}
+
+// SetMembers 返回 JSON 数组形式的集合成员;key 不存在返回空切片。
+func (f *fakeCache) SetMembers(_ context.Context, key string) ([]string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	raw, ok := f.data[key]
+	if !ok || raw == "" {
+		return nil, nil
+	}
+	var members []string
+	_ = json.Unmarshal([]byte(raw), &members)
+	return members, nil
 }
 
 // TestAccessWhitelistRoundTrip 会话白名单:存→有效→吊销→无效。
@@ -274,5 +309,43 @@ func TestAccessIndex_SurvivesCorruptValue(t *testing.T) {
 	}
 	if ok, _ := s.IsAccessValid(ctx, "tok-1"); !ok {
 		t.Fatal("token 应有效")
+	}
+}
+
+// TestStoreAccess_ConcurrentNoIndexLoss 同一用户并发登录时,反向索引不得
+// 丢失任何 token —— 这是 Get→append→Set 旧实现会互相覆盖的竞态。改用
+// SetAdd(SADD 原子追加)后,并发下每个 token 都必须进入索引,否则改密/禁用
+// 后该 token 无法被批量吊销。
+func TestStoreAccess_ConcurrentNoIndexLoss(t *testing.T) {
+	ctx := context.Background()
+	c := newFakeCache()
+	s := NewSession(c)
+
+	const n = 32
+	tokens := make([]string, n)
+	for i := range tokens {
+		tokens[i] = "tok-" + strconv.Itoa(i)
+	}
+
+	var wg sync.WaitGroup
+	for i := 0; i < n; i++ {
+		wg.Add(1)
+		go func(tok string) {
+			defer wg.Done()
+			if err := s.StoreAccess(ctx, tok, 7, time.Hour); err != nil {
+				t.Errorf("StoreAccess(%s): %v", tok, err)
+			}
+		}(tokens[i])
+	}
+	wg.Wait()
+
+	// 吊销全部后,每个 token 都应失效(索引无丢失)。
+	if err := s.RevokeAll(ctx, 7, ""); err != nil {
+		t.Fatalf("RevokeAll: %v", err)
+	}
+	for _, tok := range tokens {
+		if ok, _ := s.IsAccessValid(ctx, tok); ok {
+			t.Fatalf("token %s 吊销后仍有效,索引丢失", tok)
+		}
 	}
 }

@@ -466,9 +466,21 @@ function rebuildDynamicRoutes(): void {
 
 /**
  * 重置路由相关状态
+ *
+ * 用 generation 防竞态:固定延迟的 setTimeout 在用户「快速登出→重新登录」
+ * 时,可能在新路由初始化完成后才触发,误拆新登录用户的动态路由。
+ * 每次调用递增 generation,回调执行时若 generation 已变(期间有新的
+ * reset 或登录初始化)则放弃,避免拆掉新状态。
  */
+let resetGeneration = 0
+
 export function resetRouterState(delay: number): void {
+  const generation = ++resetGeneration
   setTimeout(() => {
+    if (generation !== resetGeneration) {
+      // 期间发生了新的 reset/登录初始化,放弃本次延迟重置。
+      return
+    }
     routeRegistry?.unregister()
     IframeRouteManager.getInstance().clear()
 
