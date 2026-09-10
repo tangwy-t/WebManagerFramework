@@ -29,6 +29,9 @@ type SessionStoreInterface interface {
 	RevokeAll(ctx context.Context, userID uint64, token string) error
 	GetRefresh(ctx context.Context, userID uint64) (string, error)
 	DeleteRefresh(ctx context.Context, userID uint64) error
+	// RotateRefresh 原子地把 refresh token 从 old 换成 new;consumed=false
+	// 表示 old 已不是当前值(已被兑换或已失效),调用方须拒绝本次刷新。
+	RotateRefresh(ctx context.Context, userID uint64, old, new string, ttl time.Duration) (bool, error)
 	RevokePerms(ctx context.Context, userID uint64) error
 	RevokeAllPerms(ctx context.Context) error
 }

@@ -126,6 +126,21 @@ func (s *AuthService) issueTokens(ctx context.Context, userID uint64, perms []st
 // IsAccessValid treats a whitelist miss as invalid, so handing out a token
 // whose whitelist write failed means "login succeeds, then immediate 401".
 // Refresh/perms writes stay best-effort (degraded, not broken).
+// storeAccessAndPerms 写入 access 白名单与权限缓存,不触碰 refresh token。
+// 供 RefreshToken 使用:refresh 的写入走 RotateRefresh(CAS),
+// 不能像 Login 那样用 storeSession 无条件覆盖(会绕过重放防护)。
+func (s *AuthService) storeAccessAndPerms(ctx context.Context, userID uint64, accessToken string, perms []string) error {
+	accessTTL := time.Duration(s.cfgProv.GetInt(ctx, "sys.jwt.accessExpire", 7200)) * time.Second
+	if err := s.sessionStore.StoreAccess(ctx, accessToken, userID, accessTTL); err != nil {
+		s.logger.Error("failed to store access token whitelist", zap.Error(err))
+		return err
+	}
+	if err := s.sessionStore.StorePerms(ctx, userID, perms, accessTTL); err != nil {
+		s.logger.Warn("failed to store permissions", zap.Error(err))
+	}
+	return nil
+}
+
 func (s *AuthService) storeSession(ctx context.Context, userID uint64, accessToken, refreshToken string, perms []string) error {
 	accessTTL := time.Duration(s.cfgProv.GetInt(ctx, "sys.jwt.accessExpire", 7200)) * time.Second
 	refreshTTL := time.Duration(s.cfgProv.GetInt(ctx, "sys.jwt.refreshExpire", 604800)) * time.Second
@@ -650,11 +665,6 @@ func (s *AuthService) RefreshToken(ctx context.Context, req *request.RefreshToke
 		return nil, apperror.Unauthorized("refresh token 已失效")
 	}
 
-	// 4. Rotation: delete old refresh token to prevent replay
-	if err := s.sessionStore.DeleteRefresh(ctx, claims.UserID); err != nil {
-		s.logger.Warn("failed to delete old refresh token", zap.Uint64("userId", claims.UserID), zap.Error(err))
-	}
-
 	// 5. Verify user status
 	user, err := s.repo.FindByID(ctx, claims.UserID)
 	if err != nil {
@@ -675,9 +685,26 @@ func (s *AuthService) RefreshToken(ctx context.Context, req *request.RefreshToke
 		return nil, apperror.Internal("生成 token 失败")
 	}
 
-	// 9. Store session
-	if err := s.storeSession(ctx, claims.UserID, accessToken, refreshToken, perms); err != nil {
+	// 9. 轮换会话:先写入 access 白名单与权限,再以 CAS 原子地把
+	//    refresh token 从旧值换成新值。
+	//
+	//    顺序是有意的:新令牌必须先全部就绪,才提交"作废旧令牌"这一步。
+	//    此前的实现顺序相反(校验通过后立刻删旧令牌,再签发/存储新令牌),
+	//    一旦签发或存储失败(DB 抖动、账号被禁用等),用户既没有旧令牌也
+	//    没有新令牌 —— 被强制登出且无法重试。现在失败时旧令牌仍然有效,
+	//    用户重试即可。
+	if err := s.storeAccessAndPerms(ctx, claims.UserID, accessToken, perms); err != nil {
 		return nil, apperror.Internal("会话存储失败", err)
+	}
+	refreshTTL := time.Duration(s.cfgProv.GetInt(ctx, "sys.jwt.refreshExpire", 604800)) * time.Second
+	consumed, err := s.sessionStore.RotateRefresh(ctx, claims.UserID, req.RefreshToken, refreshToken, refreshTTL)
+	if err != nil {
+		return nil, apperror.Internal("会话存储失败", err)
+	}
+	if !consumed {
+		// 旧令牌在此刻已不是当前值:并发刷新中另一个请求先完成了兑换。
+		// 必须拒绝,否则一个 refresh token 能换出多组有效令牌(重放)。
+		return nil, apperror.Unauthorized("refresh token 已失效")
 	}
 
 	return &response.RefreshTokenResp{

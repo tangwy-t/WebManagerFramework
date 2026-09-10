@@ -95,6 +95,23 @@ func (s *SessionStore) StoreRefresh(ctx context.Context, userID uint64, token st
 	return s.cacheStore.Set(ctx, fmt.Sprintf("%s%d", RefreshPrefix, userID), token, ttl)
 }
 
+// RotateRefresh 原子地把用户的 refresh token 从 old 换成 new。
+//
+// 返回 consumed=false 表示 old 已不是当前有效的 refresh token
+// (已被兑换过、已过期,或值不匹配),调用方必须拒绝本次刷新。
+//
+// 为什么必须是 CAS 而不是 Get+Delete:
+//   - 竞态重放:两个并发刷新请求都能 Get 到同一个 old,两步写法会双双放行,
+//     同一个 refresh token 被兑换出两组有效令牌(等于轮换形同虚设)。
+//   - 失败即登出:此前实现在校验通过后立刻 Delete,再签发并存储新令牌;
+//     若签发/存储阶段失败(DB 抖动、账号被禁用),用户既没有旧 token 也
+//     没有新 token,被强制登出。CAS 把"作废旧"与"写入新"合并为一步,
+//     只有新令牌已就绪才提交,失败时用户仍持有旧令牌可重试。
+func (s *SessionStore) RotateRefresh(ctx context.Context, userID uint64, old, new string, ttl time.Duration) (consumed bool, err error) {
+	key := fmt.Sprintf("%s%d", RefreshPrefix, userID)
+	return s.cacheStore.CompareAndSwap(ctx, key, old, new, ttl)
+}
+
 func (s *SessionStore) StorePerms(ctx context.Context, userID uint64, perms []string, ttl time.Duration) error {
 	data, err := json.Marshal(perms)
 	if err != nil {

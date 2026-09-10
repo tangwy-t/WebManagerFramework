@@ -53,6 +53,20 @@ func (f *fakeCache) DeleteByPattern(_ context.Context, pattern string, _ int64) 
 	return n, nil
 }
 
+// CompareAndSwap 模拟 Redis Lua 脚本的原子语义:比对与写入在同一把锁内
+// 完成,并发调用不会交错 —— 这是 fake 必须与真实实现语义一致的关键点,
+// 否则会在假实现上"通过"而线上仍然重放。
+func (f *fakeCache) CompareAndSwap(_ context.Context, key, old, new string, _ time.Duration) (bool, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	cur, ok := f.data[key]
+	if !ok || cur != old {
+		return false, nil
+	}
+	f.data[key] = new
+	return true, nil
+}
+
 // TestAccessWhitelistRoundTrip 会话白名单:存→有效→吊销→无效。
 func TestAccessWhitelistRoundTrip(t *testing.T) {
 	ctx := context.Background()

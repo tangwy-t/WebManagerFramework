@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -343,5 +344,128 @@ func TestGetValuePageStreamUnsupported(t *testing.T) {
 	}
 	if p.Type != "stream" || p.Value != nil || p.HasMore {
 		t.Fatalf("meta = %+v, want Type stream/Value nil/HasMore false", p)
+	}
+}
+
+// ── CompareAndSwap ────────────────────────────────────────────────────
+//
+// 这些用 miniredis(真实 Lua 执行)验证 CAS 语义,而非只测 fake:
+// refresh token 轮换依赖它保证"同一 token 只能兑换一次",语义写错
+// 会直接变成令牌重放漏洞。
+
+func TestCompareAndSwap_SwapsWhenValueMatches(t *testing.T) {
+	store, client := newPageTestStore(t)
+	ctx := context.Background()
+	key := "refresh:1"
+
+	if err := client.Set(ctx, key, "old-token", time.Hour).Err(); err != nil {
+		t.Fatal(err)
+	}
+
+	ok, err := store.CompareAndSwap(ctx, key, "old-token", "new-token", time.Hour)
+	if err != nil {
+		t.Fatalf("CompareAndSwap: %v", err)
+	}
+	if !ok {
+		t.Fatal("值匹配却未替换")
+	}
+
+	got, _ := client.Get(ctx, key).Result()
+	if got != "new-token" {
+		t.Fatalf("value = %q, want new-token", got)
+	}
+}
+
+func TestCompareAndSwap_RejectsWhenValueDiffers(t *testing.T) {
+	store, client := newPageTestStore(t)
+	ctx := context.Background()
+	key := "refresh:1"
+	_ = client.Set(ctx, key, "current", time.Hour).Err()
+
+	ok, err := store.CompareAndSwap(ctx, key, "stale", "new-token", time.Hour)
+	if err != nil {
+		t.Fatalf("CompareAndSwap: %v", err)
+	}
+	if ok {
+		t.Fatal("值不匹配却替换成功 —— refresh token 可被重放")
+	}
+	// 原值必须保持不变(不能被误写)。
+	if got, _ := client.Get(ctx, key).Result(); got != "current" {
+		t.Fatalf("值被意外修改为 %q", got)
+	}
+}
+
+func TestCompareAndSwap_RejectsWhenKeyMissing(t *testing.T) {
+	store, _ := newPageTestStore(t)
+
+	ok, err := store.CompareAndSwap(context.Background(), "refresh:absent", "any", "new", time.Hour)
+	if err != nil {
+		t.Fatalf("CompareAndSwap: %v", err)
+	}
+	if ok {
+		t.Fatal("键不存在却报告替换成功")
+	}
+}
+
+// TestCompareAndSwap_ConcurrentOnlyOneWins 是轮换安全性的核心:
+// 并发用同一个 old 值做 CAS,必须恰好有一个成功。
+// 若实现退化为 GET+SET,多个调用都会成功 —— 一个 refresh token
+// 就能换出多组有效令牌。
+func TestCompareAndSwap_ConcurrentOnlyOneWins(t *testing.T) {
+	store, client := newPageTestStore(t)
+	ctx := context.Background()
+	key := "refresh:1"
+	_ = client.Set(ctx, key, "old-token", time.Hour).Err()
+
+	const n = 16
+	var wg sync.WaitGroup
+	results := make([]bool, n)
+	errs := make([]error, n)
+	start := make(chan struct{})
+
+	for i := 0; i < n; i++ {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+			<-start // 尽量让所有 goroutine 同时冲进来
+			results[idx], errs[idx] = store.CompareAndSwap(ctx, key, "old-token", fmt.Sprintf("new-%d", idx), time.Hour)
+		}(i)
+	}
+	close(start)
+	wg.Wait()
+
+	for i, err := range errs {
+		if err != nil {
+			t.Fatalf("goroutine %d: %v", i, err)
+		}
+	}
+	wins := 0
+	for _, ok := range results {
+		if ok {
+			wins++
+		}
+	}
+	if wins != 1 {
+		t.Fatalf("成功次数 = %d, want 恰好 1(多个成功 = refresh token 可重放)", wins)
+	}
+}
+
+// TestCompareAndSwap_TTLApplied 新值需带上传入的 TTL,
+// 否则轮换后的 refresh token 永不过期。
+func TestCompareAndSwap_TTLApplied(t *testing.T) {
+	store, client := newPageTestStore(t)
+	ctx := context.Background()
+	key := "refresh:1"
+	_ = client.Set(ctx, key, "old", time.Hour).Err()
+
+	if _, err := store.CompareAndSwap(ctx, key, "old", "new", 30*time.Second); err != nil {
+		t.Fatal(err)
+	}
+	ttl, err := client.TTL(ctx, key).Result()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ttl <= 0 || ttl > 30*time.Second {
+		t.Fatalf("TTL = %v, want (0, 30s]", ttl)
 	}
 }

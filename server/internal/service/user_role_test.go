@@ -15,6 +15,12 @@ import (
 // 只关心 RevokePerms 的调用记录(role_update_status_test.go 复用)。
 type stubSessionStore struct {
 	revoked []uint64
+	// rotateConsumed / rotateErr 供 refresh 轮换相关测试定制 CAS 结果;
+	// 为 nil 时默认放行(consumed=true),既有测试无需改动。
+	rotateConsumed *bool
+	rotateErr      error
+	// rotateCalls 记录 (old, new) 以供断言。
+	rotateCalls [][2]string
 }
 
 func (s *stubSessionStore) StoreAccess(context.Context, string, uint64, time.Duration) error {
@@ -31,6 +37,16 @@ func (s *stubSessionStore) GetRefresh(context.Context, uint64) (string, error) {
 	return "", nil
 }
 func (s *stubSessionStore) DeleteRefresh(context.Context, uint64) error { return nil }
+
+// RotateRefresh 默认放行(consumed=true)。注意默认值不能让既有测试
+// 依赖"一定成功";需要验证重放拒绝的测试通过 rotateConsumed 显式指定。
+func (s *stubSessionStore) RotateRefresh(_ context.Context, _ uint64, old, new string, _ time.Duration) (bool, error) {
+	s.rotateCalls = append(s.rotateCalls, [2]string{old, new})
+	if s.rotateConsumed != nil {
+		return *s.rotateConsumed, s.rotateErr
+	}
+	return true, s.rotateErr
+}
 func (s *stubSessionStore) RevokePerms(ctx context.Context, userID uint64) error {
 	s.revoked = append(s.revoked, userID)
 	return nil

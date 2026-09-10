@@ -489,3 +489,39 @@ end
 return {prev, curr}`
 	return s.client.Eval(ctx, script, keys, ttl).Result()
 }
+
+// ── CompareAndSwap ────────────────────────────────────────────────────
+
+// casScript 在一个 Lua 脚本内完成"比对 + 写入",保证原子性。
+//
+// 不能用 GET 后 SET 的两步写法:两步之间其他客户端可以插入写入,
+// 两个并发的 refresh 请求会都读到同一个旧 token 从而双双放行
+// (refresh token 重放)。Redis 单线程执行 Lua,天然是原子的。
+//
+// KEYS[1] = key, ARGV[1] = old, ARGV[2] = new, ARGV[3] = ttl 秒
+// 返回 1 表示已替换,0 表示值不匹配(未修改)。
+var casScript = goredis.NewScript(`
+local cur = redis.call('GET', KEYS[1])
+if cur == false or cur ~= ARGV[1] then
+  return 0
+end
+local ttl = tonumber(ARGV[3])
+if ttl > 0 then
+  redis.call('SET', KEYS[1], ARGV[2], 'EX', ttl)
+else
+  redis.call('SET', KEYS[1], ARGV[2])
+end
+return 1
+`)
+
+// CompareAndSwap 仅当 key 当前值等于 old 时写入 new,返回是否发生替换。
+func (s *RedisStore) CompareAndSwap(ctx context.Context, key, old, new string, ttl time.Duration) (bool, error) {
+	res, err := casScript.Run(ctx, s.client, []string{key}, old, new, int64(ttl.Seconds())).Int()
+	if err != nil {
+		if errors.Is(err, goredis.Nil) {
+			return false, nil
+		}
+		return false, err
+	}
+	return res == 1, nil
+}
