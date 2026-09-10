@@ -67,6 +67,9 @@ var menuDefinitions = []menuDef{
 	{Key: "role:add", Parent: "role", Name: "角色新增", Type: "btn", Perms: "system:role:add", Sort: 2},
 	{Key: "role:edit", Parent: "role", Name: "角色修改", Type: "btn", Perms: "system:role:edit", Sort: 3},
 	{Key: "role:delete", Parent: "role", Name: "角色删除", Type: "btn", Perms: "system:role:delete", Sort: 4},
+	{Key: "role:assign", Parent: "role", Name: "分配用户", Type: "btn", Perms: "system:role:assign", Sort: 5},
+	{Key: "role:status", Parent: "role", Name: "角色状态", Type: "btn", Perms: "system:role:status", Sort: 6},
+	{Key: "role:sort", Parent: "role", Name: "角色排序", Type: "btn", Perms: "system:role:sort", Sort: 7},
 
 	// ── 菜单管理 ───────────────────────────────────────────────
 	{Key: "menu", Parent: "system", Name: "菜单管理", Type: "menu", Perms: "system:menu:list", Path: "/system/menu", Component: "system/menu/index", Sort: 3, Icon: "ri:apps-2-line"},
@@ -74,6 +77,7 @@ var menuDefinitions = []menuDef{
 	{Key: "menu:add", Parent: "menu", Name: "菜单新增", Type: "btn", Perms: "system:menu:add", Sort: 2},
 	{Key: "menu:edit", Parent: "menu", Name: "菜单修改", Type: "btn", Perms: "system:menu:edit", Sort: 3},
 	{Key: "menu:delete", Parent: "menu", Name: "菜单删除", Type: "btn", Perms: "system:menu:delete", Sort: 4},
+	{Key: "menu:sort", Parent: "menu", Name: "菜单排序", Type: "btn", Perms: "system:menu:sort", Sort: 5},
 
 	// ── 部门管理 ───────────────────────────────────────────────
 	{Key: "dept", Parent: "system", Name: "部门管理", Type: "menu", Perms: "system:dept:list", Path: "/system/dept", Component: "system/dept/index", Sort: 4, Icon: "ri:organization-chart"},
@@ -81,6 +85,7 @@ var menuDefinitions = []menuDef{
 	{Key: "dept:add", Parent: "dept", Name: "部门新增", Type: "btn", Perms: "system:dept:add", Sort: 2},
 	{Key: "dept:edit", Parent: "dept", Name: "部门修改", Type: "btn", Perms: "system:dept:edit", Sort: 3},
 	{Key: "dept:delete", Parent: "dept", Name: "部门删除", Type: "btn", Perms: "system:dept:delete", Sort: 4},
+	{Key: "dept:sort", Parent: "dept", Name: "部门排序", Type: "btn", Perms: "system:dept:sort", Sort: 5},
 
 	// ── 字典管理 ───────────────────────────────────────────────
 	{Key: "dict", Parent: "system", Name: "字典管理", Type: "menu", Perms: "system:dict:list", Path: "/system/dict", Component: "system/dict/index", Sort: 5, Icon: "material-symbols:book-3-outline"},
@@ -114,7 +119,6 @@ var menuDefinitions = []menuDef{
 	{Key: "file", Parent: "system", Name: "文件管理", Type: "menu", Perms: "system:file:list", Path: "/system/file", Component: "system/file/index", Sort: 8, Icon: "ri:folder-settings-line"},
 	{Key: "file:upload", Parent: "file", Name: "上传文件", Type: "btn", Perms: "system:file:upload", Sort: 0},
 	{Key: "file:delete", Parent: "file", Name: "删除文件", Type: "btn", Perms: "system:file:delete", Sort: 1},
-	{Key: "file:query", Parent: "file", Name: "查询文件", Type: "btn", Perms: "system:file:query", Sort: 2},
 	{Key: "file:download", Parent: "file", Name: "下载文件", Type: "btn", Perms: "system:file:download", Sort: 3},
 	{Key: "file:edit", Parent: "file", Name: "编辑文件", Type: "btn", Perms: "system:file:edit", Sort: 4},
 

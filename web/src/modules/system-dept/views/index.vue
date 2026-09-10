@@ -27,7 +27,7 @@
           <!-- 排序有改动时出现(样式与角色管理一致) -->
           <ArtButtonTable
             v-if="sortDirtyCount > 0"
-            v-perm="'system:dept:edit'"
+            v-perm="'system:dept:sort'"
             icon="ri:save-2-line"
             iconClass="bg-warning/12 text-warning"
             :title="`保存排序 (${sortDirtyCount})`"

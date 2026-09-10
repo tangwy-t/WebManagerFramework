@@ -47,7 +47,7 @@
         <ElTableColumn label="操作" width="76" align="center" fixed="right">
           <template #default="{ row }">
             <ArtButtonTable
-              v-perm="'system:role:edit'"
+              v-perm="'system:role:assign'"
               type="delete"
               title="移除"
               @click="onRemove(row)"
@@ -79,7 +79,7 @@
           @click="visible = false"
         />
         <ArtButtonTable
-          v-perm="'system:role:edit'"
+          v-perm="'system:role:assign'"
           icon="ri:user-add-line"
           iconClass="bg-theme/12 text-theme"
           title="添加用户"

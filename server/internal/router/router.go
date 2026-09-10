@@ -238,13 +238,13 @@ func Setup(deps Dependencies) *gin.Engine {
 			roles.GET("/:id", perm("system:role:query"), deps.System.RoleHdl.GetByID)
 			roles.POST("", perm("system:role:add"), deps.System.RoleHdl.Create)
 			roles.PUT("/:id", perm("system:role:edit"), deps.System.RoleHdl.Update)
-			roles.PUT("/sort", perm("system:role:edit"), deps.System.RoleHdl.UpdateSort)
-			roles.PUT("/:id/status", perm("system:role:edit"), deps.System.RoleHdl.UpdateStatus)
+			roles.PUT("/sort", perm("system:role:sort"), deps.System.RoleHdl.UpdateSort)
+			roles.PUT("/:id/status", perm("system:role:status"), deps.System.RoleHdl.UpdateStatus)
 			roles.DELETE("/:id", perm("system:role:delete"), deps.System.RoleHdl.Delete)
 			// 分配用户(角色维度):复用 UserHdl,join 表 sys_user_role 归用户域维护
-			roles.GET("/:id/users", perm("system:role:edit"), deps.System.UserHdl.ListByRole)
-			roles.POST("/:id/users", perm("system:role:edit"), deps.System.UserHdl.AddRoleUsers)
-			roles.DELETE("/:id/users", perm("system:role:edit"), deps.System.UserHdl.RemoveRoleUsers)
+			roles.GET("/:id/users", perm("system:role:assign"), deps.System.UserHdl.ListByRole)
+			roles.POST("/:id/users", perm("system:role:assign"), deps.System.UserHdl.AddRoleUsers)
+			roles.DELETE("/:id/users", perm("system:role:assign"), deps.System.UserHdl.RemoveRoleUsers)
 		}
 
 		// 菜单管理
@@ -260,7 +260,7 @@ func Setup(deps Dependencies) *gin.Engine {
 			menus.GET("", deps.System.MenuHdl.FindTree)
 			menus.GET("/:id", perm("system:menu:query"), deps.System.MenuHdl.GetByID)
 			menus.POST("", perm("system:menu:add"), deps.System.MenuHdl.Create)
-			menus.PUT("/sort", perm("system:menu:edit"), deps.System.MenuHdl.UpdateSort)
+			menus.PUT("/sort", perm("system:menu:sort"), deps.System.MenuHdl.UpdateSort)
 			menus.PUT("/:id", perm("system:menu:edit"), deps.System.MenuHdl.Update)
 			menus.DELETE("/:id", perm("system:menu:delete"), deps.System.MenuHdl.Delete)
 		}
@@ -275,7 +275,7 @@ func Setup(deps Dependencies) *gin.Engine {
 			depts.GET("", deps.System.DeptHdl.FindTree)
 			depts.GET("/:id", perm("system:dept:query"), deps.System.DeptHdl.GetByID)
 			depts.POST("", perm("system:dept:add"), deps.System.DeptHdl.Create)
-			depts.PUT("/sort", perm("system:dept:edit"), deps.System.DeptHdl.UpdateSort)
+			depts.PUT("/sort", perm("system:dept:sort"), deps.System.DeptHdl.UpdateSort)
 			depts.PUT("/:id", perm("system:dept:edit"), deps.System.DeptHdl.Update)
 			depts.DELETE("/:id", perm("system:dept:delete"), deps.System.DeptHdl.Delete)
 		}

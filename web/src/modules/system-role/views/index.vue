@@ -27,7 +27,7 @@
             <!-- 排序有改动时出现（同菜单管理「保存排序」） -->
             <ArtButtonTable
               v-if="sortDirtyCount > 0"
-              v-perm="'system:role:edit'"
+              v-perm="'system:role:sort'"
               icon="ri:save-2-line"
               iconClass="bg-warning/12 text-warning"
               :title="`保存排序 (${sortDirtyCount})`"
@@ -89,6 +89,7 @@
   import { ElMessage, ElMessageBox, ElSwitch, ElTag } from 'element-plus'
   import { useTableColumns } from '@/hooks/core/useTableColumns'
   import { useDict } from '@/hooks/core/useDict'
+  import { useAuth } from '@/hooks/core/useAuth'
   import ArtButtonTable from '@/components/core/forms/art-button-table/index.vue'
   import ArtSvgIcon from '@/components/core/base/art-svg-icon/index.vue'
   import { fetchRoles, removeRole, updateRoleStatus, updateRoleSort } from '../api'
@@ -96,6 +97,8 @@
   import RoleUserDrawer from './role-user-drawer.vue'
 
   defineOptions({ name: 'SystemRole' })
+
+  const { hasAuth } = useAuth()
 
   /* ── 搜索栏 ─────────────────────────────────────── */
   const statusDict = useDict('sys_role_status', { numeric: true })
@@ -340,13 +343,17 @@
     const busy = togglingId.value === row.id
     const admin = isAdminRole(row)
     if (admin) return h(ElTag, { size: 'small', type: 'info', effect: 'plain' }, () => '内置')
+    // 无状态切换权限时仅展示状态文本，不渲染可切换的开关。
+    const canToggleStatus = hasAuth('system:role:status')
     return h('div', { class: 'flex items-center gap-1.5' }, [
-      h(ElSwitch, {
-        modelValue: enabled,
-        size: 'small',
-        loading: busy,
-        'onUpdate:modelValue': (v: boolean | string | number) => onToggleStatus(row, Boolean(v))
-      }),
+      canToggleStatus
+        ? h(ElSwitch, {
+            modelValue: enabled,
+            size: 'small',
+            loading: busy,
+            'onUpdate:modelValue': (v: boolean | string | number) => onToggleStatus(row, Boolean(v))
+          })
+        : null,
       h(
         'span',
         { class: enabled ? 'status-text on' : 'status-text off' },
@@ -370,7 +377,7 @@
         icon: 'ri:user-add-line',
         iconClass: 'bg-secondary/12 text-secondary',
         title: '分配用户',
-        auth: 'system:role:edit',
+        auth: 'system:role:assign',
         onClick: () => openUserDrawer(row)
       }),
       h(ArtButtonTable, { type: 'delete', title: '删除', auth: 'system:role:delete', onClick: () => onRemove(row) })
