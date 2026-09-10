@@ -35,7 +35,10 @@ export function itemCount(page: Pick<CacheValuePage, 'value'>): number {
 }
 
 /** 游标模式下第 index 页之前已加载的累计条数（= 本页 display start，0 起） */
-export function cumulativeStart(stack: Array<Pick<CacheValuePage, 'value'>>, index: number): number {
+export function cumulativeStart(
+  stack: Array<Pick<CacheValuePage, 'value'>>,
+  index: number
+): number {
   let n = 0
   for (let i = 0; i < index; i++) n += itemCount(stack[i])
   return n
@@ -194,9 +197,11 @@ export function useCacheValuePaging(fetchPage: FetchPage) {
       return
     }
     if (!last.has_more) return
-    const res = await request({ key: curKey.value, cursor: last.next_cursor, limit: pageSize.value }).catch(
-      () => null
-    )
+    const res = await request({
+      key: curKey.value,
+      cursor: last.next_cursor,
+      limit: pageSize.value
+    }).catch(() => null)
     if (res) {
       pageStack.value = [...stack, res]
       stackIndex.value = stack.length

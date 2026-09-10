@@ -589,6 +589,13 @@
     type ZSetEntry
   } from '../composables/use-cache-value-paging'
   import { deleteCacheKeys, fetchCacheKeys, fetchCacheValuePage, type CacheKeyInfo } from '../api'
+  // 纯格式化工具已抽到 composables 并配套单测(views/cache.vue 原本 1900+ 行)
+  import {
+    formatScore,
+    formatValue,
+    highlightJson,
+    toPattern
+  } from '../composables/use-cache-format'
 
   defineOptions({ name: 'MonitorCache' })
 
@@ -793,75 +800,6 @@
   })
 
   /** 轻量 JSON 语法着色分词：key/string/number/boolean/punctuation */
-  interface CodeToken {
-    cls: string
-    text: string
-  }
-
-  function highlightJson(src: string): CodeToken[] {
-    const tokens: CodeToken[] = []
-    let i = 0
-    const n = src.length
-    let buf = ''
-    const flush = (cls: string) => {
-      if (buf) {
-        tokens.push({ cls, text: buf })
-        buf = ''
-      }
-    }
-    while (i < n) {
-      const ch = src[i]
-      if (ch === '"') {
-        flush('tok-plain')
-        let j = i + 1
-        let out = '"'
-        while (j < n) {
-          out += src[j]
-          if (src[j] === '\\' && j + 1 < n) {
-            out += src[j + 1]
-            j += 2
-            continue
-          }
-          if (src[j] === '"') {
-            j++
-            break
-          }
-          j++
-        }
-        let k = j
-        while (k < n && /\s/.test(src[k])) k++
-        const isKey = src[k] === ':'
-        tokens.push({ cls: isKey ? 'tok-key' : 'tok-str', text: out })
-        i = j
-        continue
-      }
-      if (/[{}[\]:,]/.test(ch)) {
-        flush('tok-plain')
-        tokens.push({ cls: 'tok-punct', text: ch })
-        i++
-        continue
-      }
-      const word = src.slice(i).match(/^(true|false|null)\b/)
-      if (word) {
-        flush('tok-plain')
-        tokens.push({ cls: 'tok-kw', text: word[0] })
-        i += word[0].length
-        continue
-      }
-      const num = src.slice(i).match(/^-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/)
-      if (num) {
-        flush('tok-plain')
-        tokens.push({ cls: 'tok-num', text: num[0] })
-        i += num[0].length
-        continue
-      }
-      buf += ch
-      i++
-    }
-    flush('tok-plain')
-    return tokens
-  }
-
   /** 语法高亮仅在 ≤64KB 时启用，超过渲染纯文本避免分词卡顿 */
   const strHighlightable = computed(() => {
     const s = displayStr.value
@@ -873,10 +811,6 @@
     }
   })
   const strTokens = computed(() => (strHighlightable.value ? highlightJson(displayStr.value) : []))
-
-  function formatScore(score: number): string {
-    return Number.isInteger(score) ? String(score) : String(Math.round(score * 1000) / 1000)
-  }
 
   /** 元信息徽章：按类型展示总量/字节数与当前页范围 */
   const countLabel = computed(() => {
@@ -955,22 +889,6 @@
   })
 
   /** 无 * 时自动追加 *，转成 Redis 通配模式 */
-  function toPattern(input: string): string | undefined {
-    const t = input.trim()
-    if (!t) return undefined
-    return t.includes('*') ? t : `${t}*`
-  }
-
-  function formatValue(value: unknown): string {
-    if (value === null || value === undefined) return ''
-    if (typeof value === 'string') return value
-    try {
-      return JSON.stringify(value, null, 2)
-    } catch {
-      return String(value)
-    }
-  }
-
   function handleSearch() {
     loadKeys()
   }

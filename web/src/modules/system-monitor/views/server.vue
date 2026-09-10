@@ -404,7 +404,18 @@
   import type { LineDataItem } from '@/types/component/chart'
   import { fetchServerHistory, fetchServerStats } from '../api'
   import type { ServerHistory, ServerHistoryPoint } from '../api'
-  import { buildSparkSeries } from '../composables/use-spark-series'
+  import { buildSparkSeries, sparkPath, type SparkResult } from '../composables/use-spark-series'
+  // 纯格式化 / 阈值配色工具(原散落在本文件,已抽出并配套单测)
+  import {
+    clamp01,
+    fmt1,
+    fmt2,
+    fmtDurationText,
+    fmtGB,
+    fmtMB,
+    loadTone,
+    usageTone
+  } from '../composables/use-server-format'
 
   defineOptions({ name: 'MonitorServer' })
 
@@ -434,11 +445,6 @@
   type MetricKey = (typeof METRICS)[number]['key']
 
   /** KPI 迷你趋势:由历史桶尾派生(单一数据源),语义恒定 ≈ 最近 10 分钟 */
-
-  interface SparkResult {
-    line: string
-    area: string
-  }
 
   interface KpiTile {
     label: string
@@ -541,81 +547,8 @@
   })
 
   // ---------- 格式化 ----------
-  function fmt1(v: number | null | undefined): string {
-    return typeof v === 'number' && Number.isFinite(v) ? v.toFixed(1) : '-'
-  }
-
-  function fmt2(v: number | null | undefined): string {
-    return typeof v === 'number' && Number.isFinite(v) ? v.toFixed(2) : '-'
-  }
-
-  function fmtMB(mb: number): string {
-    if (!Number.isFinite(mb)) return '-'
-    if (mb >= 1024) return `${(mb / 1024).toFixed(2)} GB`
-    if (mb < 1) return `${Math.round(mb * 1024)} KB`
-    return `${mb.toFixed(1)} MB`
-  }
-
-  function fmtGB(gb: number): string {
-    if (!Number.isFinite(gb)) return '-'
-    if (gb >= 1024) return `${(gb / 1024).toFixed(2)} TB`
-    return `${gb >= 100 ? gb.toFixed(0) : gb.toFixed(1)} GB`
-  }
-
-  function fmtDurationText(seconds: number): string {
-    const s = Math.floor(seconds)
-    if (!Number.isFinite(s) || s < 0) return '-'
-    const d = Math.floor(s / 86400)
-    const h = Math.floor((s % 86400) / 3600)
-    const m = Math.floor((s % 3600) / 60)
-    if (d > 0) return `${d} 天 ${h} 时 ${m} 分`
-    if (h > 0) return `${h} 时 ${m} 分`
-    if (m > 0) return `${m} 分`
-    return `${s % 60} 秒`
-  }
-
   // ---------- 状态阈值配色：<50 绿 / <80 蓝 / <90 琥珀 / ≥90 红 ----------
-  function usageTone(p: number | null | undefined): string {
-    if (typeof p !== 'number' || !Number.isFinite(p)) return '#94a3b8'
-    if (p < 50) return '#10b981'
-    if (p < 80) return '#3b82f6'
-    if (p < 90) return '#f59e0b'
-    return '#dc2626'
-  }
-
-  function loadTone(load: number | null | undefined, cores: number): string {
-    if (typeof load !== 'number' || !Number.isFinite(load) || cores <= 0) return '#94a3b8'
-    const ratio = load / cores
-    if (ratio < 0.7) return '#10b981'
-    if (ratio < 1.3) return '#3b82f6'
-    if (ratio < 2.5) return '#f59e0b'
-    return '#dc2626'
-  }
-
-  function clamp01(v: number | null | undefined): number {
-    return typeof v === 'number' && Number.isFinite(v) ? Math.min(100, Math.max(0, v)) : 0
-  }
-
   // ---------- 迷你折线（SVG polyline，viewBox 100×50） ----------
-  function sparkPath(series: number[], pad = 3): SparkResult {
-    const n = series.length
-    if (!n) return { line: '', area: '' }
-    if (n === 1) {
-      return { line: `0,25 100,25`, area: '' }
-    }
-    let min = Infinity
-    let max = -Infinity
-    for (const v of series) {
-      if (v < min) min = v
-      if (v > max) max = v
-    }
-    const span = max - min || 1
-    const px = (i: number) => ((i / (n - 1)) * 100).toFixed(2)
-    const py = (v: number) => (pad + (1 - (v - min) / span) * (50 - pad * 2)).toFixed(2)
-    const pts = series.map((v, i) => `${px(i)},${py(v)}`).join(' ')
-    return { line: pts, area: `0,50 ${pts} 100,50` }
-  }
-
   // ---------- 服务端历史 computed ----------
   const activeRange = computed(() => RANGES.find((r) => r.key === rangeKey.value) ?? RANGES[0])
   const rangeLabel = computed(() => activeRange.value.label)

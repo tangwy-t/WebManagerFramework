@@ -604,6 +604,16 @@ go tool pprof -http=:8080 &lt;server 二进制&gt; {{ fileNameExample }}</pre>
     type PprofStatus,
     type PprofTopFunc
   } from '../api'
+  // 纯格式化 / 采样类型元数据(原散落在本文件,已抽出并配套单测)
+  import {
+    fmtClock,
+    fmtDur,
+    fmtTime,
+    fmtValue,
+    profileIcon,
+    profileMetaOf,
+    stamp
+  } from '../composables/use-pprof-format'
 
   defineOptions({ name: 'MonitorPprof' })
 
@@ -629,27 +639,7 @@ go tool pprof -http=:8080 &lt;server 二进制&gt; {{ fileNameExample }}</pre>
   ]
 
   // ---------- profile 元信息（UI 层独立维护，与后端 meta 对齐） ----------
-  const PROFILE_ICONS: Record<string, string> = {
-    goroutine: 'ri:git-branch-line',
-    heap: 'ri:database-2-line',
-    allocs: 'ri:cpu-line',
-    block: 'ri:time-line',
-    mutex: 'ri:lock-line',
-    threadcreate: 'ri:code-s-slash-line',
-    profile: 'ri:scan-2-line',
-    trace: 'ri:pulse-line'
-  }
 
-  const PROFILE_COLORS: Record<string, string> = {
-    goroutine: '#10b981',
-    heap: '#3b82f6',
-    allocs: '#06b6d4',
-    block: '#f59e0b',
-    mutex: '#ec4899',
-    threadcreate: '#7c3aed',
-    profile: '#f97316',
-    trace: '#14b8a6'
-  }
 
   // ---------- 状态 ----------
   const status = ref<PprofStatus | null>(null)
@@ -855,52 +845,13 @@ go tool pprof -http=:8080 &lt;server 二进制&gt; {{ fileNameExample }}</pre>
   }
 
   // ---------- 格式化 ----------
-  function fmtValue(v: number): string {
-    if (!Number.isFinite(v)) return '-'
-    if (v >= 1024 * 1024 * 1024) return `${(v / (1024 * 1024 * 1024)).toFixed(2)}G`
-    if (v >= 1024 * 1024) return `${(v / (1024 * 1024)).toFixed(2)}M`
-    if (v >= 1024) return `${(v / 1024).toFixed(1)}K`
-    return String(v)
-  }
 
-  function fmtClock(sec: number): string {
-    const s = Math.max(0, Math.floor(sec))
-    const h = Math.floor(s / 3600)
-    const m = Math.floor((s % 3600) / 60)
-    const ss = s % 60
-    const mm = String(m).padStart(2, '0')
-    const sss = String(ss).padStart(2, '0')
-    return h > 0 ? `${h}:${mm}:${sss}` : `${mm}:${sss}`
-  }
 
-  function fmtDur(sec: number): string {
-    if (!Number.isFinite(sec) || sec <= 0) return '—'
-    if (sec < 60) return `${sec} 秒`
-    if (sec < 3600) return `${Math.round(sec / 60)} 分钟`
-    return `${(sec / 3600).toFixed(1)} 小时`
-  }
 
-  function fmtTime(d: Date): string {
-    return d.toLocaleTimeString('zh-CN', { hour12: false })
-  }
 
-  function stamp(): string {
-    const d = new Date()
-    const p = (n: number) => String(n).padStart(2, '0')
-    return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`
-  }
 
   // ---------- profile 选择器 ----------
-  function profileMetaOf(name: string): { icon: string; color: string } {
-    return {
-      icon: PROFILE_ICONS[name] ?? 'ri:radar-line',
-      color: PROFILE_COLORS[name] ?? '#64748b'
-    }
-  }
 
-  function profileIcon(name: string): string {
-    return profileMetaOf(name).icon
-  }
 
   function chipStyle(p: PprofProfileEntry): Record<string, string> {
     const { color } = profileMetaOf(p.name)

@@ -495,6 +495,21 @@
   import type { LineDataItem } from '@/types/component/chart'
   import { fetchSQLHistory, fetchSQLStats } from '../api'
   import type { SqlHistory, SqlHistoryPoint, SqlQueryEntry, SqlStats } from '../api'
+  // sparkPath/SparkResult 与 server.vue 原有实现合并至此(两者在 pad=3 时恒等)
+  import { sparkPath } from '../composables/use-spark-series'
+  // 纯格式化 / 阈值配色工具(原散落在本文件,已抽出并配套单测)
+  import {
+    OP_COLORS,
+    OPS,
+    clamp01,
+    durTone,
+    fmtCount,
+    fmtPct,
+    heatTone,
+    isSysTable,
+    opBadgeStyle,
+    timeOf
+  } from '../composables/use-sql-format'
 
   defineOptions({ name: 'MonitorSql' })
 
@@ -506,21 +521,6 @@
     { key: '1h', label: '1 小时', window: '1h', step: '12s' },
     { key: '6h', label: '6 小时', window: '6h', step: '60s' }
   ] as const
-
-  const OPS = ['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'OTHER']
-
-  const OP_COLORS: Record<string, string> = {
-    SELECT: '#3b82f6',
-    INSERT: '#10b981',
-    UPDATE: '#f59e0b',
-    DELETE: '#dc2626',
-    OTHER: '#94a3b8'
-  }
-
-  interface SparkResult {
-    line: string
-    area: string
-  }
 
   interface KpiTile {
     key: string
@@ -625,78 +625,16 @@
     return typeof v === 'number' && Number.isFinite(v) ? v.toFixed(digits) : '-'
   }
 
-  function fmtCount(v: number | null | undefined): string {
-    return typeof v === 'number' && Number.isFinite(v) ? v.toLocaleString() : '-'
-  }
-
-  function fmtPct(numerator: number, denominator: number): string {
-    if (!Number.isFinite(numerator) || !Number.isFinite(denominator) || denominator <= 0) return '-'
-    return `${((numerator / denominator) * 100).toFixed(2)}%`
-  }
-
   const errorRateText = computed(() => fmtPct(stats.value?.global.error_count ?? 0, stats.value?.global.count ?? 0))
   const p95RatioText = computed(() => fmtPct(stats.value?.global.p95_ms ?? 0, thresholdMs.value))
-
-  function clamp01(v: number): number {
-    return Number.isFinite(v) ? Math.min(100, Math.max(0, v)) : 0
-  }
 
   function updatedAtText(): string {
     const d = updatedAt.value
     return d ? d.toLocaleTimeString('zh-CN', { hour12: false }) : '—'
   }
 
-  function timeOf(ts: string): string {
-    return ts.length >= 19 ? ts.slice(11, 19) : ts
-  }
-
-  // ---------- 状态阈值配色 ----------
-  /** 相对慢查询阈值比率的相位色：快→绿 / 关注→蓝 / 接近→琥珀 / 超限→红 */
-  function heatTone(p95: number, thr: number): string {
-    if (!Number.isFinite(p95) || !Number.isFinite(thr) || thr <= 0) return '#94a3b8'
-    if (p95 <= 0) return '#94a3b8'
-    const ratio = (p95 / thr) * 100
-    if (ratio < 50) return '#10b981'
-    if (ratio < 80) return '#3b82f6'
-    if (ratio < 100) return '#f59e0b'
-    return '#dc2626'
-  }
-
-  function durTone(ms: number, thr: number): string {
-    if (!Number.isFinite(ms) || !Number.isFinite(thr) || thr <= 0) return '#94a3b8'
-    if (ms < thr / 3) return '#10b981'
-    if (ms < thr) return '#f59e0b'
-    return '#dc2626'
-  }
-
-  function opBadgeStyle(op: string): Record<string, string> {
-    const color = OP_COLORS[op] ?? OP_COLORS.OTHER
-    return { color, background: `${color}14`, borderColor: `${color}33` }
-  }
-
-  /** MySQL 系统库查询(GORM 元数据反射等),非业务表 */
-  const SYS_TABLE_RE = /^(information_schema|performance_schema|mysql|sys)\./i
-  function isSysTable(table: string): boolean {
-    return !!table && SYS_TABLE_RE.test(table)
-  }
-
-  // ---------- 迷你折线（SVG polyline，viewBox 100×50） ----------
-  function sparkPath(series: number[]): SparkResult {
-    const n = series.length
-    if (!n) return { line: '', area: '' }
-    if (n === 1) return { line: '0,25 100,25', area: '' }
-    let min = Infinity
-    let max = -Infinity
-    for (const v of series) {
-      if (v < min) min = v
-      if (v > max) max = v
-    }
-    const span = max - min || 1
-    const px = (i: number) => ((i / (n - 1)) * 100).toFixed(2)
-    const py = (v: number) => (3 + (1 - (v - min) / span) * 44).toFixed(2)
-    const pts = series.map((v, i) => `${px(i)},${py(v)}`).join(' ')
-    return { line: pts, area: `0,50 ${pts} 100,50` }
-  }
+  // 状态阈值配色(heatTone/durTone/opBadgeStyle)已移至
+  // composables/use-sql-format.ts,本文件只保留响应式编排。
 
   // ---------- KPI 磁贴（6 项，颜色取自全局主色板） ----------
   const kpis = computed<KpiTile[]>(() => {

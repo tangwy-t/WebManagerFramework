@@ -101,7 +101,8 @@ describe('list/zset 页码模式', () => {
   it('gotoPage 按 offset 取页，越界页码被拦截', async () => {
     const fk = scriptFetcher([
       () => makePage({ type: 'list', total: 30000, value: [] }),
-      (p) => makePage({ type: 'list', total: 30000, start: p.offset ?? 0, value: [String(p.offset)] })
+      (p) =>
+        makePage({ type: 'list', total: 30000, start: p.offset ?? 0, value: [String(p.offset)] })
     ])
     const pager = useCacheValuePaging(fk.fetch)
     await pager.open('k', 'list')
@@ -259,9 +260,30 @@ describe('set/hash 游标模式', () => {
 describe('string 字节窗模式', () => {
   it('open 用 256KB 窗口，显示更多按 512KB→1MB 翻倍', async () => {
     const fk = scriptFetcher([
-      () => makePage({ type: 'string', total: 1024 * 1024, truncated: true, has_more: true, value: 'abc' }),
-      () => makePage({ type: 'string', total: 1024 * 1024, truncated: true, has_more: true, value: 'abcd' }),
-      () => makePage({ type: 'string', total: 1024 * 1024, truncated: false, has_more: false, value: 'abcde' })
+      () =>
+        makePage({
+          type: 'string',
+          total: 1024 * 1024,
+          truncated: true,
+          has_more: true,
+          value: 'abc'
+        }),
+      () =>
+        makePage({
+          type: 'string',
+          total: 1024 * 1024,
+          truncated: true,
+          has_more: true,
+          value: 'abcd'
+        }),
+      () =>
+        makePage({
+          type: 'string',
+          total: 1024 * 1024,
+          truncated: false,
+          has_more: false,
+          value: 'abcde'
+        })
     ])
     const pager = useCacheValuePaging(fk.fetch)
     await pager.open('k', 'string')
