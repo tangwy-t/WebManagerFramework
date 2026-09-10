@@ -124,11 +124,13 @@
           h(ArtButtonTable, {
             type: 'edit',
             title: '编辑',
+            auth: 'system:dict:data:edit',
             onClick: () => openDataDialog(row)
           }),
           h(ArtButtonTable, {
             type: 'delete',
             title: '删除',
+            auth: 'system:dict:data:delete',
             onClick: () => onRemoveData(row)
           })
         ])

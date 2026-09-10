@@ -296,11 +296,12 @@
       fixed: 'right',
       formatter: (row) =>
         h('div', { class: 'flex items-center' }, [
-          h(ArtButtonTable, { type: 'edit', title: '修改', onClick: () => openDialog(row) }),
+          h(ArtButtonTable, { type: 'edit', title: '修改', auth: 'system:menu:edit', onClick: () => openDialog(row) }),
           h(ArtButtonTable, {
             icon: 'ri:add-fill',
             iconClass: 'bg-theme/12 text-theme',
             title: '新增',
+            auth: 'system:menu:add',
             onClick: () => openDialog(undefined, row.id)
           }),
           hasChildren(row)
@@ -310,7 +311,7 @@
                 style: { opacity: 0.5, cursor: 'not-allowed' },
                 title: '请先删除子菜单'
               })
-            : h(ArtButtonTable, { type: 'delete', title: '删除', onClick: () => onRemove(row) })
+            : h(ArtButtonTable, { type: 'delete', title: '删除', auth: 'system:menu:delete', onClick: () => onRemove(row) })
         ])
     }
   ])

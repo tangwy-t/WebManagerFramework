@@ -402,7 +402,7 @@
       fixed: 'right',
       formatter: (row) =>
         h('div', { class: 'flex items-center' }, [
-          h(ArtButtonTable, { type: 'view', title: '详情', onClick: () => openDetail(row) })
+          h(ArtButtonTable, { type: 'view', title: '详情', auth: 'system:job:log:list', onClick: () => openDetail(row) })
         ])
     }
   ])

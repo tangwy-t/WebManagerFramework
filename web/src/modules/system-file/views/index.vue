@@ -697,7 +697,9 @@
   const columns = computed<ColumnOption<Api.File.FileItem>[]>(() => {
     const actions = (row: Api.File.FileItem) =>
       h('div', { class: 'flex items-center' }, [
-        h(ArtButtonTable, { type: 'view', title: '预览', onClick: () => openPreview(row) }),
+        ...(hasPermission('system:file:download')
+          ? [h(ArtButtonTable, { type: 'view', title: '预览', onClick: () => openPreview(row) })]
+          : []),
         ...(hasPermission('system:file:download')
           ? [
               h(ArtButtonTable, {

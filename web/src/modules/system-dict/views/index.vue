@@ -150,16 +150,19 @@
             icon: 'ri:list-unordered',
             iconClass: 'bg-info/12 text-info',
             title: '字典数据',
+            auth: 'system:dict:data:list',
             onClick: () => goData(row)
           }),
           h(ArtButtonTable, {
             type: 'edit',
             title: '编辑',
+            auth: 'system:dict:type:edit',
             onClick: () => openTypeDialog(row)
           }),
           h(ArtButtonTable, {
             type: 'delete',
             title: '删除',
+            auth: 'system:dict:type:delete',
             onClick: () => onRemoveType(row)
           })
         ])

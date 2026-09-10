@@ -46,7 +46,12 @@
         </ElTableColumn>
         <ElTableColumn label="操作" width="76" align="center" fixed="right">
           <template #default="{ row }">
-            <ArtButtonTable type="delete" title="移除" @click="onRemove(row)" />
+            <ArtButtonTable
+              v-perm="'system:role:edit'"
+              type="delete"
+              title="移除"
+              @click="onRemove(row)"
+            />
           </template>
         </ElTableColumn>
       </ElTable>

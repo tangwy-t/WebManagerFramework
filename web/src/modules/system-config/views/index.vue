@@ -128,8 +128,8 @@
       fixed: 'right',
       formatter: (row) =>
         h('div', { class: 'flex items-center' }, [
-          h(ArtButtonTable, { type: 'edit', title: '编辑', onClick: () => openDialog(row) }),
-          h(ArtButtonTable, { type: 'delete', title: '删除', onClick: () => onRemove(row) })
+          h(ArtButtonTable, { type: 'edit', title: '编辑', auth: 'system:config:edit', onClick: () => openDialog(row) }),
+          h(ArtButtonTable, { type: 'delete', title: '删除', auth: 'system:config:delete', onClick: () => onRemove(row) })
         ])
     }
   ])

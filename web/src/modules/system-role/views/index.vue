@@ -365,14 +365,15 @@
       return h(ElTag, { size: 'small', type: 'info', effect: 'plain' }, () => '内置角色')
     }
     return h('div', { class: 'flex items-center' }, [
-      h(ArtButtonTable, { type: 'edit', title: '编辑', onClick: () => openDialog(row) }),
+      h(ArtButtonTable, { type: 'edit', title: '编辑', auth: 'system:role:edit', onClick: () => openDialog(row) }),
       h(ArtButtonTable, {
         icon: 'ri:user-add-line',
         iconClass: 'bg-secondary/12 text-secondary',
         title: '分配用户',
+        auth: 'system:role:edit',
         onClick: () => openUserDrawer(row)
       }),
-      h(ArtButtonTable, { type: 'delete', title: '删除', onClick: () => onRemove(row) })
+      h(ArtButtonTable, { type: 'delete', title: '删除', auth: 'system:role:delete', onClick: () => onRemove(row) })
     ])
   }
 

@@ -290,7 +290,7 @@
       fixed: 'right',
       formatter: (row) =>
         h('div', { class: 'flex items-center' }, [
-          h(ArtButtonTable, { type: 'edit', title: '编辑', onClick: () => openDialog(row) }),
+          h(ArtButtonTable, { type: 'edit', title: '编辑', auth: 'system:job:edit', onClick: () => openDialog(row) }),
           h(ArtButtonTable, {
             icon: 'ri:play-circle-line',
             iconClass:
@@ -298,12 +298,14 @@
                 ? 'bg-g-300/55 text-g-700'
                 : 'bg-info/12 text-info',
             title: runningOnceId.value === String(row.id) ? '执行中…' : '执行一次',
+            auth: 'system:job:once',
             onClick: () => onRun(row)
           }),
           h(ArtButtonTable, {
             icon: 'ri:file-list-3-line',
             iconClass: 'bg-g-300/55 text-g-700',
             title: '日志',
+            auth: 'system:job:log:list',
             onClick: () => openLog(row)
           }),
           h(ArtButtonMore, {
