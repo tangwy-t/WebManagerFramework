@@ -46,6 +46,43 @@ func (r *RoleRepo) FindPage(ctx context.Context, query *request.RoleQuery) ([]en
 	return roles, total, err
 }
 
+// FindExistingIDs returns the subset of ids that exist in sys_role.
+// Used by the service layer to validate roleIDs before an Association write
+// (which would otherwise upsert a phantom role for an unknown ID).
+func (r *RoleRepo) FindExistingIDs(ctx context.Context, ids []uint64) ([]uint64, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	var existing []uint64
+	err := r.db.WithContext(ctx).Model(&entity.SysRole{}).
+		Where("id IN ?", ids).Pluck("id", &existing).Error
+	return existing, err
+}
+
+// FindExistingMenuIDs returns the subset of menuIDs that exist in sys_menu.
+// Used by the service layer to validate menuIDs before an Association write.
+func (r *RoleRepo) FindExistingMenuIDs(ctx context.Context, ids []uint64) ([]uint64, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	var existing []uint64
+	err := r.db.WithContext(ctx).Model(&entity.SysMenu{}).
+		Where("id IN ?", ids).Pluck("id", &existing).Error
+	return existing, err
+}
+
+// FindExistingDeptIDs returns the subset of deptIDs that exist in sys_dept.
+// Used by the service layer to validate deptIDs before an Association write.
+func (r *RoleRepo) FindExistingDeptIDs(ctx context.Context, ids []uint64) ([]uint64, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	var existing []uint64
+	err := r.db.WithContext(ctx).Model(&entity.SysDept{}).
+		Where("id IN ?", ids).Pluck("id", &existing).Error
+	return existing, err
+}
+
 func (r *RoleRepo) FindAll(ctx context.Context) ([]entity.SysRole, error) {
 	var roles []entity.SysRole
 	err := r.db.WithContext(ctx).Order("sort ASC, id ASC").Find(&roles).Error
@@ -107,38 +144,28 @@ func (r *RoleRepo) updateWithAssociationsInTx(ctx context.Context, tx *gorm.DB, 
 	return nil
 }
 
+// replaceRoleMenus swaps a role's menu set via Association("Menus").Replace.
+// SetupJoinTable gives the association the real SysRoleMenu schema so each
+// join row gets a snowflake ID. The caller must have validated every menuID
+// exists; an unknown ID would be upserted as a phantom menu.
 func (r *RoleRepo) replaceRoleMenus(tx *gorm.DB, roleID uint64, menuIDs []uint64) error {
-	if err := tx.Where("role_id = ?", roleID).Delete(&entity.SysRoleMenu{}).Error; err != nil {
-		return err
+	menus := make([]entity.SysMenu, 0, len(menuIDs))
+	for _, mid := range menuIDs {
+		menus = append(menus, entity.SysMenu{BaseEntity: entity.BaseEntity{ID: mid}})
 	}
-	if len(menuIDs) == 0 {
-		return nil
-	}
-	roleMenus := make([]entity.SysRoleMenu, len(menuIDs))
-	for i, menuID := range menuIDs {
-		roleMenus[i] = entity.SysRoleMenu{
-			RoleID: roleID,
-			MenuID: menuID,
-		}
-	}
-	return tx.Create(&roleMenus).Error
+	return tx.Model(&entity.SysRole{BaseEntity: entity.BaseEntity{ID: roleID}}).
+		Association("Menus").Replace(menus)
 }
 
+// replaceRoleDepts swaps a role's dept set via Association("Depts").Replace.
+// Same validation precondition as replaceRoleMenus.
 func (r *RoleRepo) replaceRoleDepts(tx *gorm.DB, roleID uint64, deptIDs []uint64) error {
-	if err := tx.Where("role_id = ?", roleID).Delete(&entity.SysRoleDept{}).Error; err != nil {
-		return err
+	depts := make([]entity.SysDept, 0, len(deptIDs))
+	for _, did := range deptIDs {
+		depts = append(depts, entity.SysDept{BaseEntity: entity.BaseEntity{ID: did}})
 	}
-	if len(deptIDs) == 0 {
-		return nil
-	}
-	roleDepts := make([]entity.SysRoleDept, len(deptIDs))
-	for i, deptID := range deptIDs {
-		roleDepts[i] = entity.SysRoleDept{
-			RoleID: roleID,
-			DeptID: deptID,
-		}
-	}
-	return tx.Create(&roleDepts).Error
+	return tx.Model(&entity.SysRole{BaseEntity: entity.BaseEntity{ID: roleID}}).
+		Association("Depts").Replace(depts)
 }
 
 func (r *RoleRepo) Delete(ctx context.Context, id uint64) error {

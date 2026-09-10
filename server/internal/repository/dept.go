@@ -33,6 +33,19 @@ func (r *DeptRepo) FindByID(ctx context.Context, id uint64) (*entity.SysDept, er
 	return &dept, nil
 }
 
+// FindExistingIDs returns the subset of ids that exist in sys_dept.
+// Used by the service layer to validate deptIDs before an Association write
+// (which would otherwise upsert a phantom dept for an unknown ID).
+func (r *DeptRepo) FindExistingIDs(ctx context.Context, ids []uint64) ([]uint64, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	var existing []uint64
+	err := r.db.WithContext(ctx).Model(&entity.SysDept{}).
+		Where("id IN ?", ids).Pluck("id", &existing).Error
+	return existing, err
+}
+
 func (r *DeptRepo) Create(ctx context.Context, dept *entity.SysDept) error {
 	return r.db.WithContext(ctx).Create(dept).Error
 }

@@ -29,6 +29,10 @@ type stubRoleRepo struct {
 
 	userIDsByRole  []uint64
 	findUserIDsErr error
+
+	// ID 存在性校验的返回值: nil 表示"全部存在"(默认放行)。
+	existingMenuIDs []uint64
+	existingDeptIDs []uint64
 }
 
 func (m *stubRoleRepo) FindPage(context.Context, *request.RoleQuery) ([]entity.SysRole, int64, error) {
@@ -66,6 +70,18 @@ func (m *stubRoleRepo) UpdateSort(ctx context.Context, id uint64, sort int) erro
 	m.updateSortID = id
 	m.updateSortVal = sort
 	return m.updateSortErr
+}
+func (m *stubRoleRepo) FindExistingMenuIDs(ctx context.Context, ids []uint64) ([]uint64, error) {
+	if m.existingMenuIDs != nil {
+		return m.existingMenuIDs, nil
+	}
+	return ids, nil
+}
+func (m *stubRoleRepo) FindExistingDeptIDs(ctx context.Context, ids []uint64) ([]uint64, error) {
+	if m.existingDeptIDs != nil {
+		return m.existingDeptIDs, nil
+	}
+	return ids, nil
 }
 
 func newTestRoleService(repo RoleRepositoryInterface, ss SessionStoreInterface) *RoleService {

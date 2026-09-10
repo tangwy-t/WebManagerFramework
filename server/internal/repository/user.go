@@ -75,6 +75,20 @@ func (r *UserRepo) FindByID(ctx context.Context, id uint64) (*entity.SysUser, er
 	return &user, nil
 }
 
+// FindExistingIDs returns the subset of ids that exist in sys_user.
+// Used by the service layer to validate role-member userIDs before an
+// Association write (which would otherwise upsert a phantom user for an
+// unknown ID).
+func (r *UserRepo) FindExistingIDs(ctx context.Context, ids []uint64) ([]uint64, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	var existing []uint64
+	err := r.db.WithContext(ctx).Model(&entity.SysUser{}).
+		Where("id IN ?", ids).Pluck("id", &existing).Error
+	return existing, err
+}
+
 func (r *UserRepo) FindByUsername(ctx context.Context, username string) (*entity.SysUser, error) {
 	var user entity.SysUser
 	err := r.db.WithContext(ctx).Where("username = ?", username).First(&user).Error
@@ -86,20 +100,15 @@ func (r *UserRepo) FindByUsername(ctx context.Context, username string) (*entity
 
 // CreateWithRoles inserts a user together with their role assignments.
 //
-// Join rows are created explicitly (see ReplaceRoles) rather than through
-// Association("Roles").Append: association-created join rows never received a
-// snowflake ID, so any user created with two or more roles silently kept only
-// the first assignment.
+// Roles are attached through Association("Roles").Append; SetupJoinTable
+// (pkg/migration) points the association at the real SysUserRole schema so the
+// id:generate callback assigns snowflake IDs to every join row.
 func (r *UserRepo) CreateWithRoles(ctx context.Context, user *entity.SysUser, roleIDs []uint64) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.WithContext(ctx).Create(user).Error; err != nil {
 			return err
 		}
-		rows := buildUserRoleRows(user.ID, roleIDs)
-		if len(rows) == 0 {
-			return nil
-		}
-		return tx.WithContext(ctx).Create(&rows).Error
+		return r.appendRoles(ctx, tx, user.ID, roleIDs)
 	})
 }
 
@@ -115,46 +124,39 @@ func (r *UserRepo) Update(ctx context.Context, user *entity.SysUser) error {
 
 // ReplaceRoles atomically swaps a user's role set for exactly roleIDs.
 //
-// The join rows are written through the SysUserRole entity instead of GORM's
-// Association("Roles").Replace. Association writes go through an internal
-// join-table schema that the global id:generate callback does not cover, so
-// every inserted row kept ID = 0. Because id is the primary key, only the
-// first row could ever be stored: a second role silently died on a duplicate
-// key, and Association.Replace does not surface that error. Writing the rows
-// explicitly lets the callback assign a snowflake ID to each one and makes
-// insert failures visible to the caller.
+// Association("Roles").Replace deletes join rows not in the new set, then
+// appends the new ones — each join row receiving a snowflake ID because
+// SetupJoinTable (pkg/migration) binds the association to the real SysUserRole
+// schema. The caller (service layer) must have validated that every roleID
+// exists; an unknown ID would otherwise be upserted as a phantom role by the
+// association's own save step.
 func (r *UserRepo) ReplaceRoles(ctx context.Context, id uint64, roleIDs []uint64) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.WithContext(ctx).
-			Where("user_id = ?", id).
-			Delete(&entity.SysUserRole{}).Error; err != nil {
-			return err
-		}
-		rows := buildUserRoleRows(id, roleIDs)
-		if len(rows) == 0 {
-			return nil
-		}
-		return tx.WithContext(ctx).Create(&rows).Error
+		return r.replaceRolesTx(ctx, tx, id, roleIDs)
 	})
 }
 
-// buildUserRoleRows converts role IDs into join rows, de-duplicating role IDs
-// so a repeated ID in the request cannot violate the (user_id, role_id)
-// unique index.
-func buildUserRoleRows(userID uint64, roleIDs []uint64) []entity.SysUserRole {
+// replaceRolesTx performs the ReplaceRoles write inside tx.
+func (r *UserRepo) replaceRolesTx(ctx context.Context, tx *gorm.DB, id uint64, roleIDs []uint64) error {
+	roles := make([]entity.SysRole, 0, len(roleIDs))
+	for _, rid := range roleIDs {
+		roles = append(roles, entity.SysRole{BaseEntity: entity.BaseEntity{ID: rid}})
+	}
+	return tx.WithContext(ctx).Model(&entity.SysUser{BaseEntity: entity.BaseEntity{ID: id}}).
+		Association("Roles").Replace(roles)
+}
+
+// appendRoles attaches roleIDs to the user identified by id via Association.
+func (r *UserRepo) appendRoles(ctx context.Context, tx *gorm.DB, id uint64, roleIDs []uint64) error {
 	if len(roleIDs) == 0 {
 		return nil
 	}
-	seen := make(map[uint64]struct{}, len(roleIDs))
-	rows := make([]entity.SysUserRole, 0, len(roleIDs))
+	roles := make([]entity.SysRole, 0, len(roleIDs))
 	for _, rid := range roleIDs {
-		if _, ok := seen[rid]; ok {
-			continue
-		}
-		seen[rid] = struct{}{}
-		rows = append(rows, entity.SysUserRole{UserID: userID, RoleID: rid})
+		roles = append(roles, entity.SysRole{BaseEntity: entity.BaseEntity{ID: rid}})
 	}
-	return rows
+	return tx.WithContext(ctx).Model(&entity.SysUser{BaseEntity: entity.BaseEntity{ID: id}}).
+		Association("Roles").Append(roles)
 }
 
 func (r *UserRepo) Delete(ctx context.Context, id uint64) error {
@@ -184,45 +186,46 @@ func (r *UserRepo) FindRoleCodeByID(ctx context.Context, roleID uint64) (string,
 	return code, err
 }
 
-// AddUsersToRole inserts role-user join rows for userIDs that are not yet
-// assigned, skipping already-assigned ones (idempotent for repeated adds).
-// Snowflake IDs are generated by the global GORM id:generate callback.
+// FindExistingRoleIDs returns the subset of roleIDs that exist in sys_role.
+// Used by the service layer to validate roleIDs before an Association write
+// (which would otherwise upsert a phantom role for an unknown ID).
+func (r *UserRepo) FindExistingRoleIDs(ctx context.Context, ids []uint64) ([]uint64, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	var existing []uint64
+	err := r.db.WithContext(ctx).Model(&entity.SysRole{}).
+		Where("id IN ?", ids).Pluck("id", &existing).Error
+	return existing, err
+}
+
+// AddUsersToRole appends users to a role via the reverse Association
+// ("Users" on SysRole). Idempotent per user: GORM skips already-assigned rows
+// (OnConflict DoNothing). The caller must have validated that every userID
+// exists — an unknown ID would be upserted as a phantom user by the
+// association's save step.
 func (r *UserRepo) AddUsersToRole(ctx context.Context, roleID uint64, userIDs []uint64) error {
 	if len(userIDs) == 0 {
 		return nil
 	}
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		var existing []uint64
-		if err := tx.Model(&entity.SysUserRole{}).
-			Where("role_id = ? AND user_id IN ?", roleID, userIDs).
-			Pluck("user_id", &existing).Error; err != nil {
-			return err
-		}
-		seen := make(map[uint64]struct{}, len(existing))
-		for _, uid := range existing {
-			seen[uid] = struct{}{}
-		}
-		rows := make([]entity.SysUserRole, 0, len(userIDs))
-		for _, uid := range userIDs {
-			if _, ok := seen[uid]; ok {
-				continue
-			}
-			seen[uid] = struct{}{}
-			rows = append(rows, entity.SysUserRole{RoleID: roleID, UserID: uid})
-		}
-		if len(rows) == 0 {
-			return nil
-		}
-		return tx.WithContext(ctx).Create(&rows).Error
-	})
+	users := make([]entity.SysUser, 0, len(userIDs))
+	for _, uid := range userIDs {
+		users = append(users, entity.SysUser{BaseEntity: entity.BaseEntity{ID: uid}})
+	}
+	return r.db.WithContext(ctx).Model(&entity.SysRole{BaseEntity: entity.BaseEntity{ID: roleID}}).
+		Association("Users").Append(users)
 }
 
-// RemoveUsersFromRole deletes role-user join rows for the given users only.
+// RemoveUsersFromRole removes the given users from a role via the reverse
+// Association ("Users" on SysRole).
 func (r *UserRepo) RemoveUsersFromRole(ctx context.Context, roleID uint64, userIDs []uint64) error {
 	if len(userIDs) == 0 {
 		return nil
 	}
-	return r.db.WithContext(ctx).
-		Where("role_id = ? AND user_id IN ?", roleID, userIDs).
-		Delete(&entity.SysUserRole{}).Error
+	users := make([]entity.SysUser, 0, len(userIDs))
+	for _, uid := range userIDs {
+		users = append(users, entity.SysUser{BaseEntity: entity.BaseEntity{ID: uid}})
+	}
+	return r.db.WithContext(ctx).Model(&entity.SysRole{BaseEntity: entity.BaseEntity{ID: roleID}}).
+		Association("Users").Delete(users)
 }

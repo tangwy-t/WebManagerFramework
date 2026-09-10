@@ -37,6 +37,10 @@ type stubUserRepo struct {
 	addUserIDs    []uint64
 	removeRoleID  uint64
 	removeUserIDs []uint64
+
+	// ID 存在性校验的返回值: nil 表示"全部存在"(默认放行)。
+	existingIDs     []uint64
+	existingRoleIDs []uint64
 }
 
 func (m *stubUserRepo) FindByID(ctx context.Context, id uint64) (*entity.SysUser, error) {
@@ -87,6 +91,18 @@ func (m *stubUserRepo) RemoveUsersFromRole(ctx context.Context, roleID uint64, u
 	m.removeRoleID = roleID
 	m.removeUserIDs = append([]uint64(nil), userIDs...)
 	return m.removeErr
+}
+func (m *stubUserRepo) FindExistingIDs(ctx context.Context, ids []uint64) ([]uint64, error) {
+	if m.existingIDs != nil {
+		return m.existingIDs, nil
+	}
+	return ids, nil
+}
+func (m *stubUserRepo) FindExistingRoleIDs(ctx context.Context, ids []uint64) ([]uint64, error) {
+	if m.existingRoleIDs != nil {
+		return m.existingRoleIDs, nil
+	}
+	return ids, nil
 }
 
 func newTestUserService(repo UserRepositoryInterface) *UserService {

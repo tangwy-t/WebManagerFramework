@@ -28,8 +28,13 @@ func newUserRoleTestDB(t *testing.T) *gorm.DB {
 		t.Fatalf("snowflake: %v", err)
 	}
 	database.NewCallbacks(node).Register(db)
-	// production 中 SysUserRole 实体参与 MigrateAll,join 表才带 id 主键列;
-	// 仅迁移 SysUser/SysRole 时 many2many 自动建的 join 表缺少 id。
+	// 与生产(migration.MigrateAll)一致: 关联写入走 Association, 依赖
+	// SetupJoinTable 把 join 表绑定到带 id 的实体 schema, 否则 id:generate
+	// 回调在合成 schema 上拿不到 ID 字段、join 行 ID 恒为 0。
+	db.SetupJoinTable(&entity.SysUser{}, "Roles", &entity.SysUserRole{})
+	db.SetupJoinTable(&entity.SysRole{}, "Users", &entity.SysUserRole{})
+	db.SetupJoinTable(&entity.SysRole{}, "Menus", &entity.SysRoleMenu{})
+	db.SetupJoinTable(&entity.SysRole{}, "Depts", &entity.SysRoleDept{})
 	if err := db.AutoMigrate(&entity.SysUser{}, &entity.SysRole{}, &entity.SysUserRole{}); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
@@ -250,18 +255,23 @@ func assertUserRoles(t *testing.T, db *gorm.DB, userID uint64, want ...uint64) {
 	}
 }
 
-// assertJoinIDsNonZero 断言 join 行都带有非零 ID。ID 恒为 0 时,第二行必然
+// assertJoinIDsNonZero 断言 join 行都带有雪花 ID。ID 恒为 0 时,第二行必然
 // 违反主键约束而被静默丢弃 —— 这正是本项目角色分配失效的根因。
+//
+// 判定用下界 1<<52 而非 != 0:SQLite 在 id 省略时会退回 rowid(1、2、3…),
+// 若只判 != 0 会因 rowid 兜底而恒通过, 检测不到 SetupJoinTable 缺失。
 func assertJoinIDsNonZero(t *testing.T, db *gorm.DB, userID uint64) {
 	t.Helper()
-	var zeroCount int64
+	const snowflakeIDMin uint64 = 1 << 52
+	var lowIDCount int64
 	if err := db.Table("sys_user_role").
-		Where("user_id = ? AND id = 0", userID).
-		Count(&zeroCount).Error; err != nil {
-		t.Fatalf("count zero-id join rows: %v", err)
+		Where("user_id = ? AND id < ?", userID, snowflakeIDMin).
+		Count(&lowIDCount).Error; err != nil {
+		t.Fatalf("count non-snowflake join rows: %v", err)
 	}
-	if zeroCount != 0 {
-		t.Fatalf("user %d has %d join row(s) with ID 0: snowflake callback did not run", userID, zeroCount)
+	if lowIDCount != 0 {
+		t.Fatalf("user %d has %d join row(s) without a snowflake ID: "+
+			"SetupJoinTable missing, id:generate callback did not run", userID, lowIDCount)
 	}
 }
 

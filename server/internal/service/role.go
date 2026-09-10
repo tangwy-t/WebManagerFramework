@@ -33,6 +33,12 @@ type RoleRepositoryInterface interface {
 	FindUserIDsByRoleID(ctx context.Context, roleID uint64) ([]uint64, error)
 	UpdateStatus(ctx context.Context, id uint64, status int8) error
 	UpdateSort(ctx context.Context, id uint64, sort int) error
+	// FindExistingMenuIDs returns the subset of menuIDs that exist (association
+	// phantom-row guard for role-menu writes).
+	FindExistingMenuIDs(ctx context.Context, ids []uint64) ([]uint64, error)
+	// FindExistingDeptIDs returns the subset of deptIDs that exist (association
+	// phantom-row guard for role-dept writes).
+	FindExistingDeptIDs(ctx context.Context, ids []uint64) ([]uint64, error)
 }
 
 type RoleService struct {
@@ -120,6 +126,13 @@ func (s *RoleService) Create(ctx context.Context, req *request.CreateRoleReq) (u
 		deptIDs = []uint64{}
 	}
 
+	if err := validateIDsExist(ctx, "菜单", menuIDs, s.repo.FindExistingMenuIDs); err != nil {
+		return 0, err
+	}
+	if err := validateIDsExist(ctx, "部门", deptIDs, s.repo.FindExistingDeptIDs); err != nil {
+		return 0, err
+	}
+
 	if err := s.repo.CreateWithAssociations(ctx, role, menuIDs, deptIDs); err != nil {
 		if database.IsDuplicateKey(err) {
 			return 0, apperror.Conflict("角色代码已存在")
@@ -146,6 +159,13 @@ func (s *RoleService) Update(ctx context.Context, req *request.UpdateRoleReq) er
 	deptIDs := []uint64(req.DeptIDs)
 	if deptIDs == nil {
 		deptIDs = []uint64{}
+	}
+
+	if err := validateIDsExist(ctx, "菜单", menuIDs, s.repo.FindExistingMenuIDs); err != nil {
+		return err
+	}
+	if err := validateIDsExist(ctx, "部门", deptIDs, s.repo.FindExistingDeptIDs); err != nil {
+		return err
 	}
 
 	// Atomically update the role and capture the affected user IDs in a single

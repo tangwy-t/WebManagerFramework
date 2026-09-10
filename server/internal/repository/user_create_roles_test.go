@@ -23,6 +23,10 @@ func TestCreateWithRolesAssociation(t *testing.T) {
 	}
 	// Same callback set as production (id:generate + audit hooks).
 	database.NewCallbacks(nil).Register(db)
+	// Association("Roles") needs SetupJoinTable so the join table uses the real
+	// SysUserRole schema (with id) — production registers it in migration.MigrateAll.
+	db.SetupJoinTable(&entity.SysUser{}, "Roles", &entity.SysUserRole{})
+	db.SetupJoinTable(&entity.SysRole{}, "Users", &entity.SysUserRole{})
 	// SysUserRole must be migrated explicitly: production registers it in
 	// MigrateAll, which is what gives sys_user_role its snowflake `id` column.
 	// Letting GORM auto-create the join table from the many2many tag produces a

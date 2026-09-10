@@ -33,6 +33,7 @@ var joinTableSetups = []struct {
 	join  interface{}
 }{
 	{&entity.SysUser{}, "Roles", &entity.SysUserRole{}},
+	{&entity.SysRole{}, "Users", &entity.SysUserRole{}},
 	{&entity.SysRole{}, "Menus", &entity.SysRoleMenu{}},
 	{&entity.SysRole{}, "Depts", &entity.SysRoleDept{}},
 }

@@ -64,6 +64,12 @@ type UserRepositoryInterface interface {
 	AddUsersToRole(ctx context.Context, roleID uint64, userIDs []uint64) error
 	// RemoveUsersFromRole removes the given users from a role.
 	RemoveUsersFromRole(ctx context.Context, roleID uint64, userIDs []uint64) error
+	// FindExistingIDs returns the subset of userIDs that exist (association
+	// phantom-row guard for role-member writes).
+	FindExistingIDs(ctx context.Context, ids []uint64) ([]uint64, error)
+	// FindExistingRoleIDs returns the subset of roleIDs that exist (association
+	// phantom-row guard for role-assignment writes).
+	FindExistingRoleIDs(ctx context.Context, ids []uint64) ([]uint64, error)
 }
 
 type UserService struct {
@@ -139,6 +145,10 @@ func (s *UserService) Create(ctx context.Context, req *request.CreateUserReq) (u
 		user.Status = &enabled
 	}
 
+	if err := validateIDsExist(ctx, "角色", []uint64(req.RoleIDs), s.repo.FindExistingRoleIDs); err != nil {
+		return 0, err
+	}
+
 	if err := s.repo.CreateWithRoles(ctx, user, []uint64(req.RoleIDs)); err != nil {
 		if database.IsDuplicateKey(err) {
 			return 0, apperror.Conflict("用户名已存在")
@@ -190,6 +200,9 @@ func (s *UserService) AssignRoles(ctx context.Context, id uint64, roleIDs []uint
 	}
 	if roleIDs == nil {
 		roleIDs = []uint64{} // 空=清空全部角色
+	}
+	if err := validateIDsExist(ctx, "角色", roleIDs, s.repo.FindExistingRoleIDs); err != nil {
+		return err
 	}
 	if err := s.repo.ReplaceRoles(ctx, id, roleIDs); err != nil {
 		s.logger.Warn("failed to assign roles", zap.Uint64("userId", id), zap.Error(err))
@@ -244,6 +257,9 @@ func (s *UserService) revokePermsForUsers(ctx context.Context, userIDs []uint64)
 // user: users already assigned are skipped by the repository.
 func (s *UserService) AddRoleUsers(ctx context.Context, roleID uint64, userIDs []uint64) error {
 	if err := s.guardRoleMembershipEditable(ctx, roleID); err != nil {
+		return err
+	}
+	if err := validateIDsExist(ctx, "用户", userIDs, s.repo.FindExistingIDs); err != nil {
 		return err
 	}
 	if err := s.repo.AddUsersToRole(ctx, roleID, userIDs); err != nil {

@@ -32,6 +32,19 @@ func (r *MenuRepo) FindByID(ctx context.Context, id uint64) (*entity.SysMenu, er
 	return &menu, nil
 }
 
+// FindExistingIDs returns the subset of ids that exist in sys_menu.
+// Used by the service layer to validate menuIDs before an Association write
+// (which would otherwise upsert a phantom menu for an unknown ID).
+func (r *MenuRepo) FindExistingIDs(ctx context.Context, ids []uint64) ([]uint64, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	var existing []uint64
+	err := r.db.WithContext(ctx).Model(&entity.SysMenu{}).
+		Where("id IN ?", ids).Pluck("id", &existing).Error
+	return existing, err
+}
+
 func (r *MenuRepo) Create(ctx context.Context, menu *entity.SysMenu) error {
 	return r.db.WithContext(ctx).Create(menu).Error
 }

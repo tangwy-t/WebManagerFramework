@@ -46,11 +46,22 @@ func seedAdminUser(tx *gorm.DB) error {
 		return err
 	}
 
+	// admin 归属 v003 创建的内置根部门「总部」，使 admin 在部门维度数据
+	// 权限中拥有明确归属（否则 dept_id 为 NULL）。
+	var deptID uint64
+	if err := tx.Model(&entity.SysDept{}).
+		Select("id").
+		Where("name = ?", builtinDeptName).
+		First(&deptID).Error; err != nil {
+		return fmt.Errorf("seedAdminUser: 查询内置部门失败: %w", err)
+	}
+
 	status := entity.UserStatusEnabled
 	user := entity.SysUser{
 		Username:     "admin",
 		Password:     hashed,
 		PasswordSalt: ptr.To(salt),
+		DeptID:       &deptID,
 		Status:       &status,
 	}
 	if err := tx.Create(&user).Error; err != nil {
