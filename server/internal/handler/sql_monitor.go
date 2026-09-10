@@ -39,7 +39,7 @@ func NewSQLMonitorHandler(svc SQLMonitorServiceInterface) *SQLMonitorHandler {
 // @Produce      json
 // @Security     BearerAuth
 // @Param        window  query     string  false  "时间窗口，如 5m,1h；留空返回累计统计"
-// @Success      200     {object}  app.Response{data=database.StatsSnapshot}  "查询成功"
+// @Success      200     {object}  app.Response{data=response.SQLStatsSnapshot}  "查询成功"
 // @Failure      400     {object}  app.Response  "window 格式无效"
 // @Failure      401     {object}  app.Response  "未登录"
 // @Failure      403     {object}  app.Response  "无权限"
@@ -49,7 +49,7 @@ func (h *SQLMonitorHandler) GetStats(c *gin.Context) {
 
 	if windowStr == "" {
 		// 累计模式
-		app.Success(c, h.svc.GetStats())
+		app.Success(c, toSQLStatsResponse(h.svc.GetStats()))
 		return
 	}
 
@@ -63,7 +63,63 @@ func (h *SQLMonitorHandler) GetStats(c *gin.Context) {
 		return
 	}
 
-	app.Success(c, h.svc.GetStatsWindow(window))
+	app.Success(c, toSQLStatsResponse(h.svc.GetStatsWindow(window)))
+}
+
+// toSQLStatsResponse 把 database 内部统计快照映射为对外 DTO。
+//
+// 字段一一对应、无转换逻辑;映射存在的原因见 response/sql_stats.go:
+// apigen 只解析 internal/model/dto/response,直接返回 database.StatsSnapshot
+// 会让该接口的响应结构永远进不了 api.generated.d.ts。
+func toSQLStatsResponse(snap *database.StatsSnapshot) *response.SQLStatsSnapshot {
+	if snap == nil {
+		return nil
+	}
+	out := &response.SQLStatsSnapshot{
+		Global: response.SQLGlobalStats{
+			Count:           snap.Global.Count,
+			AvgMs:           snap.Global.AvgMs,
+			MaxMs:           snap.Global.MaxMs,
+			MinMs:           snap.Global.MinMs,
+			P50Ms:           snap.Global.P50Ms,
+			P95Ms:           snap.Global.P95Ms,
+			P99Ms:           snap.Global.P99Ms,
+			ErrorCount:      snap.Global.ErrorCount,
+			SlowCount:       snap.Global.SlowCount,
+			SlowThresholdMs: snap.Global.SlowThresholdMs,
+		},
+		ByTable:     toSQLDimStatsMap(snap.ByTable),
+		ByOperation: toSQLDimStatsMap(snap.ByOperation),
+		SlowQueries: make([]response.SQLQueryEntry, 0, len(snap.SlowQueries)),
+	}
+	for _, q := range snap.SlowQueries {
+		out.SlowQueries = append(out.SlowQueries, response.SQLQueryEntry{
+			Timestamp:  time.Time(q.Timestamp).Format("2006-01-02 15:04:05"),
+			DurationMs: q.DurationMs,
+			SQL:        q.SQL,
+			Table:      q.Table,
+			Operation:  q.Operation,
+			IsError:    q.IsError,
+			IsSlow:     q.IsSlow,
+		})
+	}
+	return out
+}
+
+func toSQLDimStatsMap(in map[string]database.DimSnapshot) map[string]response.SQLDimStats {
+	out := make(map[string]response.SQLDimStats, len(in))
+	for k, v := range in {
+		out[k] = response.SQLDimStats{
+			Count: v.Count,
+			AvgMs: v.AvgMs,
+			MaxMs: v.MaxMs,
+			MinMs: v.MinMs,
+			P50Ms: v.P50Ms,
+			P95Ms: v.P95Ms,
+			P99Ms: v.P99Ms,
+		}
+	}
+	return out
 }
 
 // GetHistory 处理 GET /api/v1/monitor/sql/history

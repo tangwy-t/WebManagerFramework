@@ -3,46 +3,19 @@ import request from '@/utils/http'
 
 const PREFIX = import.meta.env.VITE_API_PREFIX
 
-/** 按维度(表/操作类型)的统计 */
-export interface SqlDimStats {
-  count: number
-  avg_ms: number
-  max_ms: number
-  min_ms: number
-  p50_ms?: number
-  p95_ms?: number
-  p99_ms?: number
-}
-
-/** SQL 监控全局累计统计（与后端 snake_case JSON 对齐） */
-export interface SqlStats {
-  global: {
-    count: number
-    avg_ms: number
-    max_ms: number
-    min_ms: number
-    p50_ms: number
-    p95_ms: number
-    p99_ms: number
-    error_count: number
-    slow_count: number
-    slow_threshold_ms: number
-  }
-  by_table: Record<string, SqlDimStats>
-  by_operation: Record<string, SqlDimStats>
-  slow_queries: SqlQueryEntry[]
-}
-
-/** 单条 SQL 执行记录 */
-export interface SqlQueryEntry {
-  timestamp: string
-  duration_ms: number
-  sql: string
-  table: string
-  operation: string
-  is_error?: boolean
-  is_slow?: boolean
-}
+/**
+ * SQL 监控统计类型。
+ *
+ * 全部为 api.generated.d.ts 的别名(由 server/tools/apigen 从
+ * internal/model/dto/response/sql_stats.go 生成),不再手写:
+ * 此前这里是人工维护的副本,字段名(snake_case)只能靠约定对齐 ——
+ * 后端改字段前端不会有任何编译期提示。现在后端 DTO 变更后执行
+ * `pnpm gen:api` 即会让这里产生类型错误,由 CI 的 `pnpm check:api-types` 拦住。
+ */
+export type SqlGlobalStats = Api.Monitor.SQLGlobalStats
+export type SqlDimStats = Api.Monitor.SQLDimStats
+export type SqlQueryEntry = Api.Monitor.SQLQueryEntry
+export type SqlStats = Api.Monitor.SQLStatsSnapshot
 
 /** 时序快照中的单个时间桶 → Api.Monitor.SQLHistoryPoint(api.generated.d.ts 为唯一事实源) */
 export type SqlHistoryPoint = Api.Monitor.SQLHistoryPoint

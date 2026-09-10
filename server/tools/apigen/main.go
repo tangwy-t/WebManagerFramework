@@ -22,25 +22,26 @@ import (
 // they populate. A file absent here is a fatal error: extending the wire
 // contract must be an explicit, reviewed decision.
 var fileNamespace = map[string]string{
-	"auth.go":          "Auth",
-	"cache.go":         "Monitor",
-	"config.go":        "Config",
-	"dept.go":          "System",
-	"dict.go":          "Dict",
-	"dict_data.go":     "Dict",
-	"dict_type.go":     "Dict",
-	"file.go":          "File",
-	"id_resp.go":       "",
-	"job.go":           "Job",
-	"login_log.go":     "Log",
-	"menu.go":          "System",
-	"notice.go":        "Notice",
-	"operation_log.go": "Log",
-	"pprof.go":         "Monitor",
-	"role.go":          "System",
+	"auth.go":           "Auth",
+	"cache.go":          "Monitor",
+	"config.go":         "Config",
+	"dept.go":           "System",
+	"dict.go":           "Dict",
+	"dict_data.go":      "Dict",
+	"dict_type.go":      "Dict",
+	"file.go":           "File",
+	"id_resp.go":        "",
+	"job.go":            "Job",
+	"login_log.go":      "Log",
+	"menu.go":           "System",
+	"notice.go":         "Notice",
+	"operation_log.go":  "Log",
+	"pprof.go":          "Monitor",
+	"role.go":           "System",
 	"server_monitor.go": "Monitor",
-	"sql_monitor.go":   "Monitor",
-	"user.go":          "System",
+	"sql_monitor.go":    "Monitor",
+	"sql_stats.go":      "Monitor",
+	"user.go":           "System",
 }
 
 // namespaceOrder fixes emission order for byte-stable output.
@@ -58,10 +59,10 @@ var primitives = map[string]string{
 
 // selectorTypes maps pkg.Type selectors to TypeScript types.
 var selectorTypes = map[string]string{
-	"time.Time":               "string",
-	"util.JSONTime":           "string",
-	"util.JsonUint64":         "string",
-	"util.JsonUint64Slice":    "string[]",
+	"time.Time":            "string",
+	"util.JSONTime":        "string",
+	"util.JsonUint64":      "string",
+	"util.JsonUint64Slice": "string[]",
 }
 
 type structDef struct {

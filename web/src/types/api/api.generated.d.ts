@@ -535,6 +535,46 @@ declare namespace Api {
       recent_qps: number
       buckets: Api.Monitor.SQLHistoryPoint[]
     }
+
+    interface SQLGlobalStats {
+      count: number
+      avg_ms: number
+      max_ms: number
+      min_ms: number
+      p50_ms: number
+      p95_ms: number
+      p99_ms: number
+      error_count: number
+      slow_count: number
+      slow_threshold_ms: number
+    }
+
+    interface SQLDimStats {
+      count: number
+      avg_ms: number
+      max_ms: number
+      min_ms: number
+      p50_ms?: number
+      p95_ms?: number
+      p99_ms?: number
+    }
+
+    interface SQLQueryEntry {
+      timestamp: string
+      duration_ms: number
+      sql: string
+      table: string
+      operation: string
+      is_error: boolean
+      is_slow: boolean
+    }
+
+    interface SQLStatsSnapshot {
+      global: Api.Monitor.SQLGlobalStats
+      by_table: Record<string, Api.Monitor.SQLDimStats>
+      by_operation: Record<string, Api.Monitor.SQLDimStats>
+      slow_queries: Api.Monitor.SQLQueryEntry[]
+    }
   }
 
   namespace File {
