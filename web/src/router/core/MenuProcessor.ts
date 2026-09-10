@@ -66,7 +66,8 @@ export class MenuProcessor {
    * - 目录节点 → Layout 组件
    * - 菜单节点 → 按 path 匹配前端插件路由的组件
    * - 按钮节点 → 不进侧边栏，跳过
-   * - 再按当前用户权限（perms）过滤，并追加插件的隐藏路由（如字典数据页）
+   * - 再按当前用户权限（perms）过滤，并追加插件的隐藏路由（如字典数据页，
+   *   隐藏路由同样按 authMark 过滤）
    */
   private async processBackendMenu(): Promise<AppRouteRecord[]> {
     const list = await fetchGetMenuList()
@@ -149,9 +150,22 @@ export class MenuProcessor {
 
     const converted = convert(list)
 
-    // 追加插件隐藏路由（如字典数据页 /system/dict/:typeId），它们不在后端菜单里但需要可访问
+    // 追加插件隐藏路由(如字典数据页 /system/dict/:typeId、任务日志页
+    // /system/job/:jobId/logs),它们不在后端菜单里但需要可访问。
+    //
+    // 必须按 authMark 过滤,与上方菜单节点同口径:此前无条件追加,
+    // 使 `/system/dict/:typeId`(authMark: system:dict:data:list)与
+    // `/system/job/:jobId/logs`(authMark: system:job:log:list)对
+    // **所有登录用户**都注册为可达路由 —— 用户从侧边栏看不到,但直接
+    // 输入 URL 即可进入页面。后端接口仍会 403,因此不是数据泄露,
+    // 但前端宣称的授权状态与实际不符,且丢失了纵深防御。
+    // 无 authMark 的隐藏路由(如 /system/user-center,仅需登录)照常追加。
     const hiddenRoutes = asyncRoutes
       .filter((route) => route.meta?.isHide)
+      .filter((route) => {
+        const mark = route.meta?.authMark
+        return !mark || perms.includes(mark)
+      })
       .map((route) => ({ ...route }))
 
     return this.filterEmptyMenus([...converted, ...hiddenRoutes])

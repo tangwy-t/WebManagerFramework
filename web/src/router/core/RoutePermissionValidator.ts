@@ -21,6 +21,7 @@
  */
 
 import type { AppRouteRecord } from '@/types/router'
+import { matchRouteInTree, matchRoutePath } from './routePathMatch'
 
 /**
  * 路由权限验证器
@@ -91,50 +92,28 @@ export class RoutePermissionValidator {
   }
 
   /**
-   * 递归匹配路由配置，支持隐藏路由和动态参数路由
+   * 递归匹配路由配置，支持隐藏路由和动态参数路由。
+   *
+   * 委托给 routePathMatch 的共享实现:此前本文件与
+   * guards/beforeEach.isStaticRoute 各有一份路径匹配,且其中一份
+   * 未转义正则元字符,导致同一路径可能得到不同判定。
    */
   static matchRoute(targetPath: string, routes: AppRouteRecord[]): boolean {
     if (!Array.isArray(routes) || routes.length === 0) {
       return false
     }
-
-    for (const route of routes) {
-      if (!route.path) {
-        continue
-      }
-
-      const routePath = route.path.startsWith('/') ? route.path : `/${route.path}`
-
-      if (
-        routePath === targetPath ||
-        this.isDynamicRouteMatch(targetPath, routePath) ||
-        targetPath.startsWith(`${routePath}/`)
-      ) {
-        return true
-      }
-
-      if (route.children?.length && this.matchRoute(targetPath, route.children)) {
-        return true
-      }
-    }
-
-    return false
+    return matchRouteInTree(targetPath, routes)
   }
 
   /**
-   * 检查目标路径是否匹配动态参数路由，如 /demo/123 匹配 /demo/:id
+   * 检查目标路径是否匹配动态参数路由，如 /demo/123 匹配 /demo/:id。
+   * 委托给共享实现(会正确转义正则元字符)。
    */
   static isDynamicRouteMatch(targetPath: string, routePath: string): boolean {
     if (!routePath.includes(':')) {
       return false
     }
-
-    const pattern = routePath
-      .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-      .replace(/:([^/]+)/g, '[^/]+')
-      .replace(/\\\*/g, '.*')
-
-    return new RegExp(`^${pattern}$`).test(targetPath)
+    return matchRoutePath(targetPath, routePath)
   }
 
   /**

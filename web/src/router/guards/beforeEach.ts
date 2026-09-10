@@ -52,6 +52,7 @@ import { fetchGetUserInfo } from '@/api/auth'
 import { ApiStatus } from '@/utils/http/status'
 import { isHttpError } from '@/utils/http/error'
 import { RouteRegistry, MenuProcessor, IframeRouteManager, RoutePermissionValidator } from '../core'
+import { matchRouteInTree } from '../core/routePathMatch'
 
 // 路由注册器实例
 let routeRegistry: RouteRegistry | null = null
@@ -227,33 +228,18 @@ function handleLoginStatus(
 }
 
 /**
- * 检查路由是否为静态路由
+ * 检查路由是否为静态路由。
+ *
+ * 委托给 routePathMatch 的共享实现:此前本文件内联了一份
+ * "拼 RegExp 但不转义正则元字符"的路径匹配,与
+ * RoutePermissionValidator.isDynamicRouteMatch(先转义)行为不一致 ——
+ * 同一路径在两处可能得到不同判定。收敛到单一实现并配套单测。
+ *
+ * Exception404 作为 excludeNames 传入:catch-all 不应被视为可匿名访问的
+ * 静态页,否则未登录时手动输入任意地址会直接落到 404 而非登录页。
  */
 function isStaticRoute(path: string): boolean {
-  const checkRoute = (routes: any[], targetPath: string): boolean => {
-    return routes.some((route) => {
-      // 404 catch-all 路由不应视为可匿名访问的静态页，
-      // 否则未登录时手动输入任意地址会直接落到 404，无法跳转登录页。
-      if (route.name === 'Exception404') {
-        return false
-      }
-
-      // 处理动态路由参数匹配
-      const routePath = route.path
-      const pattern = routePath.replace(/:[^/]+/g, '[^/]+').replace(/\*/g, '.*')
-      const regex = new RegExp(`^${pattern}$`)
-
-      if (regex.test(targetPath)) {
-        return true
-      }
-      if (route.children && route.children.length > 0) {
-        return checkRoute(route.children, targetPath)
-      }
-      return false
-    })
-  }
-
-  return checkRoute(staticRoutes, path)
+  return matchRouteInTree(path, staticRoutes, ['Exception404'])
 }
 
 /**
@@ -310,8 +296,10 @@ async function handleDynamicRoutes(
     }
 
     // 8. 验证目标路径权限
+    // validatePath 仍返回 fallback path,但无权限时我们改跳 403 页面
+    // (不再静默回首页),故此处只需 hasPermission。
     const { homePath } = useCommon()
-    const { path: validatedPath, hasPermission } = RoutePermissionValidator.validatePath(
+    const { hasPermission } = RoutePermissionValidator.validatePath(
       to.path,
       menuList,
       homePath.value || '/'
@@ -322,15 +310,20 @@ async function handleDynamicRoutes(
 
     // 9. 重新导航到目标路由
     if (!hasPermission) {
-      // 无权限访问，跳转到首页
-      closeLoading()
-
-      // 输出警告信息
-      console.warn(`[RouteGuard] 用户无权限访问路径: ${to.path}，已跳转到首页`)
-
-      // 直接跳转到首页
+      // 无权限访问:跳转到 403 页面,而不是静默回首页。
+      //
+      // 此前这里直接 replace 到 homePath 并只打一条 console.warn ——
+      // 用户点击自己无权的菜单/链接后,看到的是"莫名其妙回到了首页",
+      // 无从判断是权限问题还是页面出错;而 Exception403 页面与 /403 路由
+      // 虽已定义,却全仓库无任何代码跳转过去,是死 UI。
+      // 同时 404 由 to.matched.length 判定,与"无权限"语义不同,
+      // 不应共用同一个用户可见结果。
+      //
+      // 带上 from 便于 403 页面展示"你尝试访问的地址"。
+      console.warn(`[RouteGuard] 用户无权限访问路径: ${to.path}，已跳转到 403 页面`)
       next({
-        path: validatedPath,
+        name: 'Exception403',
+        query: to.path === '/' ? undefined : { from: to.fullPath },
         replace: true
       })
     } else {

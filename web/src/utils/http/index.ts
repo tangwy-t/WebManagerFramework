@@ -15,8 +15,6 @@ import { BaseResponse } from '@/types'
 /** 请求配置常量 */
 const REQUEST_TIMEOUT = 15000
 const LOGOUT_DELAY = 500
-const MAX_RETRIES = 0
-const RETRY_DELAY = 1000
 const UNAUTHORIZED_DEBOUNCE_TIME = 3000
 
 /** 401 防抖状态 */
@@ -83,7 +81,7 @@ axiosInstance.interceptors.response.use(
     // blob 下载走原始二进制数据,不做 {code,msg,data} 信封解包
     if (response.config.responseType === 'blob') return response
     const { code, msg } = response.data
-    if (code === ApiStatus.success) return response
+    if (code === ApiStatus.unauthorized) return response
     throw createHttpError(msg || '请求失败', code)
   },
   async (error) => {
@@ -135,19 +133,54 @@ function logOut() {
   }, LOGOUT_DELAY)
 }
 
-/** 刷新访问令牌 */
+/** 刷新访问令牌。
+ *
+ *  刻意使用**独立的 axios 实例**而非 axiosInstance:
+ *  refresh 请求若走 axiosInstance,其 401 会再次进入响应拦截器,
+ *  与正在进行的刷新互相递归(拦截器内已有 /refresh 路径保护,
+ *  但那是"碰巧"依赖 URL 判断,不如从实例层面隔离彻底)。
+ *
+ *  与 axiosInstance 的三点差异都必须显式补齐,否则行为静默退化:
+ *  1. 不继承请求拦截器 —— 本请求本来就要用旧 refreshToken 换新令牌,
+ *     不带 Authorization 头是正确的;
+ *  2. 不继承响应拦截器 —— 信封 {code,msg,data} 需自行解包,
+ *     否则非 2xx 的 HTTP 状态不会抛错(旧实现用默认 validateStatus,
+ *     恰好能抛,但依赖的是"裸 axios 的默认行为"这一巧合);
+ *  3. 失败必须抛 HttpError 而非裸 Error —— 调用方据此判断,
+ *     且旧实现 `throw new Error('refresh failed')` 丢掉了服务端 msg
+ *     (例如"账号已被禁用,请联系管理员"),用户只能看到笼统提示。 */
+const refreshClient = axios.create({
+  timeout: REQUEST_TIMEOUT,
+  baseURL: VITE_API_URL,
+  withCredentials: VITE_WITH_CREDENTIALS === 'true',
+  validateStatus: (status) => status >= 200 && status < 300
+})
+
 async function refreshAccessToken(): Promise<string> {
   const { refreshToken } = useUserStore()
-  if (!refreshToken) throw new Error('no refresh token')
-  const fresh = await axios.post<BaseResponse<Api.Auth.TokenResp>>(AUTH_REFRESH_PATH, {
-    refreshToken
-  })
-  if (fresh.data.code === ApiStatus.success) {
+  if (!refreshToken) throw createHttpError('登录状态已失效，请重新登录', ApiStatus.unauthorized)
+
+  let fresh: AxiosResponse<BaseResponse<Api.Auth.TokenResp>>
+  try {
+    fresh = await refreshClient.post<BaseResponse<Api.Auth.TokenResp>>(AUTH_REFRESH_PATH, {
+      refreshToken
+    })
+  } catch (error) {
+    // 非 2xx(含 401):保留服务端 msg,便于用户理解"为什么需要重新登录"。
+    const msg = (error as { response?: { data?: { msg?: string } } })?.response?.data?.msg
+    throw createHttpError(msg || '登录状态已失效，请重新登录', ApiStatus.unauthorized)
+  }
+
+  if (fresh.data.code === ApiStatus.success && fresh.data.data) {
     const { accessToken, refreshToken: nextRefresh } = fresh.data.data
     useUserStore().setToken(accessToken, nextRefresh)
     return accessToken
   }
-  throw new Error('refresh failed')
+  // 2xx 但业务码非成功:同样保留服务端 msg。
+  throw createHttpError(
+    fresh.data.msg || '登录状态已失效，请重新登录',
+    fresh.data.code ?? ApiStatus.unauthorized
+  )
 }
 
 function flushPending(token: string) {
@@ -179,39 +212,13 @@ async function refreshAndReplay(config?: InternalAxiosRequestConfig): Promise<st
   }
 }
 
-/** 是否需要重试 */
-function shouldRetry(statusCode: number) {
-  return [
-    ApiStatus.requestTimeout,
-    ApiStatus.internalServerError,
-    ApiStatus.badGateway,
-    ApiStatus.serviceUnavailable,
-    ApiStatus.gatewayTimeout
-  ].includes(statusCode)
-}
-
-/** 请求重试逻辑 */
-async function retryRequest<T>(
-  config: ExtendedAxiosRequestConfig,
-  retries: number = MAX_RETRIES
-): Promise<T> {
-  try {
-    return await request<T>(config)
-  } catch (error) {
-    if (retries > 0 && error instanceof HttpError && shouldRetry(error.code)) {
-      await delay(RETRY_DELAY)
-      return retryRequest<T>(config, retries - 1)
-    }
-    throw error
-  }
-}
-
-/** 延迟函数 */
-function delay(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms))
-}
-
-/** 请求函数 */
+/** 请求函数。
+ *
+ *  说明:此处曾有一整套重试机制(shouldRetry / retryRequest / RETRY_DELAY),
+ *  但 MAX_RETRIES 恒为 0 且无任何调用方覆盖,整段代码不可达 ——
+ *  保留它会让后续维护者误以为请求具备重试能力。已移除;
+ *  如确需重试,应在确认后端接口幂等后重新引入,并配套重试上限与退避。
+ */
 async function request<T = any>(config: ExtendedAxiosRequestConfig): Promise<T> {
   // POST | PUT 参数自动填充
   if (
@@ -241,32 +248,50 @@ async function request<T = any>(config: ExtendedAxiosRequestConfig): Promise<T> 
 }
 
 /** 下载二进制文件（携带鉴权头,返回 Blob）。
- *  适用于 pprof 原始 profile/trace 等非 JSON 信封的接口。 */
+ *  适用于 pprof 原始 profile/trace 等非 JSON 信封的接口。
+ *
+ *  错误处理必须与 request() 同契约:此前 download 直接返回
+ *  axiosInstance.request 的 promise,既不弹错误提示也不归一化为
+ *  HttpError —— pprof 导出失败(如 profile 未启用返回 403)时调用方
+ *  只拿到一个裸 axios 错误,用户看不到任何提示,且无法用
+ *  isHttpError(error) / error.bizCode 判断原因。
+ *
+ *  注意 blob 响应不解信封(拦截器已按 responseType === 'blob' 跳过),
+ *  因此这里只处理失败路径。 */
 async function download(config: ExtendedAxiosRequestConfig): Promise<Blob> {
-  const res = await axiosInstance.request<Blob>({
-    ...config,
-    responseType: 'blob'
-  })
-  return res.data
+  try {
+    const res = await axiosInstance.request<Blob>({
+      ...config,
+      responseType: 'blob'
+    })
+    return res.data
+  } catch (error) {
+    // 与 request() 保持一致:401 由拦截器统一触发登出,此处不重复提示。
+    if (error instanceof HttpError && error.code !== ApiStatus.unauthorized) {
+      const showMsg = config.showErrorMessage !== false
+      showError(error, showMsg)
+    }
+    return Promise.reject(error)
+  }
 }
 
 /** API 方法集合 */
 const api = {
   download,
   get<T>(config: ExtendedAxiosRequestConfig) {
-    return retryRequest<T>({ ...config, method: 'GET' })
+    return request<T>({ ...config, method: 'GET' })
   },
   post<T>(config: ExtendedAxiosRequestConfig) {
-    return retryRequest<T>({ ...config, method: 'POST' })
+    return request<T>({ ...config, method: 'POST' })
   },
   put<T>(config: ExtendedAxiosRequestConfig) {
-    return retryRequest<T>({ ...config, method: 'PUT' })
+    return request<T>({ ...config, method: 'PUT' })
   },
   del<T>(config: ExtendedAxiosRequestConfig) {
-    return retryRequest<T>({ ...config, method: 'DELETE' })
+    return request<T>({ ...config, method: 'DELETE' })
   },
   request<T>(config: ExtendedAxiosRequestConfig) {
-    return retryRequest<T>(config)
+    return request<T>(config)
   }
 }
 
