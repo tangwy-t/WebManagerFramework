@@ -152,3 +152,113 @@ func TestRevokeAllPermsPattern(t *testing.T) {
 		}
 	}
 }
+
+// TestRevokeAll_EmptyTokenRevokesEveryAccessToken 是本包最关键的回归测试。
+//
+// 历史缺陷:禁用/删除/重置密码三条路径调用 RevokeAll(ctx, uid, ""),
+// 而旧实现只做 Del(AccessPrefix+token) = Del("access:") —— 删一个永远
+// 不存在的空键。用户全部已签发的 access token 因此留在白名单中,在剩余
+// TTL 内依然通过 middleware.Auth 校验:禁用/删除/改密后旧 token 仍可用。
+// 本测试锁定"空 token 也必须吊销全部 access token"这一契约。
+func TestRevokeAll_EmptyTokenRevokesEveryAccessToken(t *testing.T) {
+	ctx := context.Background()
+	c := newFakeCache()
+	s := NewSession(c)
+
+	// 同一用户多次登录 → 多个并发有效的 access token(多设备/多标签页)。
+	for _, tok := range []string{"tok-a", "tok-b", "tok-c"} {
+		if err := s.StoreAccess(ctx, tok, 42, time.Hour); err != nil {
+			t.Fatalf("StoreAccess(%s): %v", tok, err)
+		}
+	}
+	// 另一个用户的 token 不得被误伤。
+	if err := s.StoreAccess(ctx, "tok-other", 99, time.Hour); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := s.RevokeAll(ctx, 42, ""); err != nil {
+		t.Fatalf("RevokeAll: %v", err)
+	}
+
+	for _, tok := range []string{"tok-a", "tok-b", "tok-c"} {
+		ok, err := s.IsAccessValid(ctx, tok)
+		if err != nil {
+			t.Fatalf("IsAccessValid(%s): %v", tok, err)
+		}
+		if ok {
+			t.Errorf("RevokeAll(uid, \"\") 后 %s 仍有效 —— 禁用/删除/改密未真正吊销令牌", tok)
+		}
+	}
+	if ok, _ := s.IsAccessValid(ctx, "tok-other"); !ok {
+		t.Error("RevokeAll 误伤了其他用户的 token")
+	}
+}
+
+// TestRevokeAll_ExplicitTokenAlsoRevoked 显式 token(登出/改密)同样被吊销,
+// 且不依赖用户索引 —— 索引缺失(历史 token、索引写失败)时仍要保证
+// "当前正在使用的 token"立刻失效。
+func TestRevokeAll_ExplicitTokenAlsoRevoked(t *testing.T) {
+	ctx := context.Background()
+	c := newFakeCache()
+	s := NewSession(c)
+
+	// 直接写入白名单键,不经过 StoreAccess → 模拟无索引的历史 token。
+	c.data[AccessPrefix+"legacy"] = "42"
+	if err := s.StoreRefresh(ctx, 42, "rt", time.Hour); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := s.RevokeAll(ctx, 42, "legacy"); err != nil {
+		t.Fatalf("RevokeAll: %v", err)
+	}
+	if ok, _ := s.IsAccessValid(ctx, "legacy"); ok {
+		t.Error("无索引的显式 token 未被吊销")
+	}
+	if rt, _ := s.GetRefresh(ctx, 42); rt != "" {
+		t.Error("refresh token 未被吊销")
+	}
+}
+
+// TestRevokeAll_ClearsIndexAndPerms 吊销后索引与权限缓存一并清理,
+// 否则索引残留会让后续登录的 token 被前一次吊销操作顺带删除。
+func TestRevokeAll_ClearsIndexAndPerms(t *testing.T) {
+	ctx := context.Background()
+	c := newFakeCache()
+	s := NewSession(c)
+
+	if err := s.StoreAccess(ctx, "tok-1", 7, time.Hour); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.StorePerms(ctx, 7, []string{"a"}, time.Hour); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.RevokeAll(ctx, 7, ""); err != nil {
+		t.Fatalf("RevokeAll: %v", err)
+	}
+
+	// 吊销后重新登录签发新 token —— 必须有效。
+	if err := s.StoreAccess(ctx, "tok-2", 7, time.Hour); err != nil {
+		t.Fatal(err)
+	}
+	if ok, _ := s.IsAccessValid(ctx, "tok-2"); !ok {
+		t.Fatal("吊销后重新登录的 token 应有效(索引未清理会导致误删)")
+	}
+	if perms, _ := s.LoadPerms(ctx, 7); perms != nil {
+		t.Error("perms 缓存未被吊销")
+	}
+}
+
+// TestAccessIndex_SurvivesCorruptValue 索引内容损坏时降级为空,不阻断登录。
+func TestAccessIndex_SurvivesCorruptValue(t *testing.T) {
+	ctx := context.Background()
+	c := newFakeCache()
+	s := NewSession(c)
+
+	c.data[UserAccessPrefix+"7"] = "{not json"
+	if err := s.StoreAccess(ctx, "tok-1", 7, time.Hour); err != nil {
+		t.Fatalf("索引损坏时 StoreAccess 应仍成功: %v", err)
+	}
+	if ok, _ := s.IsAccessValid(ctx, "tok-1"); !ok {
+		t.Fatal("token 应有效")
+	}
+}

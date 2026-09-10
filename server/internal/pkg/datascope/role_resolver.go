@@ -18,7 +18,15 @@ func NewRoleDimensionResolver(roleMenuRepo RoleMenuRepoInterface) *RoleDimension
 func (r *RoleDimensionResolver) DimensionType() string { return DimRole }
 
 // Resolve resolves the accessible menu ID set based on the scope level.
-// ScopeAll → nil (all allowed); ScopeCustom → role menu IDs from DB; other levels → nil (all).
+//
+// ScopeAll → nil(全量);ScopeCustom → 该用户角色已授权的菜单 ID。
+//
+// 其余 level 一律返回空集(fail-closed),**不是** nil。role 维度只由
+// GetUserRoleScope 产出(非 admin 恒为 ScopeCustom),其余 level 目前
+// 不可达;但此前的 default 分支让 AllowedIDs 保持 nil(= 全量可见),
+// 一旦上游新增 level 或传值出错,就会静默把"未知"放大成"看到全部菜单"。
+// 与 DeptDimensionResolver 的显式 default 空集保持一致:未知即无权限。
+// 注意 nil(全量)与空集(无权限)在 plugin.scopeCallback 中语义相反。
 func (r *RoleDimensionResolver) Resolve(ctx context.Context, level int8, selfID uint64, userID uint64) (*ResolvedDimension, error) {
 	dim := &ResolvedDimension{Level: level, SelfID: selfID}
 	switch level {
@@ -30,7 +38,8 @@ func (r *RoleDimensionResolver) Resolve(ctx context.Context, level int8, selfID 
 			return nil, err
 		}
 		dim.AllowedIDs = ids
+	default:
+		dim.AllowedIDs = []uint64{} // 未知 level → 无可见菜单,不放大为全量
 	}
-	// nil = all for other levels
 	return dim, nil
 }

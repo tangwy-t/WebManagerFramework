@@ -276,6 +276,16 @@ func TestScopeCtxForFailingDimensionFallsBack(t *testing.T) {
 	if dim.Level != 4 || dim.SelfID != 9 {
 		t.Fatalf("降级维度 = %+v, 应保留 claim 原始 Level/SelfID", dim)
 	}
+	// 关键断言:降级必须 fail-closed。plugin.scopeCallback 把 AllowedIDs==nil
+	// 读作"授予全部",只断言 Level/SelfID 会漏掉这一点 —— 旧实现正是
+	// 只填 Level/SelfID 而让 AllowedIDs 保持 nil,把"解析失败"放大成
+	// "可见全部数据"。必须为空集(非 nil)。
+	if dim.AllowedIDs == nil {
+		t.Fatal("降级维度 AllowedIDs = nil —— 插件会读作『授予全部』,解析失败被放大为全量可见")
+	}
+	if len(dim.AllowedIDs) != 0 {
+		t.Fatalf("降级维度 AllowedIDs = %v, want 空集", dim.AllowedIDs)
+	}
 }
 
 // newGetUserInfoService 构造 GetUserInfo 所需依赖的最小 AuthService。

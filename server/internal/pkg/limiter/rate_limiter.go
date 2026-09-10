@@ -33,9 +33,34 @@ const rateLimitKeyPrefix = "ratelimit"
 
 // ── 跳过的路由路径 ─────────────────────────────────────────────────
 
-var skippedPaths = map[string]bool{
-	"/api/v1/login":            true,
-	"/api/v1/captcha/generate": true,
+// skippedRouteSuffixes 是豁免全局限流的路由(它们各自有更专门的限流:
+// /login 挂 LoginRateLimit,/captcha/generate 有自身的频控)。
+//
+// 只存**相对 API 前缀**的路径,不存绝对路径:c.FullPath() 返回的是
+// 注册时的完整模式(含 server.apiPrefix),硬编码 "/api/v1/login" 会在
+// apiPrefix 改成 /api/v2 时静默失配 —— 登录接口将掉进全局限流(默认
+// 100/60s)而失去专门额度,且没有任何报错可查。apiPrefix 在
+// router.Setup 与 swagger BasePath 都已跟随配置,这里同样跟随。
+var skippedRouteSuffixes = []string{
+	"/login",
+	"/captcha/generate",
+}
+
+// isSkippedRoute 判断请求路径是否为豁免全局限流的路由。
+//
+// 每个豁免项自带前导 "/",因此 HasSuffix 本身就是段边界匹配:
+//   - "/api/v1/login" 以 "/login" 结尾 → 匹配
+//   - "/api/v2/login" 同理 → 匹配(与前缀无关)
+//   - "/xlogin"       不以 "/login" 结尾(缺分隔符)→ 不匹配
+//   - "/users/login-history" 不以 "/login" 结尾 → 不匹配
+// 不需要额外做分隔符校验,前导斜杠已经承担了这个作用。
+func isSkippedRoute(fullPath string) bool {
+	for _, suffix := range skippedRouteSuffixes {
+		if strings.HasSuffix(fullPath, suffix) {
+			return true
+		}
+	}
+	return false
 }
 
 // ── RateLimiter ────────────────────────────────────────────────────
@@ -151,11 +176,11 @@ func (rl *RateLimiter) readLoginConfig(ctx context.Context) (enabled bool, limit
 // ── 中间件工厂方法 ──────────────────────────────────────────────────
 
 // GlobalRateLimit 返回全局限流中间件。
-// 跳过 /login 和 /captcha/generate 路由。
+// 跳过 /login 与 /captcha/generate(见 isSkippedRoute:与前缀无关)。
 func (rl *RateLimiter) GlobalRateLimit() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// 跳过特定路由
-		if skippedPaths[c.FullPath()] {
+		if isSkippedRoute(c.FullPath()) {
 			c.Next()
 			return
 		}

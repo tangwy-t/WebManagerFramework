@@ -42,6 +42,8 @@ type Broker struct {
 	stopCh      chan struct{}
 	doneCh      chan struct{}
 	stopOnce    sync.Once
+	readyOnce   sync.Once
+	readyCh     chan struct{}
 	dispatchSem chan struct{}
 	dispatchWG  sync.WaitGroup // in-flight dispatch goroutine 追踪
 }
@@ -54,6 +56,7 @@ func NewBroker(client goredis.UniversalClient, logger logger.LoggerInterface, lc
 		handlers:    make(map[string]Handler),
 		stopCh:      make(chan struct{}),
 		doneCh:      make(chan struct{}),
+		readyCh:     make(chan struct{}),
 		dispatchSem: make(chan struct{}, maxDispatchConcurrency),
 	}
 
@@ -79,6 +82,11 @@ func (b *Broker) Unsubscribe(eventType string) {
 	defer b.mu.Unlock()
 	delete(b.handlers, eventType)
 }
+
+// Ready 返回一个在订阅建立(SUBSCRIBE 成功下发)后关闭的 channel。
+// 调用方若需在 Broker 构造后立即发布消息,应先等待该 channel,
+// 否则消息可能因订阅尚未建立而丢失。select 超时由调用方自行决定。
+func (b *Broker) Ready() <-chan struct{} { return b.readyCh }
 
 // Publish 将 payload 序列化为 JSON 后包装在 Event 信封中，发布到 bus:events channel。
 func (b *Broker) Publish(ctx context.Context, eventType string, payload any) error {
@@ -108,6 +116,11 @@ func (b *Broker) listen(ctx context.Context) error {
 		ch := pubsub.Channel()
 
 		b.logger.Info("pubsub broker: subscribed to bus:events")
+		// SUBSCRIBE 已下发成功才关闭 readyCh。此前没有任何就绪信号,
+		// 调用方(尤其是测试)在 NewBroker 之后立刻 Publish 时,
+		// SUBSCRIBE 可能尚未到达 redis-server —— 消息被投递给零个订阅者
+		// 后静默丢失,表现为间歇性"handler 未收到消息"。
+		b.readyOnce.Do(func() { close(b.readyCh) })
 
 	innerLoop:
 		for {

@@ -13,6 +13,7 @@ import (
 	"github.com/tangwy-t/webmanager-server/internal/model/entity"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/apperror"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/contextkeys"
+	"github.com/tangwy-t/webmanager-server/internal/pkg/datascope"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/logger"
 
 	"github.com/gin-gonic/gin"
@@ -126,9 +127,19 @@ func OperationLogMiddleware(svc OperationLogServiceInterface, logger logger.Logg
 // synchronously (gin.Context is not goroutine-safe), while persistence uses
 // context.Background() because the request context is cancelled once the
 // response has been sent.
+//
+// 异步落库必须**显式重建**请求上下文中的两个值:TraceID 与 ScopeContext。
+// 用裸 context.Background() 会丢掉 ScopeContext,而 sys_operation_log 与
+// sys_user 都是 datascope 注册实体:
+//   - OperationLogService.Create 会用该 ctx 调 userRepo.FindByID 反查用户名,
+//     失去 scope 后这次查询不再受数据权限约束(跨部门读取);
+//   - 审计链路与运行时请求的过滤口径不一致,审计结果无法互相印证。
+// 这里在 goroutine 外同步取出(gin.Context 非并发安全),再注入新 ctx。
 func saveOperationLog(c *gin.Context, writer *bodyCaptureWriter, startTime time.Time, requestParams string, svc OperationLogServiceInterface, logger logger.LoggerInterface) {
 	// Extract values before the goroutine (gin.Context is not goroutine-safe).
-	traceID, _ := contextkeys.TraceIDFromCtx(c.Request.Context())
+	reqCtx := c.Request.Context()
+	traceID, _ := contextkeys.TraceIDFromCtx(reqCtx)
+	scopeCtx, _ := datascope.ScopeContextFromCtx(reqCtx)
 	entry := buildLogEntry(c, writer, startTime, requestParams)
 
 	go func() {
@@ -141,8 +152,12 @@ func saveOperationLog(c *gin.Context, writer *bodyCaptureWriter, startTime time.
 			}
 		}()
 		// Use context.Background() because the request context may be cancelled
-		// after the response is sent.
+		// after the response is sent — but carry over traceId 与 scope,
+		// 二者都是数据而非取消信号,与请求生命周期无关。
 		ctx := contextkeys.WithTraceID(context.Background(), traceID)
+		if scopeCtx != nil {
+			ctx = datascope.WithScopeContext(ctx, scopeCtx)
+		}
 		if err := svc.Create(ctx, entry); err != nil {
 			logger.Warn("failed to save operation log",
 				zap.Error(err),

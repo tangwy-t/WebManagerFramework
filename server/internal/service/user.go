@@ -275,6 +275,8 @@ func (s *UserService) Delete(ctx context.Context, id uint64) error {
 		return err
 	}
 	// Revoke all sessions for the deleted user so their tokens are invalidated.
+	// token 传空:吊销对象是目标用户而非调用者,调用方不持有其 token。
+	// 全部 access token 经用户索引(user_access:<uid>)清除。
 	if err := s.sessionStore.RevokeAll(ctx, id, ""); err != nil {
 		// Error:已删用户的 token 在白名单残留至 TTL,该窗口内仍可访问。
 		s.logger.Error("failed to revoke sessions after user deletion", zap.Uint64("userId", id), zap.Error(err))
@@ -304,6 +306,8 @@ func (s *UserService) Disable(ctx context.Context, id uint64) error {
 		return err
 	}
 	// Revoke all sessions when user is disabled.
+	// 禁用是安全动作:必须在同一请求内让目标用户**全部**已签发 access
+	// token 失效,否则禁用只影响后续登录,已登录会话最长可继续用满 TTL。
 	if err := s.sessionStore.RevokeAll(ctx, id, ""); err != nil {
 		// Error:禁用用户旧 token 在白名单残留至 TTL,禁用效果延迟生效。
 		s.logger.Error("failed to revoke sessions for disabled user", zap.Uint64("userId", id), zap.Error(err))
@@ -322,6 +326,7 @@ func (s *UserService) ResetPassword(ctx context.Context, id uint64, req *request
 		return err
 	}
 	// Revoke all sessions after password reset.
+	// 重置密码同样按用户吊销全部 access token:旧密码会话不得继续存活。
 	if err := s.sessionStore.RevokeAll(ctx, id, ""); err != nil {
 		// Error:重置密码后旧 token 残留,疑似泄露的凭证窗口内仍有效。
 		s.logger.Error("failed to revoke sessions after password reset", zap.Uint64("userId", id), zap.Error(err))

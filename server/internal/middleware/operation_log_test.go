@@ -12,6 +12,8 @@ import (
 
 	"github.com/tangwy-t/webmanager-server/internal/model/entity"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/apperror"
+	"github.com/tangwy-t/webmanager-server/internal/pkg/contextkeys"
+	"github.com/tangwy-t/webmanager-server/internal/pkg/datascope"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/logger"
 )
 
@@ -22,6 +24,17 @@ type captureOpLogService struct {
 
 func (s *captureOpLogService) Create(ctx context.Context, log *entity.SysOperationLog) error {
 	s.logs <- log
+	return nil
+}
+
+// ctxCaptureOpLogService 额外捕获 Create 收到的 ctx,用于断言异步落库
+// 是否携带请求上下文中的 TraceID 与 ScopeContext。
+type ctxCaptureOpLogService struct {
+	ctx chan context.Context
+}
+
+func (s *ctxCaptureOpLogService) Create(ctx context.Context, _ *entity.SysOperationLog) error {
+	s.ctx <- ctx
 	return nil
 }
 
@@ -177,5 +190,70 @@ func TestOperationLogMiddlewareSkipsGET(t *testing.T) {
 		t.Fatal("expected no operation log for GET request")
 	case <-time.After(150 * time.Millisecond):
 		// pass
+	}
+}
+// TestOperationLogMiddlewarePreservesScopeContext 是 P0 回归测试。
+//
+// 历史缺陷:saveOperationLog 在 goroutine 内用裸 context.Background()
+// 重建上下文,只补了 traceId,丢掉了 datascope.ScopeContext。
+// 而 sys_operation_log 与 sys_user 都是 datascope 注册实体,
+// OperationLogService.Create 会用该 ctx 反查用户名 —— 失去 scope 后
+// 这次查询不再受数据权限约束(跨部门读取),且审计链路与运行时请求
+// 的过滤口径不一致。本测试锁定"异步落库 ctx 必须携带 ScopeContext"。
+func TestOperationLogMiddlewarePreservesScopeContext(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	svc := &ctxCaptureOpLogService{ctx: make(chan context.Context, 1)}
+	log := logger.NewNop()
+
+	// 模拟 ScopeResolverHandler:注入带 dept 维度的 ScopeContext。
+	want := &datascope.ScopeContext{
+		UserID: 42,
+		Dimensions: map[string]*datascope.ResolvedDimension{
+			"dept": {Level: datascope.ScopeDept, SelfID: 7, AllowedIDs: []uint64{7}},
+		},
+	}
+
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		ctx := contextkeys.WithTraceID(c.Request.Context(), "trace-xyz")
+		ctx = datascope.WithScopeContext(ctx, want)
+		c.Request = c.Request.WithContext(ctx)
+		c.Next()
+	})
+	r.Use(OperationLogMiddleware(svc, log))
+	r.POST("/scoped", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"code": 0, "msg": "success", "data": nil})
+	})
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/scoped", strings.NewReader(`{}`))
+	req.Header.Set("Content-Type", "application/json")
+	r.ServeHTTP(w, req)
+
+	var got context.Context
+	select {
+	case got = <-svc.ctx:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for operation log ctx")
+	}
+
+	gotScope, ok := datascope.ScopeContextFromCtx(got)
+	if !ok || gotScope == nil {
+		t.Fatal("异步落库 ctx 丢失了 ScopeContext —— 审计查询将绕过数据权限")
+	}
+	if gotScope.UserID != want.UserID {
+		t.Errorf("ScopeContext.UserID = %d, want %d", gotScope.UserID, want.UserID)
+	}
+	dim, ok := gotScope.Dimensions["dept"]
+	if !ok || dim == nil {
+		t.Fatal("ScopeContext 丢失了 dept 维度")
+	}
+	if dim.Level != datascope.ScopeDept || len(dim.AllowedIDs) != 1 || dim.AllowedIDs[0] != 7 {
+		t.Errorf("dept 维度 = %+v, want level=%d allowed=[7]", dim, datascope.ScopeDept)
+	}
+
+	// traceId 同样必须保留(原有行为,防止回归)。
+	if tid, ok := contextkeys.TraceIDFromCtx(got); !ok || tid != "trace-xyz" {
+		t.Errorf("异步落库 ctx 丢失了 traceId, got %q", tid)
 	}
 }

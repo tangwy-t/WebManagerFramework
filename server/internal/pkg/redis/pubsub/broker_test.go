@@ -31,9 +31,25 @@ func newTestBroker(t *testing.T) (*Broker, goredis.UniversalClient, *miniredis.M
 	return broker, client, mr
 }
 
+// waitReady 等待 Broker 的 SUBSCRIBE 真正下发完成。
+//
+// 不等待就 Publish 是一个真实竞态:NewBroker 在 goroutine 里订阅,
+// 而 Publish 走的是另一条连接 —— SUBSCRIBE 若尚未到达 redis-server,
+// 消息会投递给零个订阅者并静默丢失,表现为本文件里间歇性的
+// "handler 未在时限内收到消息"(该 flake 在本次修复前可复现)。
+func waitReady(t *testing.T, b *Broker) {
+	t.Helper()
+	select {
+	case <-b.Ready():
+	case <-time.After(5 * time.Second):
+		t.Fatal("broker 未在时限内完成订阅")
+	}
+}
+
 // TestSubscribeDispatchRoundtrip 发布→按类型路由→handler 收到载荷。
 func TestSubscribeDispatchRoundtrip(t *testing.T) {
 	broker, _, _ := newTestBroker(t)
+	waitReady(t, broker)
 	got := make(chan []byte, 1)
 	broker.Subscribe("job.changed", func(_ context.Context, eventType string, payload []byte) error {
 		if eventType != "job.changed" {
@@ -58,6 +74,7 @@ func TestSubscribeDispatchRoundtrip(t *testing.T) {
 // TestUnsubscribeStopsDelivery 退订后同类型消息静默丢弃。
 func TestUnsubscribeStopsDelivery(t *testing.T) {
 	broker, _, _ := newTestBroker(t)
+	waitReady(t, broker)
 	var mu sync.Mutex
 	got := 0
 	broker.Subscribe("job.changed", func(context.Context, string, []byte) error {
@@ -81,6 +98,7 @@ func TestUnsubscribeStopsDelivery(t *testing.T) {
 // TestUnknownTypeDropped 未注册事件类型静默丢弃(不 panic)。
 func TestUnknownTypeDropped(t *testing.T) {
 	broker, _, _ := newTestBroker(t)
+	waitReady(t, broker)
 	if err := broker.Publish(context.Background(), "no.such.type", 1); err != nil {
 		t.Fatalf("Publish: %v", err)
 	}

@@ -29,16 +29,22 @@ func ScopeResolverHandler(sr *datascope.ScopeResolver) gin.HandlerFunc {
 			}
 			dim, err := resolver.Resolve(c.Request.Context(), scopeClaim.Level, scopeClaim.SelfID, claims.UserID)
 			if err != nil {
-				sr.Logger.Warn("scope resolver: resolve failed, falling back to empty result",
+				sr.Logger.Warn("scope resolver: resolve failed, falling back to no access",
 					zap.String("dimension", scopeClaim.Dimension),
 					zap.Int8("level", scopeClaim.Level),
 					zap.Uint64("selfID", scopeClaim.SelfID),
 					zap.Uint64("userID", claims.UserID),
 					zap.Error(err))
-				// 解析失败降级为空结果
+				// 解析失败必须 fail-closed:写入**空集**,而非省略 AllowedIDs。
+				// plugin.scopeCallback 的语义是 nil=授予全部、空集=无可见项 ——
+				// 旧写法只填 Level/SelfID,AllowedIDs 保持 nil,等于把
+				// "解析失败"放大成"看到全部数据",与"降级为空结果"的字面
+				// 意图相反。空集下:若该维度是唯一规则来源,插件注入 1=0
+				// (无可见行);若还有其他维度,仍可由它们授权,不会误伤。
 				sc.Dimensions[scopeClaim.Dimension] = &datascope.ResolvedDimension{
-					Level:  scopeClaim.Level,
-					SelfID: scopeClaim.SelfID,
+					Level:      scopeClaim.Level,
+					SelfID:     scopeClaim.SelfID,
+					AllowedIDs: []uint64{},
 				}
 				continue
 			}

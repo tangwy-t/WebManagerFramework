@@ -163,7 +163,8 @@ func buildUserScopes(userID uint64, dataScope int8, deptID uint64, roleScope int
 
 // scopeCtxFor 按 scopes 声明构造 ScopeContext 注入 ctx,复用与
 // middleware.ScopeResolverHandler 完全相同的 resolver,权限口径与运行时一致。
-// resolver 解析失败降级为 nil 维度(该维度放行),scopeResolver 未注入(测试)时原样返回。
+// resolver 解析失败降级为该维度空集(fail-closed,不放大为全量),
+// scopeResolver 未注入(测试)时原样返回。
 func (s *AuthService) scopeCtxFor(ctx context.Context, userID uint64, scopes []jwt.ScopeClaim) context.Context {
 	if s.scopeResolver == nil {
 		return ctx
@@ -180,10 +181,17 @@ func (s *AuthService) scopeCtxFor(ctx context.Context, userID uint64, scopes []j
 				zap.String("dimension", claim.Dimension),
 				zap.Int8("level", claim.Level),
 				zap.Error(err))
-			// 降级与 middleware.ScopeResolverHandler 完全一致:保留 claim
-			// 原始 Level/SelfID 并写入 Dimensions。此前此处 continue 跳过写入,
-			// 维度缺失意味着 scope 插件不过滤该维度——解析失败被静默放大为全量可见。
-			sc.Dimensions[claim.Dimension] = &datascope.ResolvedDimension{Level: claim.Level, SelfID: claim.SelfID}
+			// 降级与 middleware.ScopeResolverHandler 完全一致:写入该维度
+			// 并置 **空集**。此前两处的降级都只填 Level/SelfID,AllowedIDs
+			// 保持 nil —— 而 plugin.scopeCallback 把 nil 读作"授予全部",
+			// 于是"解析失败"被放大为"可见全部",与注释声称的防护相反。
+			// 空集才是真正的 fail-closed:该维度无可见项,但仍允许其他
+			// 维度授权(插件按维度 OR 拼接)。
+			sc.Dimensions[claim.Dimension] = &datascope.ResolvedDimension{
+				Level:      claim.Level,
+				SelfID:     claim.SelfID,
+				AllowedIDs: []uint64{},
+			}
 			continue
 		}
 		sc.Dimensions[claim.Dimension] = dim
