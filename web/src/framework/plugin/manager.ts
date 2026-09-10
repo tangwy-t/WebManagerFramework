@@ -1,23 +1,33 @@
 /**
  * 插件管理器
- * 通过 import.meta.glob 自动发现 src/modules/{name}/index.ts，
- * 按 register → install → mount 生命周期装配插件。
+ *
+ * 通过 import.meta.glob 自动发现 src/modules/{name}/index.ts,
+ * 收集各模块声明的路由,供 asyncRoutes 与菜单处理使用。
+ *
+ * ## 关于"插件生命周期"
+ *
+ * 此前这里还提供了 installStore / install / mount / unmount 四个生命周期
+ * 钩子,外加一整套 PluginContext(app / router / pinia / registerComponent /
+ * registerDirective / registerCommand / addRoutes)与 installed/mounted
+ * 去重集合。但仓库内 13 个模块**全部只声明了 routes**,没有任何一个使用
+ * 这些钩子:PluginManager.install() 与 mount() 遍历时每次都是空转,
+ * addRoutes/registerXxx 更是一处调用都没有。
+ *
+ * 保留这套未被使用的抽象有实际代价:它让"模块"看起来可以注册组件、指令、
+ * 全局命令和路由,维护者会据此写出永不生效的代码(与 v-auth 读
+ * meta.authList 是同一类问题 —— 接了一个不存在的接口)。
+ * 因此在此收敛为只保留真正被使用的 routes 收集能力;
+ * 若将来确有需要,应连同第一个真实使用方一起恢复,而不是预先留桩。
  */
-import type { App, Component, Directive } from 'vue'
-import type { RouteRecordRaw, Router } from 'vue-router'
-import { store } from '@/store'
 import type { AppRouteRecord } from '@/types/router'
-import type { PluginContext, PluginManifest } from '@/types/plugin'
+import type { PluginManifest } from '@/types/plugin'
 
 type ModuleIndex = { default?: PluginManifest }
 
 const pluginModules = import.meta.glob<ModuleIndex>('../../modules/*/index.ts', { eager: true })
 
 class PluginManager {
-  private plugins: PluginManifest[] = []
-  private installed = new Set<string>()
-  private mounted = new Set<string>()
-  private ctx: PluginContext | null = null
+  private plugins: PluginManifest[]
 
   constructor() {
     this.plugins = Object.values(pluginModules)
@@ -32,43 +42,6 @@ class PluginManager {
 
   collectRoutes(): AppRouteRecord[] {
     return this.plugins.flatMap((p) => p.routes ?? [])
-  }
-
-  install(app: App, router: Router): void {
-    this.ctx = this.buildContext(app, router)
-    for (const p of this.plugins) {
-      if (this.installed.has(p.name)) continue
-      p.installStore?.(store)
-      p.install?.(this.ctx)
-      this.installed.add(p.name)
-    }
-  }
-
-  mount(): void {
-    for (const p of this.plugins) {
-      if (this.mounted.has(p.name)) continue
-      p.mount?.(this.ctx!)
-      this.mounted.add(p.name)
-    }
-  }
-
-  private buildContext(app: App, router: Router): PluginContext {
-    return {
-      app,
-      router,
-      pinia: store,
-      registerComponent: (name, comp) => app.component(name, comp as Component),
-      registerDirective: (name, dir) => app.directive(name, dir as Directive),
-      registerCommand: (name, fn) =>
-        ((app.config.globalProperties as Record<string, unknown>)[`$${name}`] = fn),
-      addRoutes: (routes) => {
-        routes.forEach((r) => {
-          if (r.name && !router.hasRoute(r.name)) {
-            router.addRoute(r as unknown as RouteRecordRaw)
-          }
-        })
-      }
-    }
   }
 }
 
