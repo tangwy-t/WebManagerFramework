@@ -7,9 +7,6 @@ export { useAppMode } from './core/useAppMode'
 // 权限控制
 export { useAuth } from './core/useAuth'
 
-// 表格数据管理方案
-export { useTable } from './core/useTable'
-
 // 表格列配置管理
 export { useTableColumns } from './core/useTableColumns'
 
