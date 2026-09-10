@@ -219,7 +219,7 @@ func Setup(deps Dependencies) *gin.Engine {
 			users.GET("/:id", perm("system:user:query"), deps.System.UserHdl.GetByID)
 			users.POST("", perm("system:user:add"), deps.System.UserHdl.Create)
 			users.PUT("/:id", perm("system:user:edit"), deps.System.UserHdl.UpdateUserInfo)
-			users.PUT("/:id/roles", perm("system:user:edit"), deps.System.UserHdl.AssignRoles)
+			users.PUT("/:id/roles", perm("system:user:assign"), deps.System.UserHdl.AssignRoles)
 			users.DELETE("/:id", perm("system:user:delete"), deps.System.UserHdl.Delete)
 			users.POST("/:id/enable", perm("system:user:enable"), deps.System.UserHdl.Enable)
 			users.POST("/:id/disable", perm("system:user:disable"), deps.System.UserHdl.Disable)

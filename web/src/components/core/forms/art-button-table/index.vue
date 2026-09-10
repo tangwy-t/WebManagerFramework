@@ -1,6 +1,7 @@
 <!-- 表格按钮 -->
 <template>
   <div
+    v-show="visible"
     role="button"
     :tabindex="props.disabled ? -1 : 0"
     :title="props.title"
@@ -22,6 +23,10 @@
 </template>
 
 <script setup lang="ts">
+  import { computed } from 'vue'
+  import { useUserStore } from '@/store/modules/user'
+  import { hasAuthPermission } from '@/directives/core/auth-permission'
+
   defineOptions({ name: 'ArtButtonTable' })
 
   interface Props {
@@ -39,9 +44,18 @@
     title?: string
     /** 禁用(不可聚焦、不可点击、半透明) */
     disabled?: boolean
+    /** 权限标识(无权限时整钮隐藏，display:none) */
+    auth?: string | string[]
   }
 
   const props = withDefaults(defineProps<Props>(), {})
+
+  // 权限显隐：无 auth 视为放行；有 auth 时按 v-perm 语义(字符串/数组 OR)判断。
+  const visible = computed(() => {
+    if (!props.auth) return true
+    const perms = useUserStore().info?.permissions ?? []
+    return hasAuthPermission(perms, props.auth)
+  })
 
   const emit = defineEmits<{
     (e: 'click'): void

@@ -388,7 +388,14 @@
 
   function renderRoleTags(row: Api.System.User) {
     const names = row.roleNames ?? []
-    if (!names.length) return h('span', { class: 'text-g-400' }, '—')
+    if (!names.length) {
+      // 无角色用户醒目标记：警示标签，提醒运营该用户尚未分配任何角色。
+      return h(
+        ElTag,
+        { size: 'small', type: 'warning', effect: 'plain', class: 'role-tag role-tag-empty' },
+        () => '未分配角色'
+      )
+    }
     const shown = names.slice(0, 2)
     const rest = names.length - shown.length
     const tags = shown.map((n) =>
@@ -431,11 +438,12 @@
       return h(ElTag, { size: 'small', type: 'info', effect: 'plain' }, () => '内置管理员')
     }
     return h('div', { class: 'flex items-center' }, [
-      h(ArtButtonTable, { type: 'edit', title: '编辑', onClick: () => openDialog(row) }),
+      h(ArtButtonTable, { type: 'edit', title: '编辑', auth: 'system:user:edit', onClick: () => openDialog(row) }),
       h(ArtButtonTable, {
         icon: 'ri:shield-user-line',
         iconClass: 'bg-info/12 text-info',
         title: '分配角色',
+        auth: 'system:user:assign',
         onClick: () => openRoleDialog(row)
       }),
       h(ArtButtonMore, {

@@ -59,6 +59,7 @@ var menuDefinitions = []menuDef{
 	{Key: "user:disable", Parent: "user", Name: "停用用户", Type: "btn", Perms: "system:user:disable", Sort: 6},
 	{Key: "user:reset", Parent: "user", Name: "重置密码", Type: "btn", Perms: "system:user:reset", Sort: 7},
 	{Key: "user:unlock", Parent: "user", Name: "解锁用户", Type: "btn", Perms: "system:user:unlock", Sort: 8},
+	{Key: "user:assign", Parent: "user", Name: "分配角色", Type: "btn", Perms: "system:user:assign", Sort: 9},
 
 	// ── 角色管理 ───────────────────────────────────────────────
 	{Key: "role", Parent: "system", Name: "角色管理", Type: "menu", Perms: "system:role:list", Path: "/system/role", Component: "system/role/index", Sort: 2, Icon: "ri:shield-user-line"},
