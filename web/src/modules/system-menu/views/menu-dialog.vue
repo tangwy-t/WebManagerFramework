@@ -187,7 +187,9 @@
   const rules = computed<FormRules>(() => ({
     name: [{ required: true, message: '菜单名称不能为空', trigger: 'blur' }],
     path:
-      form.type === 'menu' ? [{ required: true, message: '路由路径不能为空', trigger: 'blur' }] : [],
+      form.type === 'menu'
+        ? [{ required: true, message: '路由路径不能为空', trigger: 'blur' }]
+        : [],
     component:
       form.type === 'menu' ? [{ required: true, message: '组件路径不能为空', trigger: 'blur' }] : []
   }))

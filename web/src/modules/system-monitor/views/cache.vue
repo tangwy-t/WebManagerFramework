@@ -1011,41 +1011,28 @@
   loadKeys()
 </script>
 
-<style scoped>
+<style scoped lang="scss">
+  /* 四视图共享的设计令牌(卡片 / KPI / 呼吸圆点 / 入场动画) */
+  @use './monitor-tokens' as t;
+
+  @include t.rise-keyframes;
+  @include t.pulse-keyframes;
+  /* 动画停用收敛到共享 mixin(此前四视图各自重写同一媒体查询) */
+  @include t.reduced-motion('.cache-card', '.live-dot');
+
   /* ---------- 基础卡片 ---------- */
   .cache-card {
-    padding: 1rem;
-    border-radius: 14px;
-    border: 1px solid var(--default-border);
-    background: var(--default-box-color);
-    box-shadow: 0 1px 3px rgba(16, 24, 40, 0.05);
+    @include t.card;
+    /* 本视图特有:卡片可交互(hover 抬起),较共享令牌多一组 transition */
     transition:
       transform 0.2s ease,
       box-shadow 0.2s ease,
       border-color 0.2s ease;
-    animation: cache-rise 0.3s ease both;
+    @include t.rise;
   }
 
   .dark .cache-card {
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
-  }
-
-  @keyframes cache-rise {
-    from {
-      opacity: 0;
-      transform: translateY(6px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .cache-card,
-    .live-dot {
-      animation: none;
-    }
+    @include t.card-dark;
   }
 
   /* ---------- 页头 ---------- */
@@ -1061,24 +1048,12 @@
   }
 
   .live-dot {
-    animation: cache-pulse 2s ease-in-out infinite;
+    @include t.live-dot;
   }
 
   .live-dot.is-loading {
     background: #f59e0b;
     animation-duration: 0.9s;
-  }
-
-  @keyframes cache-pulse {
-    0%,
-    100% {
-      opacity: 1;
-      box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.45);
-    }
-    50% {
-      opacity: 0.55;
-      box-shadow: 0 0 0 3px rgba(34, 197, 94, 0);
-    }
   }
 
   /* ---------- KPI 磁贴 ---------- */
@@ -1105,10 +1080,10 @@
   }
 
   .kpi-tile__icon {
+    @include t.kpi-icon;
+    /* 本视图 KPI 磁贴较大:图标与字号按 44px 基准收敛(见下方 kpi-value) */
     width: 44px;
     height: 44px;
-    flex: none;
-    border-radius: 12px;
     font-size: 20px;
     color: #fff;
     background: linear-gradient(135deg, var(--tile) 0%, var(--tile2) 100%);
@@ -1116,23 +1091,17 @@
   }
 
   .kpi-tile__value {
+    @include t.kpi-value;
+    /* 与 44px 图标配套:本视图为 22px(共享令牌默认 20px) */
     font-size: 22px;
-    font-weight: 650;
-    line-height: 1.2;
-    color: var(--el-text-color-primary);
-    font-variant-numeric: tabular-nums;
   }
 
   .kpi-tile__label {
-    margin-top: 2px;
-    font-size: 13px;
-    color: var(--el-text-color-regular);
+    @include t.kpi-label;
   }
 
   .kpi-tile__sub {
-    margin-top: 1px;
-    font-size: 11px;
-    color: var(--el-text-color-secondary);
+    @include t.kpi-sub;
   }
 
   /* ---------- 工具栏 ---------- */

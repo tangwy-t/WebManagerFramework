@@ -249,7 +249,7 @@ async function request<T = any>(config: ExtendedAxiosRequestConfig): Promise<T> 
 
     return res.data.data as T
   } catch (error) {
-    if (error instanceof HttpError && error.code !== ApiStatus.unauthorized) {
+    if (error instanceof HttpError && !error.isHttpStatus(ApiStatus.unauthorized)) {
       const showMsg = config.showErrorMessage !== false
       showError(error, showMsg)
     }
@@ -277,7 +277,7 @@ async function download(config: ExtendedAxiosRequestConfig): Promise<Blob> {
     return res.data
   } catch (error) {
     // 与 request() 保持一致:401 由拦截器统一触发登出,此处不重复提示。
-    if (error instanceof HttpError && error.code !== ApiStatus.unauthorized) {
+    if (error instanceof HttpError && !error.isHttpStatus(ApiStatus.unauthorized)) {
       const showMsg = config.showErrorMessage !== false
       showError(error, showMsg)
     }

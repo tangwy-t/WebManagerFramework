@@ -19,7 +19,11 @@ export function fetchFileStats() {
  * - onUploadProgress 回调 0-100 进度
  * - signal 支持取消
  */
-export function uploadFile(file: File, onProgress?: (percent: number) => void, signal?: AbortSignal) {
+export function uploadFile(
+  file: File,
+  onProgress?: (percent: number) => void,
+  signal?: AbortSignal
+) {
   const form = new FormData()
   form.append('files', file, file.name)
   return request.post<Api.File.UploadResp>({

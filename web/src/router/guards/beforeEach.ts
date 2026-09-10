@@ -503,5 +503,7 @@ function handleRootPathRedirect(to: RouteLocationNormalized, next: NavigationGua
  * 判断是否为未授权错误（401）
  */
 function isUnauthorizedError(error: unknown): boolean {
-  return isHttpError(error) && error.code === ApiStatus.unauthorized
+  // HttpError.code 承载的是 **HTTP 状态码**(由 handleError 赋 statusCode),
+  // 业务码另存 bizCode —— 故此处必须用 isHttpStatus,不能与 BizCode 混用。
+  return isHttpError(error) && error.isHttpStatus(ApiStatus.unauthorized)
 }

@@ -18,7 +18,12 @@
       </div>
     </ElScrollbar>
     <div class="mt-[25px] flex justify-center" v-if="showMoreButton">
-      <ArtButtonTable icon="ri:arrow-down-line" iconClass="bg-g-300/55 text-g-700" title="查看更多" @click="handleMore" />
+      <ArtButtonTable
+        icon="ri:arrow-down-line"
+        iconClass="bg-g-300/55 text-g-700"
+        title="查看更多"
+        @click="handleMore"
+      />
     </div>
   </div>
 </template>

@@ -29,7 +29,6 @@ export interface FetchPageOptions {
 
 export type FetchPage = (params: FetchPageOptions) => Promise<CacheValuePage>
 
-
 /** 缓存 key 列表查询参数 */
 export interface CacheKeysParams {
   prefix?: string

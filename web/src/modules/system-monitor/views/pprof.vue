@@ -640,7 +640,6 @@ go tool pprof -http=:8080 &lt;server 二进制&gt; {{ fileNameExample }}</pre>
 
   // ---------- profile 元信息（UI 层独立维护，与后端 meta 对齐） ----------
 
-
   // ---------- 状态 ----------
   const status = ref<PprofStatus | null>(null)
   const busy = ref(false)
@@ -846,12 +845,7 @@ go tool pprof -http=:8080 &lt;server 二进制&gt; {{ fileNameExample }}</pre>
 
   // ---------- 格式化 ----------
 
-
-
-
-
   // ---------- profile 选择器 ----------
-
 
   function chipStyle(p: PprofProfileEntry): Record<string, string> {
     const { color } = profileMetaOf(p.name)
@@ -1057,30 +1051,22 @@ go tool pprof -http=:8080 &lt;server 二进制&gt; {{ fileNameExample }}</pre>
   })
 </script>
 
-<style scoped>
+<style scoped lang="scss">
+  /* 四视图共享的设计令牌(卡片 / KPI / 呼吸圆点 / 入场动画) */
+  @use './monitor-tokens' as t;
+
+  @include t.rise-keyframes;
+  @include t.pulse-keyframes;
+
   /* ---------- 基础卡片 ---------- */
   .pf-card {
-    padding: 1rem;
-    border-radius: 14px;
-    border: 1px solid var(--default-border);
-    background: var(--default-box-color);
-    box-shadow: 0 1px 3px rgba(16, 24, 40, 0.05);
-    animation: pf-rise 0.3s ease both;
+    @include t.card;
+    /* 本视图卡片不可交互,故无 hover 抬起所需的 transition */
+    @include t.rise;
   }
 
   .dark .pf-card {
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
-  }
-
-  @keyframes pf-rise {
-    from {
-      opacity: 0;
-      transform: translateY(6px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
+    @include t.card-dark;
   }
 
   /* ---------- 页头 ---------- */
@@ -1096,19 +1082,7 @@ go tool pprof -http=:8080 &lt;server 二进制&gt; {{ fileNameExample }}</pre>
   }
 
   .live-dot {
-    animation: pf-pulse 2s ease-in-out infinite;
-  }
-
-  @keyframes pf-pulse {
-    0%,
-    100% {
-      opacity: 1;
-      box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.45);
-    }
-    50% {
-      opacity: 0.55;
-      box-shadow: 0 0 0 3px rgba(34, 197, 94, 0);
-    }
+    @include t.live-dot;
   }
 
   .pf-toggle {
@@ -1156,7 +1130,8 @@ go tool pprof -http=:8080 &lt;server 二进制&gt; {{ fileNameExample }}</pre>
     border-radius: 999px;
     background: currentColor;
     box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.5);
-    animation: pf-pulse 2s ease-in-out infinite;
+    /* 复用共享呼吸动画(原 pf-pulse 已随本次收敛删除) */
+    @include t.live-dot;
   }
 
   .pf-toggle.is-on .pf-toggle__dot {
@@ -1248,10 +1223,7 @@ go tool pprof -http=:8080 &lt;server 二进制&gt; {{ fileNameExample }}</pre>
   }
 
   .kpi-tile__icon {
-    width: 40px;
-    height: 40px;
-    flex: none;
-    border-radius: 12px;
+    @include t.kpi-icon;
     font-size: 19px;
     color: #fff;
     background: linear-gradient(135deg, var(--tile) 0%, var(--tile2) 100%);
@@ -1259,23 +1231,15 @@ go tool pprof -http=:8080 &lt;server 二进制&gt; {{ fileNameExample }}</pre>
   }
 
   .kpi-tile__value {
-    font-size: 20px;
-    font-weight: 650;
-    line-height: 1.2;
-    color: var(--el-text-color-primary);
-    font-variant-numeric: tabular-nums;
+    @include t.kpi-value;
   }
 
   .kpi-tile__label {
-    margin-top: 2px;
-    font-size: 13px;
-    color: var(--el-text-color-regular);
+    @include t.kpi-label;
   }
 
   .kpi-tile__sub {
-    margin-top: 1px;
-    font-size: 11px;
-    color: var(--el-text-color-secondary);
+    @include t.kpi-sub;
   }
 
   /* ---------- 卡片头 ---------- */
@@ -1288,9 +1252,7 @@ go tool pprof -http=:8080 &lt;server 二进制&gt; {{ fileNameExample }}</pre>
   }
 
   .pf-card__sub {
-    margin-top: 1px;
-    font-size: 11px;
-    color: var(--el-text-color-secondary);
+    @include t.card-sub;
   }
 
   .pf-summary-pill {
@@ -1849,13 +1811,9 @@ go tool pprof -http=:8080 &lt;server 二进制&gt; {{ fileNameExample }}</pre>
     color: var(--el-text-color-secondary);
   }
 
+  /* 动画停用收敛到共享 mixin(其余视图曾各自重写同一媒体查询) */
+  @include t.reduced-motion('.pf-card', '.live-dot', '.pf-toggle__dot');
   @media (prefers-reduced-motion: reduce) {
-    .pf-card,
-    .live-dot,
-    .pf-toggle__dot {
-      animation: none;
-    }
-
     .pf-toggle,
     .pf-ctl__copy,
     .kpi-tile,

@@ -22,7 +22,7 @@
  * @author Art Design Pro Team
  */
 import { AxiosError } from 'axios'
-import { ApiStatus } from './status'
+import { ApiStatus, BizCode } from './status'
 
 // 错误响应接口
 export interface ErrorResponse {
@@ -79,6 +79,26 @@ export class HttpError extends Error {
     this.timestamp = new Date().toISOString()
     this.url = options?.url
     this.method = options?.method
+  }
+
+  /**
+   * 判定 **HTTP 状态**。参数必须来自 `ApiStatus`。
+   *
+   * 与 isBiz 分开提供,是为了让两个命名空间在**类型/调用点**上就无法混用:
+   * `code` 与 `bizCode` 都是 number,直接比较不会报错,只会静默恒真/恒假
+   * (见本文件顶部说明)。经语义化访问器调用后,"HTTP 状态"与"业务码"
+   * 在调用点显式可见,评审与检索都能定位。
+   */
+  public isHttpStatus(status: ApiStatus): boolean {
+    return this.code === status
+  }
+
+  /**
+   * 判定 **业务码**。参数必须来自 `BizCode`。
+   * 后端未返回信封时为 undefined,故此处用严格相等并允许 bizCode 缺失。
+   */
+  public isBiz(code: BizCode): boolean {
+    return this.bizCode === code
   }
 
   public toLogData(): ErrorLogData {

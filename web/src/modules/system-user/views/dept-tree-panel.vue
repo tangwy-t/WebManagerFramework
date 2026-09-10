@@ -79,7 +79,9 @@
     loading?: boolean
   }
 
-  const props = withDefaults(defineProps<Props>(), {
+  // 无需接收返回值:模板中 data / loading 由 defineProps 自动解包。
+  // 此前写成 `const props = withDefaults(...)` 但从未访问 props,是个未使用绑定。
+  withDefaults(defineProps<Props>(), {
     loading: false
   })
 

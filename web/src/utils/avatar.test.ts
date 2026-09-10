@@ -13,12 +13,8 @@ describe('resolveAvatar', () => {
   })
 
   it('http(s) 外链原样返回', () => {
-    expect(resolveAvatar('https://cdn.example.com/a.png')).toBe(
-      'https://cdn.example.com/a.png'
-    )
-    expect(resolveAvatar('http://cdn.example.com/b.png')).toBe(
-      'http://cdn.example.com/b.png'
-    )
+    expect(resolveAvatar('https://cdn.example.com/a.png')).toBe('https://cdn.example.com/a.png')
+    expect(resolveAvatar('http://cdn.example.com/b.png')).toBe('http://cdn.example.com/b.png')
   })
 
   it('站内相对路径拼接 VITE_API_URL', () => {

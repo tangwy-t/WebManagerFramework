@@ -7,7 +7,11 @@
       :show-file-list="false"
       @change="handleFileChange"
     >
-      <ArtButtonTable icon="ri:file-upload-line" iconClass="bg-theme/12 text-theme" title="导入 Excel" />
+      <ArtButtonTable
+        icon="ri:file-upload-line"
+        iconClass="bg-theme/12 text-theme"
+        title="导入 Excel"
+      />
     </ElUpload>
   </div>
 </template>

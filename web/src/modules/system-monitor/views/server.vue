@@ -13,7 +13,9 @@
               class="live-dot inline-block h-1.5 w-1.5 rounded-full bg-success"
               :class="{ 'is-loading': loading }"
             />
-            {{ loading ? '正在采集指标…' : `最近更新 ${updatedAtText} · 历史 ${buckets.length} 桶` }}
+            {{
+              loading ? '正在采集指标…' : `最近更新 ${updatedAtText} · 历史 ${buckets.length} 桶`
+            }}
             <template v-if="autoRefresh">· 10s 自动刷新</template>
           </p>
         </div>
@@ -53,12 +55,20 @@
         <div class="text-sm font-medium text-[var(--el-text-color-regular)]">暂无监控数据</div>
         <div class="text-xs text-g-600">请检查后端服务是否正常，或点击刷新重试</div>
         <div class="flex items-center">
-          <ArtButtonTable icon="ri:refresh-line" iconClass="bg-theme/12 text-theme" title="刷新" @click="loadStats(false)" />
+          <ArtButtonTable
+            icon="ri:refresh-line"
+            iconClass="bg-theme/12 text-theme"
+            title="刷新"
+            @click="loadStats(false)"
+          />
         </div>
       </div>
 
       <!-- KPI 数据磁贴(6 项,带迷你趋势线):640px 以下 2 列 3 行;640~1536 为 3 列 2 行;≥1536(2xl)宽度充裕时单行 6 列 -->
-      <div v-loading="loading && !stats" class="kpi-grid grid grid-cols-2 gap-4 md:grid-cols-3 2xl:grid-cols-6">
+      <div
+        v-loading="loading && !stats"
+        class="kpi-grid grid grid-cols-2 gap-4 md:grid-cols-3 2xl:grid-cols-6"
+      >
         <div v-for="k in kpis" :key="k.label" class="sv-card kpi-tile" :title="k.title">
           <div class="kpi-tile__icon flex-cc" :style="{ '--tile': k.tile, '--tile2': k.tile2 }">
             <ArtSvgIcon :icon="k.icon" />
@@ -103,8 +113,13 @@
                   <ArtSvgIcon icon="ri:cpu-line" />
                 </span>
                 <div>
-                  <div class="text-sm font-semibold text-[var(--el-text-color-primary)]">CPU 处理器</div>
-                  <div class="sv-card__sub">{{ numCPU }} 核 · {{ perCore.length ? `${perCore.length} 线程负载` : '整体使用率' }}</div>
+                  <div class="text-sm font-semibold text-[var(--el-text-color-primary)]"
+                    >CPU 处理器</div
+                  >
+                  <div class="sv-card__sub"
+                    >{{ numCPU }} 核 ·
+                    {{ perCore.length ? `${perCore.length} 线程负载` : '整体使用率' }}</div
+                  >
                 </div>
               </div>
               <div class="flex items-center gap-1.5">
@@ -117,11 +132,7 @@
             </div>
 
             <div class="flex flex-col items-center gap-5 md:flex-row">
-              <div
-                class="sv-gauge"
-                role="img"
-                :aria-label="`CPU 使用率 ${cpuText}`"
-              >
+              <div class="sv-gauge" role="img" :aria-label="`CPU 使用率 ${cpuText}`">
                 <svg viewBox="0 0 120 120">
                   <circle class="sv-ring__track" cx="60" cy="60" r="52" />
                   <circle
@@ -176,7 +187,11 @@
                   <div class="sv-card__sub">系统水位与 Go 运行时明细</div>
                 </div>
               </div>
-              <span v-if="systemMem" class="sv-chip-label tabular-nums" :style="{ color: memTone, background: `${memTone}14` }">
+              <span
+                v-if="systemMem"
+                class="sv-chip-label tabular-nums"
+                :style="{ color: memTone, background: `${memTone}14` }"
+              >
                 {{ fmt1(systemMem.usedPercent) }}%
               </span>
             </div>
@@ -188,11 +203,17 @@
                   role="img"
                   :aria-label="`系统内存使用率 ${fmt1(systemMem.usedPercent)}%`"
                 >
-                  <span class="sv-water__fill" :style="{ width: `${clamp01(systemMem.usedPercent)}%`, background: memTone }" />
+                  <span
+                    class="sv-water__fill"
+                    :style="{ width: `${clamp01(systemMem.usedPercent)}%`, background: memTone }"
+                  />
                 </div>
                 <div class="sv-water__legend">
                   <span class="text-g-600">
-                    可用 <b class="ml-0.5 tabular-nums text-[var(--el-text-color-primary)]">{{ fmtMB(systemMem.availableMB) }}</b>
+                    可用
+                    <b class="ml-0.5 tabular-nums text-[var(--el-text-color-primary)]">{{
+                      fmtMB(systemMem.availableMB)
+                    }}</b>
                   </span>
                   <span class="text-g-600">
                     已用
@@ -214,13 +235,17 @@
                 <div class="sv-swap__head">
                   <span class="text-xs text-g-600">Swap 交换分区</span>
                   <span class="text-xs tabular-nums text-g-600">
-                    {{ fmtMB(swap.usedMB) }} / {{ fmtMB(swap.totalMB) }} · {{ fmt1(swap.usedPercent) }}%
+                    {{ fmtMB(swap.usedMB) }} / {{ fmtMB(swap.totalMB) }} ·
+                    {{ fmt1(swap.usedPercent) }}%
                   </span>
                 </div>
                 <div class="sv-swap__bar">
                   <span
                     class="sv-swap__fill"
-                    :style="{ width: `${clamp01(swap.usedPercent)}%`, background: usageTone(swap.usedPercent) }"
+                    :style="{
+                      width: `${clamp01(swap.usedPercent)}%`,
+                      background: usageTone(swap.usedPercent)
+                    }"
                   />
                 </div>
               </div>
@@ -236,12 +261,20 @@
                   <ArtSvgIcon icon="ri:line-chart-line" />
                 </span>
                 <div>
-                  <div class="text-sm font-semibold text-[var(--el-text-color-primary)]">历史趋势</div>
-                  <div class="sv-card__sub">最近 {{ rangeLabel }} · Redis 持久化 · 刷新/重启不丢</div>
+                  <div class="text-sm font-semibold text-[var(--el-text-color-primary)]"
+                    >历史趋势</div
+                  >
+                  <div class="sv-card__sub"
+                    >最近 {{ rangeLabel }} · Redis 持久化 · 刷新/重启不丢</div
+                  >
                 </div>
               </div>
               <div class="flex flex-wrap items-center gap-2">
-                <div class="sv-range flex items-center gap-0.5" role="radiogroup" aria-label="历史时间范围">
+                <div
+                  class="sv-range flex items-center gap-0.5"
+                  role="radiogroup"
+                  aria-label="历史时间范围"
+                >
                   <button
                     v-for="r in RANGES"
                     :key="r.key"
@@ -260,7 +293,11 @@
               </div>
             </div>
 
-            <div class="mb-3 flex flex-wrap items-center gap-1.5" role="group" aria-label="指标选择">
+            <div
+              class="mb-3 flex flex-wrap items-center gap-1.5"
+              role="group"
+              aria-label="指标选择"
+            >
               <button
                 v-for="m in METRICS"
                 :key="m.key"
@@ -285,7 +322,10 @@
               :live="true"
               :show-data-zoom="true"
             />
-            <div v-if="!trendSeries.length && historyData && !historyLoading" class="sv-panel-empty">
+            <div
+              v-if="!trendSeries.length && historyData && !historyLoading"
+              class="sv-panel-empty"
+            >
               请选择至少一个指标，或等待采样…
             </div>
           </div>
@@ -300,11 +340,15 @@
                   <ArtSvgIcon icon="ri:computer-line" />
                 </span>
                 <div>
-                  <div class="text-sm font-semibold text-[var(--el-text-color-primary)]">主机信息</div>
+                  <div class="text-sm font-semibold text-[var(--el-text-color-primary)]"
+                    >主机信息</div
+                  >
                   <div class="sv-card__sub">身份 · 环境 · 服务指纹</div>
                 </div>
               </div>
-              <span v-if="stats.host?.pid" class="sv-summary-pill tabular-nums">PID {{ stats.host.pid }}</span>
+              <span v-if="stats.host?.pid" class="sv-summary-pill tabular-nums"
+                >PID {{ stats.host.pid }}</span
+              >
             </div>
 
             <div v-for="(rows, key) in hostGroups" :key="key" class="sv-host-group">
@@ -347,7 +391,11 @@
             </div>
 
             <div class="flex flex-wrap items-center justify-center gap-5">
-              <div class="sv-donut" role="img" :aria-label="`磁盘使用率 ${fmt1(stats.disk.usagePercent)}%`">
+              <div
+                class="sv-donut"
+                role="img"
+                :aria-label="`磁盘使用率 ${fmt1(stats.disk.usagePercent)}%`"
+              >
                 <svg viewBox="0 0 96 96">
                   <circle class="sv-ring__track" cx="48" cy="48" r="42" />
                   <circle
@@ -362,7 +410,9 @@
                   />
                 </svg>
                 <div class="sv-donut__center">
-                  <div class="sv-donut__value tabular-nums">{{ fmt1(stats.disk.usagePercent) }}%</div>
+                  <div class="sv-donut__value tabular-nums"
+                    >{{ fmt1(stats.disk.usagePercent) }}%</div
+                  >
                   <div class="sv-donut__label">已用 {{ stats.disk.usedGB.toFixed(0) }} GB</div>
                 </div>
               </div>
@@ -373,7 +423,9 @@
                 </div>
                 <div class="sv-cell" title="已用空间">
                   <div class="sv-cell__label">已用</div>
-                  <div class="sv-cell__value tabular-nums" :style="{ color: diskTone }">{{ fmtGB(stats.disk.usedGB) }}</div>
+                  <div class="sv-cell__value tabular-nums" :style="{ color: diskTone }">{{
+                    fmtGB(stats.disk.usedGB)
+                  }}</div>
                 </div>
                 <div class="sv-cell" title="可用空间">
                   <div class="sv-cell__label">可用</div>
@@ -492,7 +544,10 @@
     const seq = ++historySeq
     if (!silent) historyLoading.value = true
     try {
-      const data = await fetchServerHistory({ window: activeRange.value.window, step: activeRange.value.step })
+      const data = await fetchServerHistory({
+        window: activeRange.value.window,
+        step: activeRange.value.step
+      })
       if (seq !== historySeq) return
       historyData.value = data
       updatedAt.value = new Date()
@@ -664,7 +719,11 @@
       title: `${key} 分钟负载均值${typeof v === 'number' ? ` ${fmt2(v)}` : '（暂不可用）'}`,
       color: loadTone(v ?? null, cores)
     })
-    return [mk('1m', load?.load1 ?? null), mk('5m', load?.load5 ?? null), mk('15m', load?.load15 ?? null)]
+    return [
+      mk('1m', load?.load1 ?? null),
+      mk('5m', load?.load5 ?? null),
+      mk('15m', load?.load15 ?? null)
+    ]
   })
 
   // ---------- Go 运行时内存明细 ----------
@@ -678,14 +737,24 @@
     const m = stats.value?.memory
     if (!m) return []
     const share =
-      systemMem.value && systemMem.value.totalMB > 0 ? (m.allocMB / systemMem.value.totalMB) * 100 : null
+      systemMem.value && systemMem.value.totalMB > 0
+        ? (m.allocMB / systemMem.value.totalMB) * 100
+        : null
     return [
       { label: '当前分配', value: fmtMB(m.allocMB), title: '进程当前分配的堆对象字节数 (Alloc)' },
-      { label: '累计分配', value: fmtMB(m.totalAllocMB), title: '进程启动以来累计分配字节数 (TotalAlloc)' },
+      {
+        label: '累计分配',
+        value: fmtMB(m.totalAllocMB),
+        title: '进程启动以来累计分配字节数 (TotalAlloc)'
+      },
       { label: '系统保留', value: fmtMB(m.sysMB), title: '运行时向操作系统申请的内存 (Sys)' },
       { label: '堆已用', value: fmtMB(m.heapAllocMB), title: '堆上正在使用的字节数 (HeapAlloc)' },
       { label: '堆预留', value: fmtMB(m.heapSysMB), title: '堆向系统预取的字节数 (HeapSys)' },
-      { label: '进程占比', value: share === null ? '-' : `${fmt2(share)}%`, title: '当前分配占物理内存比例' }
+      {
+        label: '进程占比',
+        value: share === null ? '-' : `${fmt2(share)}%`,
+        title: '当前分配占物理内存比例'
+      }
     ]
   })
 
@@ -728,8 +797,18 @@
         }
       ],
       runtime: [
-        { icon: 'ri:code-s-slash-line', label: 'Go 版本', value: host?.goVersion || '-', mono: true },
-        { icon: 'ri:numbers-line', label: '进程 PID', value: host?.pid != null ? String(host.pid) : '-', mono: true },
+        {
+          icon: 'ri:code-s-slash-line',
+          label: 'Go 版本',
+          value: host?.goVersion || '-',
+          mono: true
+        },
+        {
+          icon: 'ri:numbers-line',
+          label: '进程 PID',
+          value: host?.pid != null ? String(host.pid) : '-',
+          mono: true
+        },
         {
           icon: 'ri:time-line',
           label: '系统运行',
@@ -740,8 +819,17 @@
       service: [
         { icon: 'ri:calendar-check-line', label: '服务启动', value: srv?.startTime || '-' },
         { icon: 'ri:timer-line', label: '运行时长', value: srv?.uptime || '-' },
-        { icon: 'ri:information-line', label: '版本', value: srv?.version ? `${srv.version}` : '-', chip: true },
-        { icon: 'ri:calendar-line', label: '构建时间', value: (srv?.buildTime || '-').slice(0, 10) },
+        {
+          icon: 'ri:information-line',
+          label: '版本',
+          value: srv?.version ? `${srv.version}` : '-',
+          chip: true
+        },
+        {
+          icon: 'ri:calendar-line',
+          label: '构建时间',
+          value: (srv?.buildTime || '-').slice(0, 10)
+        },
         { icon: 'ri:git-commit-line', label: '提交哈希', value: srv?.commitHash || '-', mono: true }
       ]
     }
@@ -753,7 +841,11 @@
     const srv = stats.value?.server
     const chips: { icon: string; text: string }[] = []
     if (host?.hostname) chips.push({ icon: 'ri:computer-line', text: host.hostname })
-    if (host?.os) chips.push({ icon: 'ri:terminal-box-line', text: [host.os, host.platformVersion].filter(Boolean).join(' · ') })
+    if (host?.os)
+      chips.push({
+        icon: 'ri:terminal-box-line',
+        text: [host.os, host.platformVersion].filter(Boolean).join(' · ')
+      })
     if (srv?.version) chips.push({ icon: 'ri:information-line', text: `${srv.version}` })
     return chips
   })
@@ -790,7 +882,10 @@
         tile2: '#60a5fa',
         color: '#3b82f6',
         value: hasStats ? cpuText.value : '-',
-        sub: stats.value?.cpu.load?.load1 != null ? `负载 1m ${fmt2(stats.value.cpu.load.load1)}` : `${numCPU.value} 核`,
+        sub:
+          stats.value?.cpu.load?.load1 != null
+            ? `负载 1m ${fmt2(stats.value.cpu.load.load1)}`
+            : `${numCPU.value} 核`,
         title: 'CPU 整体使用率（含迷你趋势）',
         line: cpuSpark.line,
         area: cpuSpark.area
@@ -802,7 +897,9 @@
         tile2: '#a78bfa',
         color: '#7c3aed',
         value: systemMem.value ? `${fmt1(systemMem.value.usedPercent)}%` : '-',
-        sub: systemMem.value ? `已用 ${fmtGB(systemMem.value.usedMB / 1024)} / ${fmtGB(systemMem.value.totalMB / 1024)}` : '暂无数据',
+        sub: systemMem.value
+          ? `已用 ${fmtGB(systemMem.value.usedMB / 1024)} / ${fmtGB(systemMem.value.totalMB / 1024)}`
+          : '暂无数据',
         title: '系统物理内存使用率（含迷你趋势）',
         line: memSpark.line,
         area: memSpark.area
@@ -826,7 +923,10 @@
         tile2: '#34d399',
         color: '#10b981',
         value: hasStats ? String(stats.value!.goroutines.count) : '-',
-        sub: hasStats && stats.value!.gc.numGC > 0 ? `GC 已执行 ${stats.value!.gc.numGC} 次` : '活跃协程数',
+        sub:
+          hasStats && stats.value!.gc.numGC > 0
+            ? `GC 已执行 ${stats.value!.gc.numGC} 次`
+            : '活跃协程数',
         title: 'Go 协程数量（含迷你趋势）',
         line: gorSpark.line,
         area: gorSpark.area
@@ -871,34 +971,26 @@
   loadAll(false)
 </script>
 
-<style scoped>
+<style scoped lang="scss">
+  /* 四视图共享的设计令牌(卡片 / KPI / 呼吸圆点 / 入场动画) */
+  @use './monitor-tokens' as t;
+
+  @include t.rise-keyframes;
+  @include t.pulse-keyframes;
+
   /* ---------- 基础卡片 ---------- */
   .sv-card {
-    padding: 1rem;
-    border-radius: 14px;
-    border: 1px solid var(--default-border);
-    background: var(--default-box-color);
-    box-shadow: 0 1px 3px rgba(16, 24, 40, 0.05);
+    @include t.card;
+    /* 本视图特有:卡片可交互(hover 抬起),较共享令牌多一组 transition */
     transition:
       transform 0.2s ease,
       box-shadow 0.2s ease,
       border-color 0.2s ease;
-    animation: sv-rise 0.3s ease both;
+    @include t.rise;
   }
 
   .dark .sv-card {
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
-  }
-
-  @keyframes sv-rise {
-    from {
-      opacity: 0;
-      transform: translateY(6px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
+    @include t.card-dark;
   }
 
   /* ---------- 页头 ---------- */
@@ -914,24 +1006,12 @@
   }
 
   .live-dot {
-    animation: sv-pulse 2s ease-in-out infinite;
+    @include t.live-dot;
   }
 
   .live-dot.is-loading {
     background: #f59e0b;
     animation-duration: 0.9s;
-  }
-
-  @keyframes sv-pulse {
-    0%,
-    100% {
-      opacity: 1;
-      box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.45);
-    }
-    50% {
-      opacity: 0.55;
-      box-shadow: 0 0 0 3px rgba(34, 197, 94, 0);
-    }
   }
 
   .sv-hero-chip {
@@ -983,10 +1063,7 @@
   }
 
   .kpi-tile__icon {
-    width: 40px;
-    height: 40px;
-    flex: none;
-    border-radius: 12px;
+    @include t.kpi-icon;
     font-size: 19px;
     color: #fff;
     background: linear-gradient(135deg, var(--tile) 0%, var(--tile2) 100%);
@@ -994,23 +1071,15 @@
   }
 
   .kpi-tile__value {
-    font-size: 20px;
-    font-weight: 650;
-    line-height: 1.2;
-    color: var(--el-text-color-primary);
-    font-variant-numeric: tabular-nums;
+    @include t.kpi-value;
   }
 
   .kpi-tile__label {
-    margin-top: 2px;
-    font-size: 13px;
-    color: var(--el-text-color-regular);
+    @include t.kpi-label;
   }
 
   .kpi-tile__sub {
-    margin-top: 1px;
-    font-size: 11px;
-    color: var(--el-text-color-secondary);
+    @include t.kpi-sub;
   }
 
   .kpi-tile__spark {
@@ -1049,9 +1118,7 @@
   }
 
   .sv-card__sub {
-    margin-top: 1px;
-    font-size: 11px;
-    color: var(--el-text-color-secondary);
+    @include t.card-sub;
   }
 
   .sv-summary-pill {
@@ -1471,11 +1538,9 @@
   }
 
   /* ---------- 动效降级 ---------- */
+  /* 动画停用收敛到共享 mixin(其余视图曾各自重写同一媒体查询) */
+  @include t.reduced-motion('.sv-card', '.live-dot');
   @media (prefers-reduced-motion: reduce) {
-    .sv-card,
-    .live-dot {
-      animation: none;
-    }
     .sv-core__fill,
     .sv-water__fill,
     .sv-swap__fill,

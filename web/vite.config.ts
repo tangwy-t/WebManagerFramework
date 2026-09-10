@@ -33,7 +33,7 @@ export default ({ mode, command }: { mode: string; command: 'serve' | 'build' })
           ws: true // WebSocket 升级转发（/api/v1/ws）
         }
       },
-      host: true,
+      host: true
     },
     // 路径别名
     resolve: {

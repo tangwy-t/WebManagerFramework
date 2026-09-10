@@ -499,7 +499,11 @@ export function useChart(options: UseChartOptions = {}) {
   // 初始化图表
   // setOptionOpts 透传给 setOption 第二参数:调用方可声明组件替换策略
   // (如 replaceMerge),默认不传保持原有合并行为,不影响既有图表。
-  const initChart = (options: EChartsOption = {}, isEmpty: boolean = false, setOptionOpts?: SetOptionOpts) => {
+  const initChart = (
+    options: EChartsOption = {},
+    isEmpty: boolean = false,
+    setOptionOpts?: SetOptionOpts
+  ) => {
     if (!chartRef.value || isDestroyed) return
 
     const mergedOptions = { ...initOptions, ...options }

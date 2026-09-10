@@ -1,0 +1,137 @@
+/**
+ * 系统监控模块 · 四个视图的共享设计令牌
+ *
+ * ## 为什么需要这个文件
+ *
+ * server / cache / sql / pprof 四个监控视图各自维护了一份 scoped 样式,
+ * 内容高度重复 —— 同一套"基础卡片 / KPI 磁贴 / 呼吸圆点 / 入场动画"
+ * 被复制四份,只是前缀不同(sv- / cache- / sql- / pf-)。
+ *
+ * 复制已经产生可见漂移:cache 的 .kpi-tile__value 是 22px、其余三个是
+ * 20px;.kpi-tile__icon 在 cache 是 44px、其余 40px。改一处不会传播,
+ * 这正是重复副本的代价。
+ *
+ * ## 使用方式
+ *
+ * 用 @use 引入并展开令牌,视图侧再把带前缀的类名映射到这些令牌:
+ *
+ *     <style scoped>
+ *     @use './monitor-tokens' as t;
+ *     .pf-card { @include t.card; }
+ *     </style>
+ *
+ * ## 边界(刻意不纳入的部分)
+ *
+ * 仅收敛**四个视图逐字相同**的声明。视图各自的页头渐变色、火焰图布局、
+ * 缓存浏览器网格等属于单个视图的领域细节,留在原文件 —— 强行合并会造出
+ * 一个谁都不敢改的巨型样式表。
+ */
+
+/// 基础卡片:四视图逐字相同的容器外观
+@mixin card {
+  padding: 1rem;
+  border-radius: 14px;
+  border: 1px solid var(--default-border);
+  background: var(--default-box-color);
+  box-shadow: 0 1px 3px rgba(16, 24, 40, 0.05);
+}
+
+/// 卡片在暗色主题下的阴影(与 card 配套使用)
+@mixin card-dark {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+/// 卡片副标题:次要说明文字
+@mixin card-sub {
+  margin-top: 1px;
+  font-size: 11px;
+  color: var(--el-text-color-secondary);
+}
+
+/// KPI 磁贴:图标方块
+@mixin kpi-icon {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: 12px;
+}
+
+/// KPI 磁贴:主数值
+@mixin kpi-value {
+  font-size: 20px;
+  font-weight: 650;
+  line-height: 1.2;
+  color: var(--el-text-color-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+/// KPI 磁贴:标签
+@mixin kpi-label {
+  margin-top: 2px;
+  font-size: 13px;
+  color: var(--el-text-color-regular);
+}
+
+/// KPI 磁贴:辅助说明
+@mixin kpi-sub {
+  margin-top: 1px;
+  font-size: 11px;
+  color: var(--el-text-color-secondary);
+}
+
+/// 实时指示圆点:呼吸动画
+///
+/// 此前四个视图各写一份 @keyframes(pf-pulse / cache-pulse / sql-pulse /
+/// sv-pulse),内容逐字相同 —— 四份同义动画名无任何收益,只是复制成本。
+/// 现统一为一个动画名与一份关键帧。
+@mixin live-dot {
+  animation: monitor-pulse 2s ease-in-out infinite;
+}
+
+/// 入场动画:自下淡入
+///
+/// 同 live-dot:四份 pf-rise / cache-rise / ... 收敛为一份。
+@mixin rise($duration: 0.3s) {
+  animation: monitor-rise $duration ease both;
+}
+
+/// 呼吸圆点的关键帧(在视图的 <style> 中 @include 一次即可)
+@mixin pulse-keyframes {
+  @keyframes monitor-pulse {
+    0%,
+    100% {
+      opacity: 1;
+      box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.45);
+    }
+    50% {
+      opacity: 0.55;
+      box-shadow: 0 0 0 3px rgba(34, 197, 94, 0);
+    }
+  }
+}
+
+/// 入场动画的关键帧(同上,每视图 @include 一次)
+@mixin rise-keyframes {
+  @keyframes monitor-rise {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+
+/// 无障碍:尊重"减少动态效果"偏好。
+///
+/// 四个视图各自重复了这一媒体查询;收敛到一处后,新增监控视图不会遗漏。
+/// 传入本视图需要停用动画的选择器列表。
+@mixin reduced-motion($selectors...) {
+  @media (prefers-reduced-motion: reduce) {
+    #{$selectors} {
+      animation: none;
+    }
+  }
+}

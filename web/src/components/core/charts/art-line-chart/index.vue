@@ -64,9 +64,7 @@
   const lastSeriesKey = ref('')
   const seriesKeyOf = (): string => {
     if (!isMultipleData.value) return 'single'
-    return (props.data as LineDataItem[])
-      .map((item) => item.name ?? '')
-      .join('\u0001')
+    return (props.data as LineDataItem[]).map((item) => item.name ?? '').join('\u0001')
   }
   const resolveSetOptionOpts = (): SetOptionOpts | undefined => {
     const key = seriesKeyOf()
@@ -376,7 +374,9 @@
     },
     // live 模式:内部数据监听已有图表时直接用短过渡收敛,不再重播入场动画
     generateOptions: () =>
-      props.live && hasRendered.value ? generateChartOptions(false, true) : generateChartOptions(false),
+      props.live && hasRendered.value
+        ? generateChartOptions(false, true)
+        : generateChartOptions(false),
     setOptionOpts: resolveSetOptionOpts
   })
 
@@ -392,7 +392,7 @@
   const currentDataLen = () => {
     if (isMultipleData.value) {
       const multi = props.data as LineDataItem[]
-      return multi.length ? multi[0].data?.length ?? 0 : 0
+      return multi.length ? (multi[0].data?.length ?? 0) : 0
     }
     return (props.data as number[]).length
   }

@@ -19,7 +19,12 @@
         >
           <ArtSvgIcon v-if="modelValue" :icon="modelValue" class="trigger-icon" />
           <span v-else class="placeholder">{{ placeholder }}</span>
-          <ArtSvgIcon v-if="modelValue" icon="ri:close-circle-fill" class="clear-icon" @click.stop="clear" />
+          <ArtSvgIcon
+            v-if="modelValue"
+            icon="ri:close-circle-fill"
+            class="clear-icon"
+            @click.stop="clear"
+          />
           <ArtSvgIcon v-else icon="ri:arrow-down-s-line" class="arrow-icon" />
         </div>
       </template>
@@ -340,7 +345,9 @@
         height: 44px;
         border-radius: 6px;
         cursor: pointer;
-        transition: background-color 0.15s ease, color 0.15s ease;
+        transition:
+          background-color 0.15s ease,
+          color 0.15s ease;
         color: var(--el-text-color-regular);
 
         :deep(.art-svg-icon) {

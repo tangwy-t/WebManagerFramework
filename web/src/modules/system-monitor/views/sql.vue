@@ -20,7 +20,11 @@
 
         <div class="ml-auto flex flex-wrap items-center gap-1.5">
           <!-- 时间范围分段 -->
-          <div class="sql-range flex items-center gap-0.5" role="radiogroup" aria-label="统计时间范围">
+          <div
+            class="sql-range flex items-center gap-0.5"
+            role="radiogroup"
+            aria-label="统计时间范围"
+          >
             <button
               v-for="r in RANGES"
               :key="r.key"
@@ -61,11 +65,19 @@
         </div>
         <div class="text-sm font-medium text-[var(--el-text-color-regular)]">暂无 SQL 监控数据</div>
         <div class="text-xs text-g-600">请确认后端已通过 GORM 记录 SQL 统计，或点击刷新重试</div>
-        <ArtButtonTable icon="ri:refresh-line" iconClass="bg-theme/12 text-theme" title="刷新" @click="loadAll(false)" />
+        <ArtButtonTable
+          icon="ri:refresh-line"
+          iconClass="bg-theme/12 text-theme"
+          title="刷新"
+          @click="loadAll(false)"
+        />
       </div>
 
       <!-- ============ KPI 数据磁贴（6 项，带迷你趋势线） ============ -->
-      <div v-loading="loading && !stats" class="kpi-grid grid grid-cols-2 gap-4 md:grid-cols-3 2xl:grid-cols-6">
+      <div
+        v-loading="loading && !stats"
+        class="kpi-grid grid grid-cols-2 gap-4 md:grid-cols-3 2xl:grid-cols-6"
+      >
         <div v-for="k in kpis" :key="k.key" class="sql-card kpi-tile" :title="k.title">
           <div class="kpi-tile__icon flex-cc" :style="{ '--tile': k.tile, '--tile2': k.tile2 }">
             <ArtSvgIcon :icon="k.icon" />
@@ -110,8 +122,12 @@
                   <ArtSvgIcon icon="ri:line-chart-line" />
                 </span>
                 <div>
-                  <div class="text-sm font-semibold text-[var(--el-text-color-primary)]">吞吐趋势 · QPS</div>
-                  <div class="sql-card__sub">最近 {{ rangeLabel }} · 每 {{ history?.step_seconds ?? '-' }}s 聚合一个桶</div>
+                  <div class="text-sm font-semibold text-[var(--el-text-color-primary)]"
+                    >吞吐趋势 · QPS</div
+                  >
+                  <div class="sql-card__sub"
+                    >最近 {{ rangeLabel }} · 每 {{ history?.step_seconds ?? '-' }}s 聚合一个桶</div
+                  >
                 </div>
               </div>
               <span class="sql-summary-pill tabular-nums">
@@ -141,18 +157,34 @@
                   <ArtSvgIcon icon="ri:water-flash-line" />
                 </span>
                 <div>
-                  <div class="text-sm font-semibold text-[var(--el-text-color-primary)]">延迟热力</div>
-                  <div class="sql-card__sub">每个色块 = 一个时间桶的 P95 耗时 · 颜色越暖越接近慢查询阈值</div>
+                  <div class="text-sm font-semibold text-[var(--el-text-color-primary)]"
+                    >延迟热力</div
+                  >
+                  <div class="sql-card__sub"
+                    >每个色块 = 一个时间桶的 P95 耗时 · 颜色越暖越接近慢查询阈值</div
+                  >
                 </div>
               </div>
               <div class="sql-heat__legend">
                 <span class="text-g-600">快</span>
-                <i v-for="c in ['#10b981', '#3b82f6', '#f59e0b', '#dc2626']" :key="c" class="sql-heat__swatch" :style="{ background: c }" />
+                <i
+                  v-for="c in ['#10b981', '#3b82f6', '#f59e0b', '#dc2626']"
+                  :key="c"
+                  class="sql-heat__swatch"
+                  :style="{ background: c }"
+                />
                 <span class="text-g-600">慢</span>
-                <b class="sql-heat__thr tabular-nums" :title="`慢查询阈值 ${thresholdMs}ms`">≥ {{ thresholdMs }}ms</b>
+                <b class="sql-heat__thr tabular-nums" :title="`慢查询阈值 ${thresholdMs}ms`"
+                  >≥ {{ thresholdMs }}ms</b
+                >
               </div>
             </div>
-            <div v-if="heatCells.length" class="sql-heat__strip" role="img" aria-label="延迟热力时间条">
+            <div
+              v-if="heatCells.length"
+              class="sql-heat__strip"
+              role="img"
+              aria-label="延迟热力时间条"
+            >
               <span
                 v-for="(cell, i) in heatCells"
                 :key="i"
@@ -174,7 +206,9 @@
                   <ArtSvgIcon icon="ri:apps-2-line" />
                 </span>
                 <div>
-                  <div class="text-sm font-semibold text-[var(--el-text-color-primary)]">操作类型分布</div>
+                  <div class="text-sm font-semibold text-[var(--el-text-color-primary)]"
+                    >操作类型分布</div
+                  >
                   <div class="sql-card__sub">累计执行次数占比（悬停查看明细）</div>
                 </div>
               </div>
@@ -191,7 +225,9 @@
               class="ml-1.5"
             />
 
-            <div v-if="!ringData.length && stats && !loading" class="sql-panel-empty">暂无执行记录，占比待采样</div>
+            <div v-if="!ringData.length && stats && !loading" class="sql-panel-empty"
+              >暂无执行记录，占比待采样</div
+            >
           </div>
         </div>
       </div>
@@ -206,7 +242,9 @@
                   <ArtSvgIcon icon="ri:time-line" />
                 </span>
                 <div>
-                  <div class="text-sm font-semibold text-[var(--el-text-color-primary)]">延迟趋势 · P50 / P95 / P99</div>
+                  <div class="text-sm font-semibold text-[var(--el-text-color-primary)]"
+                    >延迟趋势 · P50 / P95 / P99</div
+                  >
                   <div class="sql-card__sub">最近 {{ rangeLabel }} · 耗时越高越靠上</div>
                 </div>
               </div>
@@ -240,37 +278,53 @@
                   <ArtSvgIcon icon="ri:numbers-line" />
                 </span>
                 <div>
-                  <div class="text-sm font-semibold text-[var(--el-text-color-primary)]">耗时画像</div>
+                  <div class="text-sm font-semibold text-[var(--el-text-color-primary)]"
+                    >耗时画像</div
+                  >
                   <div class="sql-card__sub">全局累计统计（含窗口内采样）</div>
                 </div>
               </div>
-              <span class="sql-summary-pill tabular-nums">{{ fmtCount(stats.global.count) }} 次</span>
+              <span class="sql-summary-pill tabular-nums"
+                >{{ fmtCount(stats.global.count) }} 次</span
+              >
             </div>
 
             <div class="sql-cells">
               <div class="sql-cell" title="最小耗时">
                 <div class="sql-cell__label">最小 Min</div>
-                <div class="sql-cell__value tabular-nums">{{ fmtNum(stats.global.min_ms, 2) }}<i class="sql-cell__unit">ms</i></div>
+                <div class="sql-cell__value tabular-nums"
+                  >{{ fmtNum(stats.global.min_ms, 2) }}<i class="sql-cell__unit">ms</i></div
+                >
               </div>
               <div class="sql-cell" title="中位数耗时（约 50% 的查询快于此值）">
                 <div class="sql-cell__label">中位 P50</div>
-                <div class="sql-cell__value tabular-nums">{{ fmtNum(stats.global.p50_ms, 2) }}<i class="sql-cell__unit">ms</i></div>
+                <div class="sql-cell__value tabular-nums"
+                  >{{ fmtNum(stats.global.p50_ms, 2) }}<i class="sql-cell__unit">ms</i></div
+                >
               </div>
               <div class="sql-cell" title="平均耗时">
                 <div class="sql-cell__label">平均 Avg</div>
-                <div class="sql-cell__value tabular-nums">{{ fmtNum(stats.global.avg_ms, 2) }}<i class="sql-cell__unit">ms</i></div>
+                <div class="sql-cell__value tabular-nums"
+                  >{{ fmtNum(stats.global.avg_ms, 2) }}<i class="sql-cell__unit">ms</i></div
+                >
               </div>
               <div class="sql-cell" title="95% 的查询快于此值">
                 <div class="sql-cell__label">P95</div>
-                <div class="sql-cell__value tabular-nums">{{ fmtNum(stats.global.p95_ms, 2) }}<i class="sql-cell__unit">ms</i></div>
+                <div class="sql-cell__value tabular-nums"
+                  >{{ fmtNum(stats.global.p95_ms, 2) }}<i class="sql-cell__unit">ms</i></div
+                >
               </div>
               <div class="sql-cell" title="99% 的查询快于此值">
                 <div class="sql-cell__label">P99</div>
-                <div class="sql-cell__value tabular-nums">{{ fmtNum(stats.global.p99_ms, 2) }}<i class="sql-cell__unit">ms</i></div>
+                <div class="sql-cell__value tabular-nums"
+                  >{{ fmtNum(stats.global.p99_ms, 2) }}<i class="sql-cell__unit">ms</i></div
+                >
               </div>
               <div class="sql-cell" title="历史最大耗时">
                 <div class="sql-cell__label">最大 Max</div>
-                <div class="sql-cell__value tabular-nums">{{ fmtNum(stats.global.max_ms, 2) }}<i class="sql-cell__unit">ms</i></div>
+                <div class="sql-cell__value tabular-nums"
+                  >{{ fmtNum(stats.global.max_ms, 2) }}<i class="sql-cell__unit">ms</i></div
+                >
               </div>
             </div>
 
@@ -282,10 +336,17 @@
                   {{ fmtNum(stats.global.p95_ms, 2) }}ms / {{ thresholdMs }}ms
                 </span>
               </div>
-              <div class="sql-gauge-strip__bar" role="img" :aria-label="`P95 为慢查询阈值的 ${p95RatioText}`">
+              <div
+                class="sql-gauge-strip__bar"
+                role="img"
+                :aria-label="`P95 为慢查询阈值的 ${p95RatioText}`"
+              >
                 <span
                   class="sql-gauge-strip__fill"
-                  :style="{ width: `${clamp01((stats.global.p95_ms / thresholdMs) * 100)}%`, background: heatTone(stats.global.p95_ms, thresholdMs) }"
+                  :style="{
+                    width: `${clamp01((stats.global.p95_ms / thresholdMs) * 100)}%`,
+                    background: heatTone(stats.global.p95_ms, thresholdMs)
+                  }"
                 />
                 <span class="sql-gauge-strip__mark" :style="{ left: '100%' }" title="慢查询阈值" />
               </div>
@@ -294,11 +355,16 @@
             <div class="sql-cells sql-cells--health">
               <div class="sql-cell" title="超过慢查询阈值的 SQL 累计次数">
                 <div class="sql-cell__label">慢查询</div>
-                <div class="sql-cell__value tabular-nums" style="color: #f59e0b">{{ fmtCount(stats.global.slow_count) }}</div>
+                <div class="sql-cell__value tabular-nums" style="color: #f59e0b">{{
+                  fmtCount(stats.global.slow_count)
+                }}</div>
               </div>
               <div class="sql-cell" title="执行失败的 SQL 累计次数">
                 <div class="sql-cell__label">错误</div>
-                <div class="sql-cell__value tabular-nums" :style="{ color: stats.global.error_count > 0 ? '#dc2626' : undefined }">
+                <div
+                  class="sql-cell__value tabular-nums"
+                  :style="{ color: stats.global.error_count > 0 ? '#dc2626' : undefined }"
+                >
                   {{ fmtCount(stats.global.error_count) }}
                 </div>
               </div>
@@ -322,7 +388,9 @@
                   <ArtSvgIcon icon="ri:bar-chart-2-line" />
                 </span>
                 <div>
-                  <div class="text-sm font-semibold text-[var(--el-text-color-primary)]">热点表 Top 10</div>
+                  <div class="text-sm font-semibold text-[var(--el-text-color-primary)]"
+                    >热点表 Top 10</div
+                  >
                   <div class="sql-card__sub">按累计执行次数排名 · 长度 = 执行量占比</div>
                 </div>
               </div>
@@ -330,13 +398,26 @@
             </div>
 
             <div v-if="hotTables.length" class="sql-hot">
-              <div v-for="(row, i) in hotTables" :key="row.name" class="sql-hot__row" :title="`${row.name} · ${fmtCount(row.count)} 次 · 平均 ${fmtNum(row.avg, 2)}ms`">
+              <div
+                v-for="(row, i) in hotTables"
+                :key="row.name"
+                class="sql-hot__row"
+                :title="`${row.name} · ${fmtCount(row.count)} 次 · 平均 ${fmtNum(row.avg, 2)}ms`"
+              >
                 <span class="sql-hot__rank" :class="`is-${i + 1}`">{{ i + 1 }}</span>
-                <span class="sql-hot__name" :class="{ 'is-sys': isSysTable(row.name) }" :title="row.name">{{ row.name }}</span>
+                <span
+                  class="sql-hot__name"
+                  :class="{ 'is-sys': isSysTable(row.name) }"
+                  :title="row.name"
+                  >{{ row.name }}</span
+                >
                 <span class="sql-hot__bar">
                   <span
                     class="sql-hot__fill"
-                    :style="{ width: `${hotMax ? (row.count / hotMax) * 100 : 0}%`, background: heatTone(row.avg, thresholdMs) }"
+                    :style="{
+                      width: `${hotMax ? (row.count / hotMax) * 100 : 0}%`,
+                      background: heatTone(row.avg, thresholdMs)
+                    }"
                   />
                 </span>
                 <span class="sql-hot__count tabular-nums">{{ fmtCount(row.count) }}</span>
@@ -356,8 +437,12 @@
                   <ArtSvgIcon icon="ri:error-warning-line" />
                 </span>
                 <div>
-                  <div class="text-sm font-semibold text-[var(--el-text-color-primary)]">慢查询实录</div>
-                  <div class="sql-card__sub">按耗时降序 · 环形缓冲最近 100 条 · 点击行查看完整 SQL</div>
+                  <div class="text-sm font-semibold text-[var(--el-text-color-primary)]"
+                    >慢查询实录</div
+                  >
+                  <div class="sql-card__sub"
+                    >按耗时降序 · 环形缓冲最近 100 条 · 点击行查看完整 SQL</div
+                  >
                 </div>
               </div>
               <div class="flex flex-wrap items-center gap-1">
@@ -365,7 +450,10 @@
                   v-for="op in ['ALL', ...OPS]"
                   :key="op"
                   type="button"
-                  :class="['sql-filterchip', { 'is-active': opFilter === (op === 'ALL' ? null : op) }]"
+                  :class="[
+                    'sql-filterchip',
+                    { 'is-active': opFilter === (op === 'ALL' ? null : op) }
+                  ]"
                   @click="opFilter = op === 'ALL' ? null : op"
                 >
                   {{ op === 'ALL' ? '全部' : op }}
@@ -382,7 +470,10 @@
               </div>
             </div>
 
-            <div v-if="visibleQueries.length" class="sql-slowscroll min-h-0 flex-1 overflow-y-auto pr-1">
+            <div
+              v-if="visibleQueries.length"
+              class="sql-slowscroll min-h-0 flex-1 overflow-y-auto pr-1"
+            >
               <button
                 v-for="(q, i) in visibleQueries"
                 :key="`${q.timestamp}-${i}`"
@@ -391,15 +482,24 @@
                 @click="openDrawer(q)"
               >
                 <span class="sql-slow__time tabular-nums">{{ q.timestamp.slice(11, 19) }}</span>
-                <span class="sql-slow__op" :style="opBadgeStyle(q.operation)">{{ q.operation }}</span>
+                <span class="sql-slow__op" :style="opBadgeStyle(q.operation)">{{
+                  q.operation
+                }}</span>
                 <span
                   class="sql-slow__table"
                   :class="{ 'is-sys': isSysTable(q.table) }"
-                  :title="q.table ? `涉及表：${q.table}${isSysTable(q.table) ? '（MySQL 系统库）' : ''}` : '无表名(事务/函数等)'"
+                  :title="
+                    q.table
+                      ? `涉及表：${q.table}${isSysTable(q.table) ? '（MySQL 系统库）' : ''}`
+                      : '无表名(事务/函数等)'
+                  "
                 >
                   {{ q.table || '—' }}
                 </span>
-                <span class="sql-slow__dur tabular-nums" :style="{ color: durTone(q.duration_ms, thresholdMs) }">
+                <span
+                  class="sql-slow__dur tabular-nums"
+                  :style="{ color: durTone(q.duration_ms, thresholdMs) }"
+                >
                   {{ fmtNum(q.duration_ms, q.duration_ms < 10 ? 2 : 1) }}<i>ms</i>
                 </span>
                 <span class="sql-slow__bar">
@@ -421,7 +521,13 @@
               </button>
             </div>
             <div v-else class="sql-panel-empty">
-              {{ slowOnly ? '当前筛选下没有慢查询' : opFilter ? `暂无 ${opFilter} 类型的 SQL` : '暂无执行记录，待第一条 SQL 落库' }}
+              {{
+                slowOnly
+                  ? '当前筛选下没有慢查询'
+                  : opFilter
+                    ? `暂无 ${opFilter} 类型的 SQL`
+                    : '暂无执行记录，待第一条 SQL 落库'
+              }}
             </div>
           </div>
         </div>
@@ -438,7 +544,9 @@
     >
       <template v-if="drawerEntry">
         <div class="mb-4 flex flex-wrap items-center gap-2">
-          <span class="sql-drawer__badge" :style="opBadgeStyle(drawerEntry.operation)">{{ drawerEntry.operation }}</span>
+          <span class="sql-drawer__badge" :style="opBadgeStyle(drawerEntry.operation)">{{
+            drawerEntry.operation
+          }}</span>
           <span
             v-if="drawerEntry.table"
             class="sql-drawer__chip tabular-nums"
@@ -447,18 +555,27 @@
             表 {{ drawerEntry.table }}
           </span>
           <span class="sql-drawer__chip tabular-nums">{{ drawerEntry.timestamp }}</span>
-          <span class="sql-drawer__dur tabular-nums" :style="{ color: durTone(drawerEntry.duration_ms, thresholdMs) }">
+          <span
+            class="sql-drawer__dur tabular-nums"
+            :style="{ color: durTone(drawerEntry.duration_ms, thresholdMs) }"
+          >
             {{ fmtNum(drawerEntry.duration_ms, drawerEntry.duration_ms < 10 ? 2 : 1) }} ms
           </span>
           <span v-if="drawerEntry.is_slow" class="sql-drawer__flag">慢查询</span>
-          <span v-if="drawerEntry.is_error" class="sql-drawer__flag sql-drawer__flag--err">执行失败</span>
+          <span v-if="drawerEntry.is_error" class="sql-drawer__flag sql-drawer__flag--err"
+            >执行失败</span
+          >
         </div>
 
         <div class="sql-drawer__meter">
           <div class="sql-drawer__meter-head">
             <span class="text-xs text-g-600">耗时相对慢查询阈值（{{ thresholdMs }}ms）</span>
-            <span class="text-xs tabular-nums" :style="{ color: durTone(drawerEntry.duration_ms, thresholdMs) }">
-              {{ fmtNum(Math.min(drawerEntry.duration_ms / thresholdMs * 100, 9999), 1) }}% {{ drawerEntry.duration_ms >= thresholdMs ? '· 已超限' : '' }}
+            <span
+              class="text-xs tabular-nums"
+              :style="{ color: durTone(drawerEntry.duration_ms, thresholdMs) }"
+            >
+              {{ fmtNum(Math.min((drawerEntry.duration_ms / thresholdMs) * 100, 9999), 1) }}%
+              {{ drawerEntry.duration_ms >= thresholdMs ? '· 已超限' : '' }}
             </span>
           </div>
           <div class="sql-drawer__meter-bar">
@@ -474,14 +591,26 @@
         </div>
 
         <div class="sql-drawer__sqlhead">
-          <span class="text-xs font-medium text-[var(--el-text-color-regular)]">完整 SQL{{ drawerEntry.sql.endsWith('...') ? '（服务端仅保留前 512 字符）' : '' }}</span>
-          <ArtButtonTable icon="ri:file-copy-line" iconClass="bg-theme/12 text-theme" title="复制 SQL" @click="copySQL(drawerEntry.sql)" />
+          <span class="text-xs font-medium text-[var(--el-text-color-regular)]"
+            >完整 SQL{{
+              drawerEntry.sql.endsWith('...') ? '（服务端仅保留前 512 字符）' : ''
+            }}</span
+          >
+          <ArtButtonTable
+            icon="ri:file-copy-line"
+            iconClass="bg-theme/12 text-theme"
+            title="复制 SQL"
+            @click="copySQL(drawerEntry.sql)"
+          />
         </div>
         <pre class="sql-drawer__code"><code v-html="highlightSQL(drawerEntry.sql)" /></pre>
 
         <div class="sql-drawer__hint">
           <ArtSvgIcon icon="ri:information-line" />
-          <span>定位慢查询：将 SQL 粘贴到数据库客户端执行 <b>EXPLAIN</b>，关注索引命中与扫描行数。</span>
+          <span
+            >定位慢查询：将 SQL 粘贴到数据库客户端执行
+            <b>EXPLAIN</b>，关注索引命中与扫描行数。</span
+          >
         </div>
       </template>
     </ElDrawer>
@@ -577,7 +706,10 @@
     const seq = ++historySeq
     if (!silent) loading.value = true
     try {
-      const data = await fetchSQLHistory({ window: activeRange.value.window, step: activeRange.value.step })
+      const data = await fetchSQLHistory({
+        window: activeRange.value.window,
+        step: activeRange.value.step
+      })
       if (seq !== historySeq) return
       history.value = data
       updatedAt.value = new Date()
@@ -625,7 +757,9 @@
     return typeof v === 'number' && Number.isFinite(v) ? v.toFixed(digits) : '-'
   }
 
-  const errorRateText = computed(() => fmtPct(stats.value?.global.error_count ?? 0, stats.value?.global.count ?? 0))
+  const errorRateText = computed(() =>
+    fmtPct(stats.value?.global.error_count ?? 0, stats.value?.global.count ?? 0)
+  )
   const p95RatioText = computed(() => fmtPct(stats.value?.global.p95_ms ?? 0, thresholdMs.value))
 
   function updatedAtText(): string {
@@ -838,11 +972,14 @@
   // ---------- 慢查询实录 ----------
   const visibleQueries = computed(() => {
     let list = stats.value?.slow_queries ?? []
-    if (opFilter.value) list = list.filter((q) => (q.operation || 'OTHER').toUpperCase() === opFilter.value)
+    if (opFilter.value)
+      list = list.filter((q) => (q.operation || 'OTHER').toUpperCase() === opFilter.value)
     if (slowOnly.value) list = list.filter((q) => q.is_slow || q.duration_ms >= thresholdMs.value)
     return list
   })
-  const slowMaxMs = computed(() => Math.max(...(stats.value?.slow_queries ?? []).map((q) => q.duration_ms), 1))
+  const slowMaxMs = computed(() =>
+    Math.max(...(stats.value?.slow_queries ?? []).map((q) => q.duration_ms), 1)
+  )
   const drawerTitle = computed(() => {
     const q = drawerEntry.value
     if (!q) return 'SQL 详情'
@@ -899,34 +1036,26 @@
   loadAll(false)
 </script>
 
-<style scoped>
+<style scoped lang="scss">
+  /* 四视图共享的设计令牌(卡片 / KPI / 呼吸圆点 / 入场动画) */
+  @use './monitor-tokens' as t;
+
+  @include t.rise-keyframes;
+  @include t.pulse-keyframes;
+
   /* ---------- 基础卡片 ---------- */
   .sql-card {
-    padding: 1rem;
-    border-radius: 14px;
-    border: 1px solid var(--default-border);
-    background: var(--default-box-color);
-    box-shadow: 0 1px 3px rgba(16, 24, 40, 0.05);
+    @include t.card;
+    /* 本视图特有:卡片可交互(hover 抬起),较共享令牌多一组 transition */
     transition:
       transform 0.2s ease,
       box-shadow 0.2s ease,
       border-color 0.2s ease;
-    animation: sql-rise 0.3s ease both;
+    @include t.rise;
   }
 
   .dark .sql-card {
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
-  }
-
-  @keyframes sql-rise {
-    from {
-      opacity: 0;
-      transform: translateY(6px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
+    @include t.card-dark;
   }
 
   /* ---------- 页头 ---------- */
@@ -942,24 +1071,12 @@
   }
 
   .live-dot {
-    animation: sql-pulse 2s ease-in-out infinite;
+    @include t.live-dot;
   }
 
   .live-dot.is-loading {
     background: #f59e0b;
     animation-duration: 0.9s;
-  }
-
-  @keyframes sql-pulse {
-    0%,
-    100% {
-      opacity: 1;
-      box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.45);
-    }
-    50% {
-      opacity: 0.55;
-      box-shadow: 0 0 0 3px rgba(34, 197, 94, 0);
-    }
   }
 
   /* 时间范围分段 */
@@ -1025,10 +1142,7 @@
   }
 
   .kpi-tile__icon {
-    width: 40px;
-    height: 40px;
-    flex: none;
-    border-radius: 12px;
+    @include t.kpi-icon;
     font-size: 19px;
     color: #fff;
     background: linear-gradient(135deg, var(--tile) 0%, var(--tile2) 100%);
@@ -1036,23 +1150,15 @@
   }
 
   .kpi-tile__value {
-    font-size: 20px;
-    font-weight: 650;
-    line-height: 1.2;
-    color: var(--el-text-color-primary);
-    font-variant-numeric: tabular-nums;
+    @include t.kpi-value;
   }
 
   .kpi-tile__label {
-    margin-top: 2px;
-    font-size: 13px;
-    color: var(--el-text-color-regular);
+    @include t.kpi-label;
   }
 
   .kpi-tile__sub {
-    margin-top: 1px;
-    font-size: 11px;
-    color: var(--el-text-color-secondary);
+    @include t.kpi-sub;
   }
 
   .kpi-tile__spark {
@@ -1084,9 +1190,7 @@
   }
 
   .sql-card__sub {
-    margin-top: 1px;
-    font-size: 11px;
-    color: var(--el-text-color-secondary);
+    @include t.card-sub;
   }
 
   .sql-summary-pill {
@@ -1714,11 +1818,9 @@
   }
 
   /* ---------- 动效降级 ---------- */
+  /* 动画停用收敛到共享 mixin(其余视图曾各自重写同一媒体查询) */
+  @include t.reduced-motion('.sql-card', '.live-dot');
   @media (prefers-reduced-motion: reduce) {
-    .sql-card,
-    .live-dot {
-      animation: none;
-    }
     .sql-gauge-strip__fill,
     .sql-hot__fill,
     .sql-slow__bar-fill,
