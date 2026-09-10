@@ -53,6 +53,7 @@ import { ApiStatus } from '@/utils/http/status'
 import { isHttpError } from '@/utils/http/error'
 import { RouteRegistry, MenuProcessor, IframeRouteManager, RoutePermissionValidator } from '../core'
 import { matchRouteInTree } from '../core/routePathMatch'
+import { permissionChanged, permissionFingerprint } from '../core/permissionFingerprint'
 
 // 路由注册器实例
 let routeRegistry: RouteRegistry | null = null
@@ -170,6 +171,25 @@ async function handleRouteGuard(
   }
 
   // 3. 处理动态路由注册
+  //
+  // 除"尚未注册"外,还要处理**已注册但权限已变化**的情况:
+  // 管理员在另一个会话中调整了当前用户的角色/菜单权限后,用户这边的
+  // 路由表仍是旧的 —— 新授予的菜单点不到(路由不存在),已撤销的菜单
+  // 仍可点击(接口返回 403)。此前只有整页刷新才能生效。
+  //
+  // 注意:必须**重新拉取** user/info 才能发现变化 —— store 里的权限是
+  // 登录时写入的缓存,不会自己变。因此判定不能只比较内存中的旧指纹,
+  // 否则条件恒为 false(这是个容易写错的点)。
+  if (routeRegistry?.isRegistered() && userStore.isLogin) {
+    if (await refreshPermissionsIfChanged()) {
+      if (routeInitInProgress) {
+        next(false)
+        return
+      }
+      rebuildDynamicRoutes()
+    }
+  }
+
   if (!routeRegistry?.isRegistered() && userStore.isLogin) {
     // 防止并发请求（快速连续导航场景）
     if (routeInitInProgress) {
@@ -258,8 +278,9 @@ async function handleDynamicRoutes(
   loadingService.showLoading()
 
   try {
-    // 1. 获取用户信息
+    // 1. 获取用户信息(并记录权限基线,供后续导航检测权限变化)
     await fetchUserInfo()
+    rememberPermissionFingerprint(useUserStore().info?.permissions)
 
     // 2. 获取菜单数据
     const menuList = await menuProcessor.getMenuList()
@@ -372,6 +393,75 @@ async function fetchUserInfo(): Promise<void> {
   userStore.setUserInfo(data)
   // 检查并清理工作台标签页（如果是不同用户登录）
   userStore.checkAndClearWorktabs()
+}
+
+/**
+ * 权限指纹基线:用于判断"登录后权限是否发生了变化"。
+ * 判定逻辑见 router/core/permissionFingerprint.ts(纯函数,可单测)。
+ *
+ * 基线在 handleDynamicRoutes 首次拉取用户信息后写入,此后每次导航
+ * 通过 refreshPermissionsIfChanged 对比新拉取的权限。
+ */
+let lastPermissionFingerprint: string | null = null
+
+/** 上次检查权限变化的时间戳与最小检查间隔(见 refreshPermissionsIfChanged)。 */
+let lastPermissionCheckAt = 0
+const PERMISSION_CHECK_INTERVAL_MS = 60_000
+
+/** 记录当前权限指纹(登录/初始化拉取用户信息后调用)。 */
+export function rememberPermissionFingerprint(permissions: readonly string[] | undefined): void {
+  lastPermissionFingerprint = permissionFingerprint(permissions)
+}
+
+/**
+ * 重新拉取用户信息,若权限相对基线发生变化则更新指纹并返回 true。
+ *
+ * 为什么要真的发请求:权限只在服务端变化,前端内存里的副本不会自己变,
+ * 只比较旧副本等于永远检测不到。
+ *
+ * 失败时不抛错(网络抖动不应阻断导航),返回 false 走原有导航流程;
+ * 权限仍以内存中的旧值为准,行为与改动前一致。
+ */
+async function refreshPermissionsIfChanged(): Promise<boolean> {
+  // 节流:每次导航都打一次 user/info 会给每个页面切换增加一个往返,
+  // 而权限变化的时效性要求并不高(管理员改权限后数十秒内生效即可)。
+  // 60s 内的重复导航直接复用上次结论。
+  const now = Date.now()
+  if (now - lastPermissionCheckAt < PERMISSION_CHECK_INTERVAL_MS) {
+    return false
+  }
+  lastPermissionCheckAt = now
+
+  let data: Api.Auth.UserInfo
+  try {
+    data = await fetchGetUserInfo()
+  } catch {
+    return false
+  }
+  useUserStore().setUserInfo(data)
+
+  if (!permissionChanged(lastPermissionFingerprint, data.permissions)) {
+    return false
+  }
+  lastPermissionFingerprint = permissionFingerprint(data.permissions)
+  return true
+}
+
+/**
+ * 拆除并重建动态路由(权限变化后调用)。
+ *
+ * 必须**同步**拆完再让守卫继续:若异步等待,期间用户可能导航到
+ * 已被撤销的路由上。unregister 是同步的(router.removeRoute),
+ * 重建则复用原有的 handleDynamicRoutes 路径。
+ */
+function rebuildDynamicRoutes(): void {
+  console.warn('[RouteGuard] 检测到用户权限已变化，重建动态路由')
+  routeRegistry?.unregister()
+  const menuStore = useMenuStore()
+  menuStore.removeAllDynamicRoutes()
+  menuStore.setMenuList([])
+  resetRouteInitState()
+  lastPermissionFingerprint = null
 }
 
 /**

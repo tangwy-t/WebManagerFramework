@@ -38,7 +38,7 @@ import { useSettingStore } from './setting'
 import { useWorktabStore } from './worktab'
 import { AppRouteRecord } from '@/types/router'
 import { RoutesAlias } from '@/router/routesAlias'
-import { resetRouterState } from '@/router/guards/beforeEach'
+import { resetRouterState, rememberPermissionFingerprint } from '@/router/guards/beforeEach'
 import { useMenuStore } from './menu'
 import { StorageConfig } from '@/utils/storage/storage-config'
 import { fetchLogin, fetchGetUserInfo } from '@/api/auth'
@@ -205,6 +205,8 @@ export const useUserStore = defineStore(
       setToken(accessToken, refreshToken)
       const userInfo = await fetchGetUserInfo()
       setUserInfo(userInfo)
+      // 记录权限基线,供路由守卫判断运行时权限是否发生变化。
+      rememberPermissionFingerprint(userInfo.permissions)
       isLogin.value = true
       checkAndClearWorktabs()
       // 登录成功后建立 WebSocket 连接（无 token 时 connect 内部会跳过）
