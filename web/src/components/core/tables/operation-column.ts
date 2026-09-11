@@ -8,7 +8,7 @@
  * 用法:
  * ```ts
  * operationColumn({
- *   count: (hasAuth('system:xxx:edit') ? 1 : 0) + (hasAuth('system:xxx:delete') ? 1 : 0),
+ *   count: (hasAuth('system:user:edit') ? 1 : 0) + (hasAuth('system:user:delete') ? 1 : 0),
  *   formatter: (row) => h('div', { class: 'flex items-center' }, [/* ... *\/])
  * })
  * ```
