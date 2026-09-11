@@ -43,11 +43,12 @@ func (s *PasswordService) cfgInt(ctx context.Context, key string, def int) int {
 }
 
 // policy 组装当前生效策略(来自 sys.auth.password.*,热更;cfgProv 为空回退默认)。
-func (s *PasswordService) policy() passwordpolicy.Policy {
+// 读取配置沿用请求 ctx,保持 tracing/cancellation 链路不断。
+func (s *PasswordService) policy(ctx context.Context) passwordpolicy.Policy {
 	return passwordpolicy.Policy{
-		MinLength:                s.cfgInt(context.Background(), "sys.auth.password.minLength", 8),
-		MinCategories:            s.cfgInt(context.Background(), "sys.auth.password.minCategories", 3),
-		ForbidContainingUsername: s.cfgProv != nil && s.cfgProv.GetBool(context.Background(), "sys.auth.password.forbidContainingUsername", true),
+		MinLength:                s.cfgInt(ctx, "sys.auth.password.minLength", 8),
+		MinCategories:            s.cfgInt(ctx, "sys.auth.password.minCategories", 3),
+		ForbidContainingUsername: s.cfgProv != nil && s.cfgProv.GetBool(ctx, "sys.auth.password.forbidContainingUsername", true),
 	}
 }
 
@@ -68,7 +69,7 @@ func (s *PasswordService) ChangePassword(ctx context.Context, req *request.Chang
 	if !crypto.VerifyPassword(req.OldPassword, user.Password, salt) {
 		return apperror.BadRequest("旧密码不正确")
 	}
-	if err := s.policy().Validate(req.NewPassword, user.Username); err != nil {
+	if err := s.policy(ctx).Validate(req.NewPassword, user.Username); err != nil {
 		return apperror.BadRequest(err.Error())
 	}
 	hashed, newSalt, err := crypto.HashPassword(req.NewPassword, s.cfgInt(ctx, "sys.auth.bcryptCost", 10))
