@@ -15,8 +15,6 @@ type SysFile struct {
 	Size         *int64  `gorm:"column:size;default:0"               json:"size"`
 	MimeType     *string `gorm:"column:mime_type;size:128"           json:"mimeType"`
 	Ext          *string `gorm:"column:ext;size:16"                  json:"ext"`
-	Module       *string `gorm:"column:module;size:64"               json:"module"`
-	ModuleID     *uint64 `gorm:"column:module_id"                    json:"moduleId,string"`
 	StorageType  string  `gorm:"column:storage_type;size:32;not null;default:local" json:"storageType"`
 	Bucket       string  `gorm:"column:bucket;size:128;not null;default:''"          json:"bucket"`
 	StorageKey   string  `gorm:"column:storage_key;size:512;not null;default:''"     json:"storageKey"`

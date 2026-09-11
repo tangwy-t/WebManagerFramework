@@ -586,8 +586,6 @@ declare namespace Api {
       mimeType: string
       ext: string
       category: string
-      module?: string
-      moduleId: string
       storageType: string
       createdBy?: string
       createdAt: string

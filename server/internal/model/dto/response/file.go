@@ -11,8 +11,6 @@ type FileResp struct {
 	MimeType     string    `json:"mimeType"`
 	Ext          string    `json:"ext"`
 	Category     string    `json:"category"`
-	Module       string    `json:"module,omitempty"`
-	ModuleID     *uint64   `json:"moduleId,string"`
 	StorageType  string    `json:"storageType"`
 	CreatedBy    uint64    `json:"createdBy,string,omitempty"`
 	CreatedAt    time.Time `json:"createdAt"`

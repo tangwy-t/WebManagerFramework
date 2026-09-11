@@ -27,7 +27,6 @@ import (
 const (
 	defaultFileUploadPath    = "./uploads"
 	defaultFileUploadMaxSize = 10 << 20 // 10MB
-	defaultFileModule        = "default"
 )
 
 // FileRepositoryInterface 文件服务所需的数据访问方法集(消费方接口)。
@@ -152,7 +151,6 @@ func (s *FileService) Upload(ctx context.Context, headers []*multipart.FileHeade
 			Size:         util.Ptr(n),
 			MimeType:     util.Ptr(p.mime),
 			Ext:          util.Ptr(p.ext),
-			Module:       util.Ptr(defaultFileModule),
 			StorageType:  "local",
 		})
 	}
@@ -250,7 +248,6 @@ func toFileResp(f entity.SysFile) response.FileResp {
 		Name:         f.Name,
 		OriginalName: f.OriginalName,
 		StorageType:  f.StorageType,
-		ModuleID:     f.ModuleID,
 		CreatedAt:    f.CreatedAt,
 		UpdatedAt:    f.UpdatedAt,
 	}
@@ -265,9 +262,6 @@ func toFileResp(f entity.SysFile) response.FileResp {
 		resp.Category = entity.CategoryOfExt(*f.Ext)
 	} else {
 		resp.Category = entity.FileCategoryOther
-	}
-	if f.Module != nil {
-		resp.Module = *f.Module
 	}
 	if f.CreatedBy != nil {
 		resp.CreatedBy = *f.CreatedBy
