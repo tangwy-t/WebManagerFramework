@@ -119,7 +119,7 @@
       return
     }
     try {
-      await kickOnlineSession({ uid: row.userId, sid: row.sid })
+      await kickOnlineSession({ uid: row.userId })
       ElMessage.success('已强制下线')
       loadList()
     } catch {

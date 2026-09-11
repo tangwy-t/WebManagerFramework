@@ -19,7 +19,7 @@ export function fetchOnlineUsers(params: OnlineUserParams) {
   return request.get<PageResponse<OnlineSession>>({ url: `${PREFIX}/monitor/online`, params })
 }
 
-/** 强制下线一个会话（uid 为列表行 userId，sid 为会话标识） */
-export function kickOnlineSession(payload: { uid: string; sid: string }) {
+/** 强制下线一个用户（下线该用户全部会话，uid 为列表行 userId） */
+export function kickOnlineSession(payload: { uid: string }) {
   return request.post<null>({ url: `${PREFIX}/monitor/online/kick`, data: payload })
 }

@@ -17,7 +17,6 @@ import (
 type stubOnlineService struct {
 	listErr error
 	kickErr error
-	gotSid  string
 	gotTok  string
 }
 
@@ -27,8 +26,7 @@ func (s *stubOnlineService) List(context.Context, *request.OnlineUserQuery) (*ap
 	}
 	return app.NewPageResponse([]any{}, 0, 1, 10), nil
 }
-func (s *stubOnlineService) Kick(_ context.Context, req *request.KickSessionReq, tok string) error {
-	s.gotSid = req.Sid
+func (s *stubOnlineService) Kick(_ context.Context, _ *request.KickSessionReq, tok string) error {
 	s.gotTok = tok
 	return s.kickErr
 }
@@ -52,7 +50,7 @@ func TestOnlineHandlerKickPassesToken(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
-	c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/monitor/online/kick", strings.NewReader(`{"uid":1,"sid":"`+strings.Repeat("a", 64)+`"}`))
+	c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/monitor/online/kick", strings.NewReader(`{"uid":1}`))
 	c.Request.Header.Set("Authorization", "Bearer mytoken")
 	c.Request.Header.Set("Content-Type", "application/json")
 	h.Kick(c)
@@ -62,21 +60,18 @@ func TestOnlineHandlerKickPassesToken(t *testing.T) {
 	if svc.gotTok != "mytoken" {
 		t.Fatalf("gotTok = %q", svc.gotTok)
 	}
-	if svc.gotSid != strings.Repeat("a", 64) {
-		t.Fatalf("gotSid = %q", svc.gotSid)
-	}
 }
 
 func TestOnlineHandlerKickErrorMapping(t *testing.T) {
-	svc := &stubOnlineService{kickErr: apperror.NotFound("会话不存在或已下线")}
+	svc := &stubOnlineService{kickErr: apperror.Forbidden("无权操作该用户会话")}
 	h := NewOnlineHandler(svc)
 	gin.SetMode(gin.TestMode)
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
-	c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/monitor/online/kick", strings.NewReader(`{"uid":1,"sid":"`+strings.Repeat("b", 64)+`"}`))
+	c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/monitor/online/kick", strings.NewReader(`{"uid":1}`))
 	c.Request.Header.Set("Content-Type", "application/json")
 	h.Kick(c)
-	if w.Code != http.StatusNotFound {
+	if w.Code != http.StatusForbidden {
 		t.Fatalf("code = %d", w.Code)
 	}
 }

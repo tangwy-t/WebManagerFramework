@@ -369,7 +369,6 @@ declare namespace Api {
       loginAt: string
       expireAt: string
       tokenCount: number
-      sid: string
     }
 
     interface PprofProfileEntry {

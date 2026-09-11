@@ -48,30 +48,6 @@ func TestBulkLoadSessionMeta(t *testing.T) {
 	}
 }
 
-func TestRevokeOne(t *testing.T) {
-	ctx := context.Background()
-	s := NewSession(newFakeCache())
-	_ = s.StoreAccess(ctx, "tok", 7, time.Hour)
-	_ = s.StoreSessionMeta(ctx, "tok", &SessionMeta{IP: "x"}, time.Hour)
-
-	found, err := s.RevokeOne(ctx, 7, "tok")
-	if err != nil || !found {
-		t.Fatalf("RevokeOne = %v/%v", found, err)
-	}
-	if ok, _ := s.IsAccessValid(ctx, "tok"); ok {
-		t.Fatal("token 应已失效")
-	}
-	if m, _ := s.LoadSessionMeta(ctx, "tok"); m != nil {
-		t.Fatal("元数据应已删除")
-	}
-	if toks, _ := s.ListUserTokens(ctx, 7); len(toks) != 0 {
-		t.Fatalf("索引应已移除: %v", toks)
-	}
-	if found2, _ := s.RevokeOne(ctx, 7, "tok"); found2 {
-		t.Fatal("二次吊销应 found=false")
-	}
-}
-
 func TestListOnlineUserIDsAndTokens(t *testing.T) {
 	ctx := context.Background()
 	s := NewSession(newFakeCache())

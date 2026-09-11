@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"encoding/hex"
 	"fmt"
 	"sort"
 	"strings"
@@ -29,9 +28,7 @@ type SessionOnlineInterface interface {
 	ListOnlineUserIDs(ctx context.Context, maxCount int64) ([]uint64, error)
 	ListUserTokens(ctx context.Context, userID uint64) ([]string, error)
 	BulkLoadSessionMeta(ctx context.Context, tokens []string) (map[string]*session.SessionMeta, error)
-	IsAccessValid(ctx context.Context, token string) (bool, error)
-	RevokeOne(ctx context.Context, userID uint64, token string) (bool, error)
-	DeleteRefresh(ctx context.Context, userID uint64) error
+	RevokeAll(ctx context.Context, userID uint64, token string) error
 }
 
 // OnlineUserLookupInterface 定义在消费方:按 ID 批量查用户(受 DataScope 过滤)。
@@ -108,7 +105,6 @@ func (s *OnlineUserService) List(ctx context.Context, req *request.OnlineUserQue
 				LoginAt:    util.JSONTime(time.Unix(g.loginAt, 0)),
 				ExpireAt:   util.JSONTime(time.Unix(g.expireAt, 0)),
 				TokenCount: len(g.tokens),
-				Sid:        g.sid,
 			})
 		}
 	}
@@ -149,7 +145,6 @@ type sessionGroup struct {
 	os       string
 	loginAt  int64
 	expireAt int64
-	sid      string
 }
 
 // collectUserGroups 把某用户的全部在线 token 聚合成逻辑会话组。
@@ -208,17 +203,10 @@ func (s *OnlineUserService) collectUserGroups(ctx context.Context, uid uint64, s
 		if expireAt > g.expireAt {
 			g.expireAt = expireAt
 		}
-		if meta != nil {
-			g.sid = session.SID(tok) // 组代表 = 有元数据的最新 token
-		}
 	}
 	out := make([]sessionGroup, 0, len(order))
 	for _, k := range order {
-		g := byKey[k]
-		if g.sid == "" && len(g.tokens) > 0 {
-			g.sid = session.SID(g.tokens[len(g.tokens)-1]) // 纯旧版组:取末 token 为代表
-		}
-		out = append(out, *g)
+		out = append(out, *byKey[k])
 	}
 	return out, nil
 }
@@ -231,14 +219,16 @@ func onlineGroupKey(uid uint64, meta *session.SessionMeta, token string) string 
 	return fmt.Sprintf("%d|%s|%s", uid, meta.IP, meta.UserAgent)
 }
 
-// Kick 强制下线一个逻辑会话:吊销组内全部有效 access token + 删用户 refresh。
+// Kick 强制下线一个用户:吊销其全部 access 白名单 + refresh + perms(与禁用/删除/
+// 改密一致),并断开其 WebSocket 连接。语义为"下线该用户全部会话"。
 func (s *OnlineUserService) Kick(ctx context.Context, req *request.KickSessionReq, currentToken string) error {
 	uid := uint64(req.UserID)
-	if !validSID(req.Sid) {
-		return apperror.BadRequest("参数错误")
-	}
-	if currentToken != "" && session.SID(currentToken) == req.Sid {
-		return apperror.BadRequest("不能强制下线当前登录会话")
+	// 自踢保护:管理员不能下线自己(当前 token 所属用户)。
+	if currentToken != "" {
+		secret := s.cfg.GetString(ctx, jwt.SecretConfigKey, jwt.DefaultSecretFallback)
+		if claims, err := jwt.ParseAccessToken(currentToken, secret); err == nil && claims.UserID == uid {
+			return apperror.BadRequest("不能强制下线当前登录用户")
+		}
 	}
 	// DataScope 校验(防越权踢下线)
 	visible, err := s.users.FindByIDs(ctx, []uint64{uid})
@@ -248,57 +238,11 @@ func (s *OnlineUserService) Kick(ctx context.Context, req *request.KickSessionRe
 	if len(visible) == 0 {
 		return apperror.Forbidden("无权操作该用户会话")
 	}
-
-	tokens, err := s.sessions.ListUserTokens(ctx, uid)
-	if err != nil {
+	// 全量吊销:access 白名单 + refresh + perms。
+	if err := s.sessions.RevokeAll(ctx, uid, ""); err != nil {
 		return apperror.Internal("会话操作失败", err)
 	}
-	var repr string
-	for _, tok := range tokens {
-		if session.SID(tok) == req.Sid {
-			repr = tok
-			break
-		}
-	}
-	if repr == "" {
-		return apperror.NotFound("会话不存在或已下线")
-	}
-	metas, err := s.sessions.BulkLoadSessionMeta(ctx, tokens)
-	if err != nil {
-		return apperror.Internal("会话操作失败", err)
-	}
-	repKey := onlineGroupKey(uid, metas[repr], repr)
-	var target []string
-	for _, tok := range tokens {
-		if onlineGroupKey(uid, metas[tok], tok) == repKey {
-			target = append(target, tok)
-		}
-	}
-
-	// 白名单复核 + 逐个吊销(组内只删仍在白名单的,已失效跳过)
-	anyRevoked := false
-	for _, tok := range target {
-		valid, err := s.sessions.IsAccessValid(ctx, tok)
-		if err != nil {
-			return apperror.Internal("会话操作失败", err)
-		}
-		if !valid {
-			continue
-		}
-		if _, err := s.sessions.RevokeOne(ctx, uid, tok); err != nil {
-			return apperror.Internal("会话操作失败", err)
-		}
-		anyRevoked = true
-	}
-	if !anyRevoked {
-		return apperror.NotFound("会话不存在或已下线")
-	}
-	// 防前端自动 refresh 复活:注销该用户 refresh token
-	if err := s.sessions.DeleteRefresh(ctx, uid); err != nil {
-		s.logger.Warn("kick: delete refresh", zap.Uint64("userId", uid), zap.Error(err))
-		return apperror.Internal("会话操作失败", err)
-	}
-	// 断开该用户 WebSocket 连接(复用 SSO 顶号的 PublishKick,跨实例)。
+	// 断开其 WebSocket 连接(复用 SSO 顶号的 PublishKick,跨实例)。
 	// access/refresh 已吊销,WS 断不开仅是降级(前端收不到 kicked 提示),不阻断下线结果。
 	if s.wsKick != nil {
 		if err := s.wsKick.PublishKick(ctx, uid, "您已被管理员强制下线", ""); err != nil {
@@ -306,14 +250,6 @@ func (s *OnlineUserService) Kick(ctx context.Context, req *request.KickSessionRe
 		}
 	}
 	return nil
-}
-
-func validSID(sid string) bool {
-	if len(sid) != 64 {
-		return false
-	}
-	_, err := hex.DecodeString(sid)
-	return err == nil
 }
 
 func derefStr(s *string) string {

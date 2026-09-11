@@ -11,9 +11,8 @@ type OnlineUserQuery struct {
 	Keyword string `form:"keyword"`
 }
 
-// KickSessionReq 强制下线请求:uid 为列表行的 userId,sid 为会话标识。
+// KickSessionReq 强制下线请求:uid 为用户 ID(强制下线该用户全部会话)。
 // UserID 用 util.JsonUint64 以兼容前端 snowflake 字符串。
 type KickSessionReq struct {
 	UserID util.JsonUint64 `json:"uid" binding:"required"`
-	Sid    string          `json:"sid" binding:"required"`
 }

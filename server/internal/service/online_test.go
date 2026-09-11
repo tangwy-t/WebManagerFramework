@@ -7,6 +7,7 @@ import (
 	"github.com/tangwy-t/webmanager-server/internal/model/dto/request"
 	"github.com/tangwy-t/webmanager-server/internal/model/dto/response"
 	"github.com/tangwy-t/webmanager-server/internal/model/entity"
+	"github.com/tangwy-t/webmanager-server/internal/pkg/jwt"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/logger"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/session"
 )
@@ -14,10 +15,11 @@ import (
 // ── fakes ────────────────────────────────────────────────────────────────
 
 type fakeOnlineStore struct {
-	uids  []uint64
-	toks  map[uint64][]string
-	metas map[string]*session.SessionMeta
-	valid map[string]bool
+	uids       []uint64
+	toks       map[uint64][]string
+	metas      map[string]*session.SessionMeta
+	revokedUID uint64
+	revokeErr  error
 }
 
 func (f *fakeOnlineStore) ListOnlineUserIDs(context.Context, int64) ([]uint64, error) {
@@ -35,17 +37,10 @@ func (f *fakeOnlineStore) BulkLoadSessionMeta(_ context.Context, tokens []string
 	}
 	return out, nil
 }
-func (f *fakeOnlineStore) IsAccessValid(_ context.Context, token string) (bool, error) {
-	v, ok := f.valid[token]
-	if !ok {
-		return true, nil // 默认有效
-	}
-	return v, nil
+func (f *fakeOnlineStore) RevokeAll(_ context.Context, uid uint64, _ string) error {
+	f.revokedUID = uid
+	return f.revokeErr
 }
-func (f *fakeOnlineStore) RevokeOne(_ context.Context, uid uint64, token string) (bool, error) {
-	return true, nil
-}
-func (f *fakeOnlineStore) DeleteRefresh(context.Context, uint64) error { return nil }
 
 type fakeOnlineUsers struct {
 	users []entity.SysUser
@@ -55,9 +50,11 @@ func (f *fakeOnlineUsers) FindByIDs(context.Context, []uint64) ([]entity.SysUser
 	return f.users, nil
 }
 
+const testSecret = "test-secret-key-for-online-service-tests-32b"
+
 type fakeOnlineCfg struct{}
 
-func (fakeOnlineCfg) GetString(_ context.Context, _ string, d string) string { return d }
+func (fakeOnlineCfg) GetString(_ context.Context, _ string, _ string) string { return testSecret }
 
 type fakeWsKick struct {
 	kickedUID    uint64
@@ -128,48 +125,37 @@ func TestListSkipsInvisibleUser(t *testing.T) {
 }
 
 func TestKickForbiddenWhenOutOfScope(t *testing.T) {
-	store := &fakeOnlineStore{uids: []uint64{1}, toks: map[uint64][]string{1: {"tok"}}, metas: map[string]*session.SessionMeta{"tok": {UserID: 1}}}
+	store := &fakeOnlineStore{}
 	users := &fakeOnlineUsers{users: nil} // 可见用户为空 → 越权
 	svc, _ := newOnlineSvc(store, users)
-	err := svc.Kick(context.Background(), &request.KickSessionReq{UserID: 1, Sid: session.SID("tok")}, "")
+	err := svc.Kick(context.Background(), &request.KickSessionReq{UserID: 1}, "")
 	if err == nil {
 		t.Fatal("越权踢下线应报错")
 	}
 }
 
 func TestKickSelfRejected(t *testing.T) {
-	store := &fakeOnlineStore{toks: map[uint64][]string{}}
+	store := &fakeOnlineStore{}
 	users := &fakeOnlineUsers{users: []entity.SysUser{{BaseEntity: entity.BaseEntity{ID: 1}}}}
 	svc, _ := newOnlineSvc(store, users)
-	tok := "mytoken"
-	err := svc.Kick(context.Background(), &request.KickSessionReq{UserID: 1, Sid: session.SID(tok)}, tok)
-	if err == nil {
+	tok, err := jwt.GenerateAccessToken(1, nil, nil, testSecret, 7200)
+	if err != nil {
+		t.Fatalf("generate token: %v", err)
+	}
+	if err := svc.Kick(context.Background(), &request.KickSessionReq{UserID: 1}, tok); err == nil {
 		t.Fatal("自踢应被拒绝")
 	}
 }
 
-func TestKickNotFoundWhenGroupMissing(t *testing.T) {
-	store := &fakeOnlineStore{uids: []uint64{1}, toks: map[uint64][]string{1: {"tok"}}}
-	users := &fakeOnlineUsers{users: []entity.SysUser{{BaseEntity: entity.BaseEntity{ID: 1}}}}
-	svc, _ := newOnlineSvc(store, users)
-	err := svc.Kick(context.Background(), &request.KickSessionReq{UserID: 1, Sid: session.SID("nonexistent")}, "")
-	if err == nil {
-		t.Fatal("组不存在应报错")
-	}
-}
-
-func TestKickRevokesGroup(t *testing.T) {
-	tok := "tok"
-	store := &fakeOnlineStore{
-		uids:  []uint64{1},
-		toks:  map[uint64][]string{1: {tok}},
-		metas: map[string]*session.SessionMeta{tok: {UserID: 1}},
-		valid: map[string]bool{tok: true},
-	}
+func TestKickRevokesAll(t *testing.T) {
+	store := &fakeOnlineStore{}
 	users := &fakeOnlineUsers{users: []entity.SysUser{{BaseEntity: entity.BaseEntity{ID: 1}}}}
 	svc, kick := newOnlineSvc(store, users)
-	if err := svc.Kick(context.Background(), &request.KickSessionReq{UserID: 1, Sid: session.SID(tok)}, ""); err != nil {
+	if err := svc.Kick(context.Background(), &request.KickSessionReq{UserID: 1}, ""); err != nil {
 		t.Fatalf("kick: %v", err)
+	}
+	if store.revokedUID != 1 {
+		t.Fatalf("应 RevokeAll 该用户, got uid=%d", store.revokedUID)
 	}
 	if kick.calls != 1 || kick.kickedUID != 1 || kick.kickedReason != "您已被管理员强制下线" || kick.kickedToken != "" {
 		t.Fatalf("应下发 WS 踢人事件: calls=%d uid=%d reason=%q token=%q", kick.calls, kick.kickedUID, kick.kickedReason, kick.kickedToken)
@@ -177,15 +163,10 @@ func TestKickRevokesGroup(t *testing.T) {
 }
 
 func TestKickNoWsPublisherDoesNotPanic(t *testing.T) {
-	tok := "tok"
-	store := &fakeOnlineStore{
-		toks:  map[uint64][]string{1: {tok}},
-		metas: map[string]*session.SessionMeta{tok: {UserID: 1}},
-		valid: map[string]bool{tok: true},
-	}
+	store := &fakeOnlineStore{}
 	users := &fakeOnlineUsers{users: []entity.SysUser{{BaseEntity: entity.BaseEntity{ID: 1}}}}
 	svc := NewOnlineUserService(store, users, fakeOnlineCfg{}, nil, logger.NewNop())
-	if err := svc.Kick(context.Background(), &request.KickSessionReq{UserID: 1, Sid: session.SID(tok)}, ""); err != nil {
+	if err := svc.Kick(context.Background(), &request.KickSessionReq{UserID: 1}, ""); err != nil {
 		t.Fatalf("nil ws publisher 下 kick 不应失败: %v", err)
 	}
 }

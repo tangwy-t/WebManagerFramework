@@ -303,30 +303,3 @@ func (s *SessionStore) BulkLoadSessionMeta(ctx context.Context, tokens []string)
 	}
 	return out, nil
 }
-
-// RevokeOne 吊销单个 access token:删白名单、反向索引成员、会话元数据。
-// found=false 表示 token 已不在该用户索引(已下线/已吊销)。
-func (s *SessionStore) RevokeOne(ctx context.Context, userID uint64, token string) (bool, error) {
-	indexKey := fmt.Sprintf("%s%d", UserAccessPrefix, userID)
-	tokens, err := s.loadAccessIndex(ctx, indexKey)
-	if err != nil {
-		return false, err
-	}
-	found := false
-	for _, t := range tokens {
-		if t == token {
-			found = true
-			break
-		}
-	}
-	if !found {
-		return false, nil
-	}
-	if err := s.cacheStore.Del(ctx, AccessPrefix+token, SessionPrefix+token); err != nil {
-		return false, err
-	}
-	if err := s.cacheStore.SetRemove(ctx, indexKey, token); err != nil {
-		return false, err
-	}
-	return true, nil
-}

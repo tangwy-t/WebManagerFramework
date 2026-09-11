@@ -14,5 +14,4 @@ type OnlineSession struct {
 	LoginAt    util.JSONTime `json:"loginAt"`
 	ExpireAt   util.JSONTime `json:"expireAt"`
 	TokenCount int           `json:"tokenCount"`
-	Sid        string        `json:"sid"`
 }
