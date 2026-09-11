@@ -543,3 +543,50 @@ func (s *RedisStore) SetAdd(ctx context.Context, key, member string, ttl time.Du
 func (s *RedisStore) SetMembers(ctx context.Context, key string) ([]string, error) {
 	return s.client.SMembers(ctx, key).Result()
 }
+
+// SetRemove 从集合原子移除一个成员（SREM）。
+func (s *RedisStore) SetRemove(ctx context.Context, key, member string) error {
+	return s.client.SRem(ctx, key, member).Err()
+}
+
+// MGet 批量读取多个字符串 key；缺失的 key 返回空串（对齐 Get 的 miss 语义：
+// goredis.Nil 翻译为空串，消费方不得假设收到 goredis.Nil）。
+func (s *RedisStore) MGet(ctx context.Context, keys ...string) ([]string, error) {
+	if len(keys) == 0 {
+		return []string{}, nil
+	}
+	vals, err := s.client.MGet(ctx, keys...).Result()
+	if err != nil {
+		return nil, err
+	}
+	out := make([]string, len(vals))
+	for i, v := range vals {
+		if str, ok := v.(string); ok {
+			out[i] = str
+		} // 其余（nil）保持空串
+	}
+	return out, nil
+}
+
+// ScanKeyNames 按 pattern 扫描并返回纯 key 名。cursor 循环收集，受 maxCount
+// 上限保护；数据量大时截断（用于低频管理操作，如枚举在线会话索引键）。
+func (s *RedisStore) ScanKeyNames(ctx context.Context, pattern string, maxCount int64) ([]string, error) {
+	var result []string
+	var cursor uint64
+	for {
+		keys, next, err := s.client.Scan(ctx, cursor, pattern, 100).Result()
+		if err != nil {
+			return nil, err
+		}
+		for _, k := range keys {
+			result = append(result, k)
+			if int64(len(result)) >= maxCount {
+				return result, nil
+			}
+		}
+		if next == 0 {
+			return result, nil
+		}
+		cursor = next
+	}
+}

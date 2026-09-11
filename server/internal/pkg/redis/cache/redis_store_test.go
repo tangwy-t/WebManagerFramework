@@ -469,3 +469,55 @@ func TestCompareAndSwap_TTLApplied(t *testing.T) {
 		t.Fatalf("TTL = %v, want (0, 30s]", ttl)
 	}
 }
+
+// TestSetRemove 验证 SREM 从集合移除成员。
+func TestSetRemove(t *testing.T) {
+	store, client := newPageTestStore(t)
+	ctx := context.Background()
+	_ = client.SAdd(ctx, "sess:set", "a", "b", "c").Err()
+	if err := store.SetRemove(ctx, "sess:set", "b"); err != nil {
+		t.Fatalf("SetRemove: %v", err)
+	}
+	members, _ := client.SMembers(ctx, "sess:set").Result()
+	if len(members) != 2 {
+		t.Fatalf("members = %v, want 2", members)
+	}
+}
+
+// TestMGet 验证批量读取 + miss 空串语义。
+func TestMGet(t *testing.T) {
+	store, client := newPageTestStore(t)
+	ctx := context.Background()
+	_ = client.Set(ctx, "a", "1", 0).Err()
+	_ = client.Set(ctx, "c", "3", 0).Err()
+	vals, err := store.MGet(ctx, "a", "b", "c")
+	if err != nil {
+		t.Fatalf("MGet: %v", err)
+	}
+	if vals[0] != "1" || vals[1] != "" || vals[2] != "3" {
+		t.Fatalf("vals = %q, want [1 \"\" 3]", vals)
+	}
+}
+
+// TestScanKeyNames 验证 cursor 翻页收集纯 key 名 + 上限截断。
+func TestScanKeyNames(t *testing.T) {
+	store, client := newPageTestStore(t)
+	ctx := context.Background()
+	for i := 0; i < 5; i++ {
+		_ = client.Set(ctx, fmt.Sprintf("ua:%d", i), "x", 0).Err()
+	}
+	keys, err := store.ScanKeyNames(ctx, "ua:*", 100)
+	if err != nil {
+		t.Fatalf("ScanKeyNames: %v", err)
+	}
+	if len(keys) != 5 {
+		t.Fatalf("len(keys) = %d, want 5", len(keys))
+	}
+	capped, err := store.ScanKeyNames(ctx, "ua:*", 2)
+	if err != nil {
+		t.Fatalf("ScanKeyNames capped: %v", err)
+	}
+	if len(capped) != 2 {
+		t.Fatalf("capped len = %d, want 2", len(capped))
+	}
+}
