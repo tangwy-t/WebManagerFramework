@@ -10,6 +10,7 @@ import (
 	"github.com/tangwy-t/webmanager-server/internal/model/entity"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/jwt"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/logger"
+	"github.com/tangwy-t/webmanager-server/internal/pkg/session"
 )
 
 // errStub 用于模拟 Redis 故障。
@@ -93,6 +94,9 @@ func (r *recordingSessionStore) DeleteRefresh(context.Context, uint64) error {
 	r.order = append(r.order, "deleteRefresh")
 	return nil
 }
+func (r *recordingSessionStore) StoreSessionMeta(context.Context, string, *session.SessionMeta, time.Duration) error {
+	return nil
+}
 
 // TestRefreshToken_RotationIsCommittedAfterNewTokensReady 是 P2-3 的核心断言:
 // 作废旧 refresh token 的提交必须发生在新令牌写入之后。
@@ -111,7 +115,7 @@ func TestRefreshToken_RotationIsCommittedAfterNewTokensReady(t *testing.T) {
 	// GetRefresh 需返回旧 token 以通过 double-verify。
 	svc.sessionStore = &presetRefreshStore{recordingSessionStore: ss, preset: oldTok}
 
-	_, err := svc.RefreshToken(context.Background(), &request.RefreshTokenReq{RefreshToken: oldTok})
+	_, err := svc.RefreshToken(context.Background(), &request.RefreshTokenReq{RefreshToken: oldTok}, "ip", "ua")
 	if err != nil {
 		t.Fatalf("RefreshToken: %v", err)
 	}
@@ -162,7 +166,7 @@ func TestRefreshToken_RejectsReplayedToken(t *testing.T) {
 	repo := &stubAuthRepo{findByIDUser: &entity.SysUser{}, dataScope: 1}
 	svc := newRefreshTestService(repo, &presetRefreshStore{recordingSessionStore: ss, preset: oldTok})
 
-	if _, err := svc.RefreshToken(context.Background(), &request.RefreshTokenReq{RefreshToken: oldTok}); err == nil {
+	if _, err := svc.RefreshToken(context.Background(), &request.RefreshTokenReq{RefreshToken: oldTok}, "ip", "ua"); err == nil {
 		t.Fatal("CAS 报告令牌已被兑换,RefreshToken 却成功了 —— 同一 refresh token 可重复兑换")
 	}
 }
@@ -175,7 +179,7 @@ func TestRefreshToken_ErrorsWhenCASFails(t *testing.T) {
 	repo := &stubAuthRepo{findByIDUser: &entity.SysUser{}, dataScope: 1}
 	svc := newRefreshTestService(repo, &presetRefreshStore{recordingSessionStore: ss, preset: oldTok})
 
-	if _, err := svc.RefreshToken(context.Background(), &request.RefreshTokenReq{RefreshToken: oldTok}); err == nil {
+	if _, err := svc.RefreshToken(context.Background(), &request.RefreshTokenReq{RefreshToken: oldTok}, "ip", "ua"); err == nil {
 		t.Fatal("CAS 失败却返回成功 —— 旧令牌未作废,可被重放")
 	}
 }
@@ -188,7 +192,7 @@ func TestRefreshToken_RejectsWhenStoredTokenDiffers(t *testing.T) {
 	repo := &stubAuthRepo{findByIDUser: &entity.SysUser{}, dataScope: 1}
 	svc := newRefreshTestService(repo, &presetRefreshStore{recordingSessionStore: ss, preset: "some-other-token"})
 
-	if _, err := svc.RefreshToken(context.Background(), &request.RefreshTokenReq{RefreshToken: reqTok}); err == nil {
+	if _, err := svc.RefreshToken(context.Background(), &request.RefreshTokenReq{RefreshToken: reqTok}, "ip", "ua"); err == nil {
 		t.Fatal("存储中的 token 与请求不一致却通过校验")
 	}
 }

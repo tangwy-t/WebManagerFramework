@@ -15,6 +15,8 @@ import (
 
 	"github.com/tangwy-t/webmanager-server/internal/pkg/jwt"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/logger"
+	"github.com/tangwy-t/webmanager-server/internal/pkg/session"
+	"github.com/tangwy-t/webmanager-server/internal/pkg/util"
 
 	gojwt "github.com/golang-jwt/jwt/v5"
 	"go.uber.org/zap"
@@ -133,6 +135,26 @@ func (s *AuthService) storeAccessAndPerms(ctx context.Context, userID uint64, ac
 		s.logger.Warn("failed to store permissions", zap.Error(err))
 	}
 	return nil
+}
+
+// storeSessionMeta 写入会话元数据(在线用户列表展示)。best-effort:失败仅告警,
+// 不阻断登录 —— 元数据不是安全边界,缺了只是列表少一行 IP/设备信息。
+func (s *AuthService) storeSessionMeta(ctx context.Context, userID uint64, accessToken, ip, userAgent string) {
+	ua := util.ParseUA(userAgent)
+	accessTTL := time.Duration(s.cfgProv.GetInt(ctx, "sys.jwt.accessExpire", 7200)) * time.Second
+	now := time.Now()
+	meta := &session.SessionMeta{
+		UserID:    userID,
+		IP:        ip,
+		UserAgent: userAgent,
+		Browser:   ua.Browser,
+		OS:        ua.OS,
+		LoginAt:   now.Unix(),
+		ExpireAt:  now.Add(accessTTL).Unix(),
+	}
+	if err := s.sessionStore.StoreSessionMeta(ctx, accessToken, meta, accessTTL); err != nil {
+		s.logger.Warn("failed to store session meta", zap.Uint64("userId", userID), zap.Error(err))
+	}
 }
 
 func (s *AuthService) storeSession(ctx context.Context, userID uint64, accessToken, refreshToken string, perms []string) error {
@@ -329,6 +351,7 @@ func (s *AuthService) Login(ctx context.Context, req *request.LoginReq, ip, user
 	if err := s.storeSession(ctx, user.ID, accessToken, refreshToken, perms); err != nil {
 		return nil, apperror.Internal("会话存储失败", err)
 	}
+	s.storeSessionMeta(ctx, user.ID, accessToken, ip, userAgent)
 
 	// Update last-login metadata (best-effort)
 	if err := s.repo.UpdateLoginInfo(ctx, user.ID, ip); err != nil {
@@ -432,7 +455,7 @@ func (s *AuthService) GetUserPermissions(ctx context.Context, userID uint64) ([]
 }
 
 // RefreshToken validates a refresh token, issues new tokens, and rotates the old refresh token.
-func (s *AuthService) RefreshToken(ctx context.Context, req *request.RefreshTokenReq) (*response.RefreshTokenResp, error) {
+func (s *AuthService) RefreshToken(ctx context.Context, req *request.RefreshTokenReq, ip, userAgent string) (*response.RefreshTokenResp, error) {
 	secret := s.cfgProv.GetString(ctx, jwt.SecretConfigKey, jwt.DefaultSecretFallback)
 
 	// 1. Parse the JWT refresh token
@@ -490,6 +513,7 @@ func (s *AuthService) RefreshToken(ctx context.Context, req *request.RefreshToke
 	if err := s.storeAccessAndPerms(ctx, claims.UserID, accessToken, perms); err != nil {
 		return nil, apperror.Internal("会话存储失败", err)
 	}
+	s.storeSessionMeta(ctx, claims.UserID, accessToken, ip, userAgent)
 	refreshTTL := time.Duration(s.cfgProv.GetInt(ctx, "sys.jwt.refreshExpire", 604800)) * time.Second
 	consumed, err := s.sessionStore.RotateRefresh(ctx, claims.UserID, req.RefreshToken, refreshToken, refreshTTL)
 	if err != nil {

@@ -14,6 +14,7 @@ import (
 	"github.com/tangwy-t/webmanager-server/internal/pkg/crypto"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/database"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/logger"
+	"github.com/tangwy-t/webmanager-server/internal/pkg/session"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/util"
 
 	"go.uber.org/zap"
@@ -34,6 +35,8 @@ type SessionStoreInterface interface {
 	RotateRefresh(ctx context.Context, userID uint64, old, new string, ttl time.Duration) (bool, error)
 	RevokePerms(ctx context.Context, userID uint64) error
 	RevokeAllPerms(ctx context.Context) error
+	// StoreSessionMeta 写入 access token 的会话元数据(在线用户列表展示用)。
+	StoreSessionMeta(ctx context.Context, token string, meta *session.SessionMeta, ttl time.Duration) error
 }
 
 // UserRepositoryInterface 由 service/interface.go 迁移至此:接口定义在消费方,

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/tangwy-t/webmanager-server/internal/model/entity"
+	"github.com/tangwy-t/webmanager-server/internal/pkg/session"
 )
 
 // 本文件是「角色/数据范围变更只清权限缓存、不吊销 token」（评审报告 #3）
@@ -43,6 +44,9 @@ func (s *pocRevokeSessionStore) RevokePerms(_ context.Context, uid uint64) error
 	return nil
 }
 func (s *pocRevokeSessionStore) RevokeAllPerms(context.Context) error { return nil }
+func (s *pocRevokeSessionStore) StoreSessionMeta(context.Context, string, *session.SessionMeta, time.Duration) error {
+	return nil
+}
 
 // 角色变更必须吊销目标用户的全部会话（RevokeAll），使旧 scope 立即失效。
 func TestPoc_AssignRoles_RevokesAllSessions(t *testing.T) {

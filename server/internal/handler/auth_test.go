@@ -47,7 +47,7 @@ func (s *stubAuthService) UploadAvatar(context.Context, *multipart.FileHeader) (
 	return "", nil
 }
 func (s *stubAuthService) AvatarFilePath(context.Context, uint64) (string, error) { return "", nil }
-func (s *stubAuthService) RefreshToken(context.Context, *request.RefreshTokenReq) (*response.RefreshTokenResp, error) {
+func (s *stubAuthService) RefreshToken(context.Context, *request.RefreshTokenReq, string, string) (*response.RefreshTokenResp, error) {
 	return nil, nil
 }
 

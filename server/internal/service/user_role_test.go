@@ -7,6 +7,7 @@ import (
 
 	"github.com/tangwy-t/webmanager-server/internal/pkg/apperror"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/logger"
+	"github.com/tangwy-t/webmanager-server/internal/pkg/session"
 
 	"gorm.io/gorm"
 )
@@ -57,6 +58,9 @@ func (s *stubSessionStore) RevokePerms(ctx context.Context, userID uint64) error
 	return nil
 }
 func (s *stubSessionStore) RevokeAllPerms(context.Context) error { return nil }
+func (s *stubSessionStore) StoreSessionMeta(context.Context, string, *session.SessionMeta, time.Duration) error {
+	return nil
+}
 
 // newTestUserServiceWithSession 构造带 sessionStore 的 UserService(角色成员测试用)
 func newTestUserServiceWithSession(repo UserRepositoryInterface, ss SessionStoreInterface) *UserService {

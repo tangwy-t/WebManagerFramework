@@ -39,7 +39,7 @@ type AuthServiceInterface interface {
 	AvatarFilePath(ctx context.Context, userID uint64) (string, error)
 	// GetUserPermissions 的消费方是 middleware.PermissionGuard(自有窄接口),
 	// AuthHandler 不调用,按需包含原则不在此声明。
-	RefreshToken(ctx context.Context, req *request.RefreshTokenReq) (*response.RefreshTokenResp, error)
+	RefreshToken(ctx context.Context, req *request.RefreshTokenReq, ip, userAgent string) (*response.RefreshTokenResp, error)
 }
 
 // AuthHandler exposes HTTP handlers for authentication endpoints.
@@ -274,7 +274,7 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 		app.Error(c, apperror.BadRequest("参数错误"))
 		return
 	}
-	resp, err := h.svc.RefreshToken(c.Request.Context(), &req)
+	resp, err := h.svc.RefreshToken(c.Request.Context(), &req, c.ClientIP(), c.Request.UserAgent())
 	if err != nil {
 		app.Error(c, err)
 		return
