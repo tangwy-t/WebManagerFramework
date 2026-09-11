@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/spf13/cast"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -21,6 +23,9 @@ const (
 	RefreshPrefix = "refresh:"
 	// PermsPrefix is the Redis key prefix for cached user permissions (keyed by userID).
 	PermsPrefix = "perms:"
+	// SessionPrefix is the Redis key prefix for online-session metadata
+	// (JSON value), keyed by access token, TTL aligned with the access token.
+	SessionPrefix = "session:"
 )
 
 // maxAccessRevocation 一次按用户吊销最多清理的 access token 数(防御性上限)。
@@ -149,10 +154,10 @@ func (s *SessionStore) revokeUserAccessTokens(ctx context.Context, userID uint64
 		if len(tokens) > maxAccessRevocation {
 			tokens = tokens[:maxAccessRevocation]
 		}
-		keys := make([]string, 0, len(tokens))
+		keys := make([]string, 0, len(tokens)*2)
 		for _, t := range tokens {
 			if t != "" {
-				keys = append(keys, AccessPrefix+t)
+				keys = append(keys, AccessPrefix+t, SessionPrefix+t)
 			}
 		}
 		if len(keys) > 0 {
@@ -219,4 +224,109 @@ func (s *SessionStore) LoadPerms(ctx context.Context, userID uint64, scopeKey st
 		return nil, err
 	}
 	return perms, nil
+}
+
+// ListOnlineUserIDs 扫描 user_access:* 索引键,解析出全部"曾登录"的用户 ID。
+// maxCount 为防御性上限:超出截断,正常管理后台不会触达。
+func (s *SessionStore) ListOnlineUserIDs(ctx context.Context, maxCount int64) ([]uint64, error) {
+	keys, err := s.cacheStore.ScanKeyNames(ctx, UserAccessPrefix+"*", maxCount)
+	if err != nil {
+		return nil, err
+	}
+	seen := make(map[uint64]struct{}, len(keys))
+	uids := make([]uint64, 0, len(keys))
+	for _, k := range keys {
+		idStr := strings.TrimPrefix(k, UserAccessPrefix)
+		id, err := strconv.ParseUint(idStr, 10, 64)
+		if err != nil {
+			continue
+		}
+		if _, dup := seen[id]; dup {
+			continue
+		}
+		seen[id] = struct{}{}
+		uids = append(uids, id)
+	}
+	return uids, nil
+}
+
+// ListUserTokens 返回该用户全部 access token(反向索引成员)。
+func (s *SessionStore) ListUserTokens(ctx context.Context, userID uint64) ([]string, error) {
+	return s.loadAccessIndex(ctx, fmt.Sprintf("%s%d", UserAccessPrefix, userID))
+}
+
+// StoreSessionMeta 写入一个 access token 的会话元数据,TTL 与 access 一致。
+func (s *SessionStore) StoreSessionMeta(ctx context.Context, token string, meta *SessionMeta, ttl time.Duration) error {
+	raw, err := json.Marshal(meta)
+	if err != nil {
+		return err
+	}
+	return s.cacheStore.Set(ctx, SessionPrefix+token, string(raw), ttl)
+}
+
+// LoadSessionMeta 读取单个会话元数据;key 不存在返回 (nil, nil)。
+func (s *SessionStore) LoadSessionMeta(ctx context.Context, token string) (*SessionMeta, error) {
+	raw, err := s.cacheStore.Get(ctx, SessionPrefix+token)
+	if err != nil {
+		return nil, err
+	}
+	if raw == "" {
+		return nil, nil
+	}
+	var m SessionMeta
+	if err := json.Unmarshal([]byte(raw), &m); err != nil {
+		return nil, err
+	}
+	return &m, nil
+}
+
+// BulkLoadSessionMeta 批量读取元数据,返回 token→meta 映射;缺失的 token 不出现在结果中。
+func (s *SessionStore) BulkLoadSessionMeta(ctx context.Context, tokens []string) (map[string]*SessionMeta, error) {
+	keys := make([]string, len(tokens))
+	for i, t := range tokens {
+		keys[i] = SessionPrefix + t
+	}
+	vals, err := s.cacheStore.MGet(ctx, keys...)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string]*SessionMeta, len(tokens))
+	for i, v := range vals {
+		if v == "" {
+			continue
+		}
+		var m SessionMeta
+		if err := json.Unmarshal([]byte(v), &m); err != nil {
+			return nil, err
+		}
+		out[tokens[i]] = &m
+	}
+	return out, nil
+}
+
+// RevokeOne 吊销单个 access token:删白名单、反向索引成员、会话元数据。
+// found=false 表示 token 已不在该用户索引(已下线/已吊销)。
+func (s *SessionStore) RevokeOne(ctx context.Context, userID uint64, token string) (bool, error) {
+	indexKey := fmt.Sprintf("%s%d", UserAccessPrefix, userID)
+	tokens, err := s.loadAccessIndex(ctx, indexKey)
+	if err != nil {
+		return false, err
+	}
+	found := false
+	for _, t := range tokens {
+		if t == token {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return false, nil
+	}
+	if err := s.cacheStore.Del(ctx, AccessPrefix+token, SessionPrefix+token); err != nil {
+		return false, err
+	}
+	if err := s.cacheStore.SetRemove(ctx, indexKey, token); err != nil {
+		return false, err
+	}
+	return true, nil
 }

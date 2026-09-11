@@ -102,6 +102,57 @@ func (f *fakeCache) SetMembers(_ context.Context, key string) ([]string, error) 
 	return members, nil
 }
 
+// SetRemove 模拟 SREM:从 JSON 数组集合移除成员。
+func (f *fakeCache) SetRemove(_ context.Context, key, member string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	var members []string
+	if raw, ok := f.data[key]; ok && raw != "" {
+		_ = json.Unmarshal([]byte(raw), &members)
+	}
+	out := members[:0]
+	for _, m := range members {
+		if m != member {
+			out = append(out, m)
+		}
+	}
+	if len(out) == 0 {
+		delete(f.data, key)
+		return nil
+	}
+	raw, _ := json.Marshal(out)
+	f.data[key] = string(raw)
+	return nil
+}
+
+// MGet 模拟批量读取:缺失键返回空串。
+func (f *fakeCache) MGet(_ context.Context, keys ...string) ([]string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	out := make([]string, len(keys))
+	for i, k := range keys {
+		out[i] = f.data[k]
+	}
+	return out, nil
+}
+
+// ScanKeyNames 模拟 SCAN:按前缀匹配返回 key 名,受 maxCount 上限。
+func (f *fakeCache) ScanKeyNames(_ context.Context, pattern string, maxCount int64) ([]string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	prefix := strings.TrimSuffix(pattern, "*")
+	var out []string
+	for k := range f.data {
+		if strings.HasPrefix(k, prefix) {
+			out = append(out, k)
+			if int64(len(out)) >= maxCount {
+				break
+			}
+		}
+	}
+	return out, nil
+}
+
 // TestAccessWhitelistRoundTrip 会话白名单:存→有效→吊销→无效。
 func TestAccessWhitelistRoundTrip(t *testing.T) {
 	ctx := context.Background()

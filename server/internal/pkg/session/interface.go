@@ -28,4 +28,11 @@ type CacheStoreInterface interface {
 	SetAdd(ctx context.Context, key, member string, ttl time.Duration) error
 	// SetMembers 读取 key 对应集合的全部成员;key 不存在返回空切片。
 	SetMembers(ctx context.Context, key string) ([]string, error)
+	// SetRemove 从 key 对应的集合原子移除一个成员;key/成员不存在为无操作。
+	SetRemove(ctx context.Context, key, member string) error
+	// MGet 批量读取多个字符串 key;缺失的 key 返回空串(与 Get 的 miss 语义一致)。
+	MGet(ctx context.Context, keys ...string) ([]string, error)
+	// ScanKeyNames 按 glob 模式扫描并返回命中的 key 名,受 maxCount 上限保护;
+	// 用于低频管理操作(如枚举在线会话索引键),不存在则返回空切片。
+	ScanKeyNames(ctx context.Context, pattern string, maxCount int64) ([]string, error)
 }
