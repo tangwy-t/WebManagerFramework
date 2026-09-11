@@ -174,6 +174,8 @@ export const useUserStore = defineStore(
       // 注意：不清空工作台标签页，等下次登录时根据用户判断
       // 移除iframe路由缓存
       sessionStorage.removeItem('iframeRoutes')
+      // 清除“建议改密”软提醒关闭标记:下次登录再次评估
+      sessionStorage.removeItem(StorageConfig.PASSWORD_REMINDER_DISMISSED_KEY)
       // 清空主页路径
       useMenuStore().setHomePath('')
       // 重置路由状态

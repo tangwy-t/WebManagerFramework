@@ -10,6 +10,7 @@
         <ArtHeaderBar />
       </div>
       <div id="app-content">
+        <ArtPasswordReminder />
         <ArtPageContent />
       </div>
     </main>
@@ -21,6 +22,7 @@
 </template>
 
 <script setup lang="ts">
+  import ArtPasswordReminder from '@/components/core/others/art-password-reminder/index.vue'
   defineOptions({ name: 'AppLayout' })
 </script>
 
