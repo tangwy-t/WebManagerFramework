@@ -358,6 +358,20 @@ declare namespace Api {
       value: unknown
     }
 
+    interface OnlineSession {
+      userId: string
+      username: string
+      realName: string
+      deptName: string
+      ip: string
+      browser: string
+      os: string
+      loginAt: string
+      expireAt: string
+      tokenCount: number
+      sid: string
+    }
+
     interface PprofProfileEntry {
       name: string
       description: string

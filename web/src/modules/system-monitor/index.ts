@@ -1,5 +1,5 @@
 import type { PluginManifest } from '@/types/plugin'
-import { PermCacheList, PermPprofList, PermServerList, PermSqlList } from '@/enums/permission'
+import { PermCacheList, PermOnlineList, PermPprofList, PermServerList, PermSqlList } from '@/enums/permission'
 
 const plugin: PluginManifest = {
   name: 'system-monitor',
@@ -43,6 +43,16 @@ const plugin: PluginManifest = {
         title: 'pprof 性能分析',
         icon: 'ri:fire-line',
         authMark: PermPprofList
+      }
+    },
+    {
+      path: '/monitor/online',
+      name: 'MonitorOnline',
+      component: () => import('./views/online.vue'),
+      meta: {
+        title: '在线用户',
+        icon: 'ri:user-follow-line',
+        authMark: PermOnlineList
       }
     }
   ]

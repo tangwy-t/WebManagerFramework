@@ -37,6 +37,7 @@ var fileNamespace = map[string]string{
 	"menu.go":           "System",
 	"notice.go":         "Notice",
 	"operation_log.go":  "Log",
+	"online.go":         "Monitor",
 	"pprof.go":          "Monitor",
 	"role.go":           "System",
 	"server_monitor.go": "Monitor",
