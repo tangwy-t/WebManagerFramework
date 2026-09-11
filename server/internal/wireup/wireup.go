@@ -182,7 +182,7 @@ func Init(db *gorm.DB, sqlStats *database.SQLStats, redis goredis.UniversalClien
 	pprofHdl := handler.NewPprofHandler(configSvc, log)
 
 	// ── Online User Handler ─────────────────────────────────────────
-	onlineSvc := service.NewOnlineUserService(sessionStore, userRepo, configSvc, log)
+	onlineSvc := service.NewOnlineUserService(sessionStore, userRepo, configSvc, hub, log)
 	onlineHdl := handler.NewOnlineHandler(onlineSvc)
 
 	hub.SetOnUserOnline(noticeSvc.GetUnreadNotices)

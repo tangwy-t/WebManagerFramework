@@ -44,16 +44,23 @@ type OnlineConfigGetter interface {
 	GetString(ctx context.Context, key, defaultVal string) string
 }
 
+// OnlineWsKickPublisher 定义在消费方:下发 WS 踢人事件(复用现有 Hub.PublishKick,
+// 跨实例广播,按 userId 断开其 WebSocket 连接)。nil 时跳过 WS 断开(测试/降级)。
+type OnlineWsKickPublisher interface {
+	PublishKick(ctx context.Context, userID uint64, reason string, kickToken string) error
+}
+
 // OnlineUserService 提供在线会话列表与强制下线。
 type OnlineUserService struct {
 	sessions SessionOnlineInterface
 	users    OnlineUserLookupInterface
 	cfg      OnlineConfigGetter
+	wsKick   OnlineWsKickPublisher
 	logger   logger.LoggerInterface
 }
 
-func NewOnlineUserService(sessions SessionOnlineInterface, users OnlineUserLookupInterface, cfg OnlineConfigGetter, logger logger.LoggerInterface) *OnlineUserService {
-	return &OnlineUserService{sessions: sessions, users: users, cfg: cfg, logger: logger}
+func NewOnlineUserService(sessions SessionOnlineInterface, users OnlineUserLookupInterface, cfg OnlineConfigGetter, wsKick OnlineWsKickPublisher, logger logger.LoggerInterface) *OnlineUserService {
+	return &OnlineUserService{sessions: sessions, users: users, cfg: cfg, wsKick: wsKick, logger: logger}
 }
 
 // List 聚合在线会话为逻辑会话行并内存分页。
@@ -290,6 +297,13 @@ func (s *OnlineUserService) Kick(ctx context.Context, req *request.KickSessionRe
 	if err := s.sessions.DeleteRefresh(ctx, uid); err != nil {
 		s.logger.Warn("kick: delete refresh", zap.Uint64("userId", uid), zap.Error(err))
 		return apperror.Internal("会话操作失败", err)
+	}
+	// 断开该用户 WebSocket 连接(复用 SSO 顶号的 PublishKick,跨实例)。
+	// access/refresh 已吊销,WS 断不开仅是降级(前端收不到 kicked 提示),不阻断下线结果。
+	if s.wsKick != nil {
+		if err := s.wsKick.PublishKick(ctx, uid, "您已被管理员强制下线", ""); err != nil {
+			s.logger.Warn("kick: publish ws event", zap.Uint64("userId", uid), zap.Error(err))
+		}
 	}
 	return nil
 }

@@ -59,8 +59,24 @@ type fakeOnlineCfg struct{}
 
 func (fakeOnlineCfg) GetString(_ context.Context, _ string, d string) string { return d }
 
-func newOnlineSvc(store *fakeOnlineStore, users *fakeOnlineUsers) *OnlineUserService {
-	return NewOnlineUserService(store, users, fakeOnlineCfg{}, logger.NewNop())
+type fakeWsKick struct {
+	kickedUID    uint64
+	kickedReason string
+	kickedToken  string
+	calls        int
+}
+
+func (f *fakeWsKick) PublishKick(_ context.Context, userID uint64, reason, kickToken string) error {
+	f.kickedUID = userID
+	f.kickedReason = reason
+	f.kickedToken = kickToken
+	f.calls++
+	return nil
+}
+
+func newOnlineSvc(store *fakeOnlineStore, users *fakeOnlineUsers) (*OnlineUserService, *fakeWsKick) {
+	kick := &fakeWsKick{}
+	return NewOnlineUserService(store, users, fakeOnlineCfg{}, kick, logger.NewNop()), kick
 }
 
 func deptPtr() *entity.SysDept { return &entity.SysDept{Name: "研发部"} }
@@ -77,7 +93,7 @@ func TestListAggregatesSameDevice(t *testing.T) {
 		},
 	}
 	users := &fakeOnlineUsers{users: []entity.SysUser{{BaseEntity: entity.BaseEntity{ID: 1}, Username: "alice", Dept: deptPtr()}}}
-	svc := newOnlineSvc(store, users)
+	svc, _ := newOnlineSvc(store, users)
 
 	page, err := svc.List(context.Background(), &request.OnlineUserQuery{})
 	if err != nil {
@@ -104,7 +120,7 @@ func TestListSkipsInvisibleUser(t *testing.T) {
 		},
 	}
 	users := &fakeOnlineUsers{users: []entity.SysUser{{BaseEntity: entity.BaseEntity{ID: 1}, Username: "alice"}}}
-	svc := newOnlineSvc(store, users)
+	svc, _ := newOnlineSvc(store, users)
 	page, _ := svc.List(context.Background(), &request.OnlineUserQuery{})
 	if page.Total != 1 {
 		t.Fatalf("不可见用户应被过滤, got total=%d", page.Total)
@@ -114,7 +130,7 @@ func TestListSkipsInvisibleUser(t *testing.T) {
 func TestKickForbiddenWhenOutOfScope(t *testing.T) {
 	store := &fakeOnlineStore{uids: []uint64{1}, toks: map[uint64][]string{1: {"tok"}}, metas: map[string]*session.SessionMeta{"tok": {UserID: 1}}}
 	users := &fakeOnlineUsers{users: nil} // 可见用户为空 → 越权
-	svc := newOnlineSvc(store, users)
+	svc, _ := newOnlineSvc(store, users)
 	err := svc.Kick(context.Background(), &request.KickSessionReq{UserID: 1, Sid: session.SID("tok")}, "")
 	if err == nil {
 		t.Fatal("越权踢下线应报错")
@@ -124,7 +140,7 @@ func TestKickForbiddenWhenOutOfScope(t *testing.T) {
 func TestKickSelfRejected(t *testing.T) {
 	store := &fakeOnlineStore{toks: map[uint64][]string{}}
 	users := &fakeOnlineUsers{users: []entity.SysUser{{BaseEntity: entity.BaseEntity{ID: 1}}}}
-	svc := newOnlineSvc(store, users)
+	svc, _ := newOnlineSvc(store, users)
 	tok := "mytoken"
 	err := svc.Kick(context.Background(), &request.KickSessionReq{UserID: 1, Sid: session.SID(tok)}, tok)
 	if err == nil {
@@ -135,7 +151,7 @@ func TestKickSelfRejected(t *testing.T) {
 func TestKickNotFoundWhenGroupMissing(t *testing.T) {
 	store := &fakeOnlineStore{uids: []uint64{1}, toks: map[uint64][]string{1: {"tok"}}}
 	users := &fakeOnlineUsers{users: []entity.SysUser{{BaseEntity: entity.BaseEntity{ID: 1}}}}
-	svc := newOnlineSvc(store, users)
+	svc, _ := newOnlineSvc(store, users)
 	err := svc.Kick(context.Background(), &request.KickSessionReq{UserID: 1, Sid: session.SID("nonexistent")}, "")
 	if err == nil {
 		t.Fatal("组不存在应报错")
@@ -151,8 +167,25 @@ func TestKickRevokesGroup(t *testing.T) {
 		valid: map[string]bool{tok: true},
 	}
 	users := &fakeOnlineUsers{users: []entity.SysUser{{BaseEntity: entity.BaseEntity{ID: 1}}}}
-	svc := newOnlineSvc(store, users)
+	svc, kick := newOnlineSvc(store, users)
 	if err := svc.Kick(context.Background(), &request.KickSessionReq{UserID: 1, Sid: session.SID(tok)}, ""); err != nil {
 		t.Fatalf("kick: %v", err)
+	}
+	if kick.calls != 1 || kick.kickedUID != 1 || kick.kickedReason != "您已被管理员强制下线" || kick.kickedToken != "" {
+		t.Fatalf("应下发 WS 踢人事件: calls=%d uid=%d reason=%q token=%q", kick.calls, kick.kickedUID, kick.kickedReason, kick.kickedToken)
+	}
+}
+
+func TestKickNoWsPublisherDoesNotPanic(t *testing.T) {
+	tok := "tok"
+	store := &fakeOnlineStore{
+		toks:  map[uint64][]string{1: {tok}},
+		metas: map[string]*session.SessionMeta{tok: {UserID: 1}},
+		valid: map[string]bool{tok: true},
+	}
+	users := &fakeOnlineUsers{users: []entity.SysUser{{BaseEntity: entity.BaseEntity{ID: 1}}}}
+	svc := NewOnlineUserService(store, users, fakeOnlineCfg{}, nil, logger.NewNop())
+	if err := svc.Kick(context.Background(), &request.KickSessionReq{UserID: 1, Sid: session.SID(tok)}, ""); err != nil {
+		t.Fatalf("nil ws publisher 下 kick 不应失败: %v", err)
 	}
 }
