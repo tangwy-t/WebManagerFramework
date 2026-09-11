@@ -54,6 +54,9 @@ func (m *stubAuthRepo) GetUserRoleScope(context.Context, uint64) int8 { return m
 func (m *stubAuthRepo) UpdatePassword(context.Context, uint64, string, *string) error {
 	return nil
 }
+func (m *stubAuthRepo) SetMustChangePassword(context.Context, uint64, bool) error {
+	return nil
+}
 func (m *stubAuthRepo) UpdateLoginInfo(context.Context, uint64, string) error { return nil }
 func (m *stubAuthRepo) UpdateProfile(context.Context, uint64, *string, *string, *string) error {
 	return nil
@@ -67,9 +70,10 @@ func (m *stubAuthRepo) FindUserLoginLogsSince(context.Context, uint64, time.Time
 }
 func (m *stubAuthRepo) GetDeptName(context.Context, uint64) (string, error) { return "", nil }
 
-// newVerifyService 构造仅 VerifyPassword 依赖的极简 AuthService(其余依赖零值)。
-func newVerifyService(repo AuthRepositoryInterface) *AuthService {
-	return NewAuthService(nil, repo, logger.NewNop(), nil, nil, nil, "", nil)
+// newVerifyService 构造仅 VerifyPassword 依赖的极简 PasswordService(其余依赖零值)。
+// VerifyPassword 现已下沉至密码域服务(PasswordService),AuthService 仅委托。
+func newVerifyService(repo PasswordRepositoryInterface) *PasswordService {
+	return NewPasswordService(nil, repo, nil, logger.NewNop())
 }
 
 func newStubUser(t *testing.T, password string) *entity.SysUser {
@@ -149,7 +153,7 @@ func newAccessService(repo AuthRepositoryInterface, roleMenus *stubRoleMenuRepo)
 		datascope.NewRoleDimensionResolver(roleMenus),
 		datascope.NewSelfDimensionResolver(),
 	}, logger.NewNop())
-	return NewAuthService(nil, repo, logger.NewNop(), nil, nil, nil, "", scopeResolver)
+	return NewAuthService(nil, repo, logger.NewNop(), nil, nil, nil, "", scopeResolver, nil)
 }
 
 func TestResolveUserAccessCustomRoleScope(t *testing.T) {
@@ -262,7 +266,7 @@ func (failingDimResolver) Resolve(context.Context, int8, uint64, uint64) (*datas
 func TestScopeCtxForFailingDimensionFallsBack(t *testing.T) {
 	resolver := datascope.NewScopeResolver([]datascope.DimensionResolver{failingDimResolver{}}, logger.NewNop())
 	repo := &stubAuthRepo{findByIDUser: &entity.SysUser{}}
-	svc := NewAuthService(nil, repo, logger.NewNop(), nil, nil, nil, "", resolver)
+	svc := NewAuthService(nil, repo, logger.NewNop(), nil, nil, nil, "", resolver, nil)
 
 	ctx := svc.scopeCtxFor(context.Background(), 1, []jwt.ScopeClaim{{Dimension: "boom", Level: 4, SelfID: 9}})
 	sc, ok := datascope.ScopeContextFromCtx(ctx)
@@ -290,7 +294,7 @@ func TestScopeCtxForFailingDimensionFallsBack(t *testing.T) {
 
 // newGetUserInfoService 构造 GetUserInfo 所需依赖的最小 AuthService。
 func newGetUserInfoService(repo AuthRepositoryInterface) *AuthService {
-	return NewAuthService(nil, repo, logger.NewNop(), nil, nil, nil, "", nil)
+	return NewAuthService(nil, repo, logger.NewNop(), nil, nil, nil, "", nil, nil)
 }
 
 func userInfoCtx(deptID *uint64) *entity.SysUser {

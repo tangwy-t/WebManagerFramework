@@ -110,7 +110,11 @@ func Init(db *gorm.DB, sqlStats *database.SQLStats, redis goredis.UniversalClien
 	menuSvc := service.NewMenuService(menuRepo, sessionStore, log)
 	deptSvc := service.NewDeptService(deptRepo, log)
 	loginLogSvc := service.NewLoginLogService(loginLogRepo, log)
-	authSvc := service.NewAuthService(configSvc, authRepo, log, sessionStore, loginLogSvc, captchaPkg, cfg.Server.APIPrefix, scopeResolver)
+	// ── Password Service ───────────────────────────────────────────────
+	// 密码域(改密/锁屏校验/强度策略)独立于认证登录流程;AuthService 仅委托。
+	passwordSvc := service.NewPasswordService(configSvc, authRepo, sessionStore, log)
+
+	authSvc := service.NewAuthService(configSvc, authRepo, log, sessionStore, loginLogSvc, captchaPkg, cfg.Server.APIPrefix, scopeResolver, passwordSvc)
 	noticeSvc := service.NewNoticeService(noticeRepo, hub, log)
 	opLogSvc := service.NewOperationLogService(opLogRepo, userRepo, log)
 

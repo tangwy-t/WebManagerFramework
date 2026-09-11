@@ -29,7 +29,9 @@ func (f *fakePwdRepo) SetMustChangePassword(ctx context.Context, id uint64, m bo
 }
 
 func TestPasswordService_ChangePassword_RejectsWeak(t *testing.T) {
-	svc := NewPasswordService(nil, &fakePwdRepo{}, nil, logger.NewNop())
+	// fakePwdRepo.user 必须是密码为 "old" 的合法用户:ChangePassword 先验旧密码
+	// 再查策略;user 为 nil 会空指针,而旧密码不匹配则会以「旧密码不正确」短路。
+	svc := NewPasswordService(nil, &fakePwdRepo{user: newStubUser(t, "old")}, nil, logger.NewNop())
 	ctx := contextkeys.WithUserID(context.Background(), 1)
 	err := svc.ChangePassword(ctx, &request.ChangePasswordReq{
 		OldPassword: "old",

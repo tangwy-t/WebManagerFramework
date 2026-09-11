@@ -31,7 +31,7 @@ var errStub = errors.New("redis unavailable")
 
 // newRefreshTestService 构造 RefreshToken 所需依赖的最小 AuthService。
 func newRefreshTestService(repo AuthRepositoryInterface, ss SessionStoreInterface) *AuthService {
-	return NewAuthService(stubConfigProvider{}, repo, logger.NewNop(), ss, nil, nil, "", nil)
+	return NewAuthService(stubConfigProvider{}, repo, logger.NewNop(), ss, nil, nil, "", nil, nil)
 }
 
 // stubConfigProvider 提供 jwt 密钥等配置的固定值。
