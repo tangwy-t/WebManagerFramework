@@ -77,6 +77,25 @@ func (r *UserRepo) FindByID(ctx context.Context, id uint64) (*entity.SysUser, er
 	return &user, nil
 }
 
+// FindByIDs returns users by a batch of primary keys, with Dept preloaded.
+// The query inherits the request context, so the DataScope GORM plugin applies
+// row-level dept filtering to the result automatically (non-admin callers only
+// see users within their data scope). Empty ids returns an empty slice.
+func (r *UserRepo) FindByIDs(ctx context.Context, ids []uint64) ([]entity.SysUser, error) {
+	if len(ids) == 0 {
+		return []entity.SysUser{}, nil
+	}
+	var users []entity.SysUser
+	err := r.db.WithContext(ctx).
+		Preload("Dept").
+		Where("id IN ?", ids).
+		Find(&users).Error
+	if err != nil {
+		return nil, err
+	}
+	return users, nil
+}
+
 // FindExistingIDs returns the subset of ids that exist in sys_user.
 // Used by the service layer to validate role-member userIDs before an
 // Association write (which would otherwise upsert a phantom user for an
