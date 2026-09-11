@@ -84,6 +84,7 @@ type MonitorDeps struct {
 	CacheHdl         *handler.CacheHandler
 	SqlMonitorHdl    *handler.SQLMonitorHandler
 	PprofHdl         *handler.PprofHandler
+	OnlineHdl        *handler.OnlineHandler
 }
 
 // JobDeps holds job handler dependencies.
@@ -384,6 +385,14 @@ func Setup(deps Dependencies) *gin.Engine {
 			pprofDebug := monitor.Group("/debug/pprof")
 			pprofDebug.Use(middleware.PprofGuard(deps.Infra.ConfigProv))
 			pprofDebug.GET("/*any", perm(permission.PermPprofList), handler.AdaptPprof())
+
+			// 在线用户
+			online := monitor.Group("/online")
+			online.Use(middleware.SetModuleName("在线用户"))
+			{
+				online.GET("", perm(permission.PermOnlineList), deps.Monitor.OnlineHdl.List)
+				online.POST("/kick", perm(permission.PermOnlineKick), deps.Monitor.OnlineHdl.Kick)
+			}
 		}
 
 		// 参数配置

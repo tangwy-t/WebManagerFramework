@@ -181,6 +181,10 @@ func Init(db *gorm.DB, sqlStats *database.SQLStats, redis goredis.UniversalClien
 	// ── Pprof Handler ──────────────────────────────────────────────
 	pprofHdl := handler.NewPprofHandler(configSvc, log)
 
+	// ── Online User Handler ─────────────────────────────────────────
+	onlineSvc := service.NewOnlineUserService(sessionStore, userRepo, configSvc, log)
+	onlineHdl := handler.NewOnlineHandler(onlineSvc)
+
 	hub.SetOnUserOnline(noticeSvc.GetUnreadNotices)
 
 	// ScopeResolver 上移到 AuthService 构造之前(登录/刷新访问解析依赖注入)。
@@ -223,6 +227,7 @@ func Init(db *gorm.DB, sqlStats *database.SQLStats, redis goredis.UniversalClien
 			CacheHdl:         cacheHdl,
 			SqlMonitorHdl:    sqlMonitorHdl,
 			PprofHdl:         pprofHdl,
+			OnlineHdl:        onlineHdl,
 		},
 		Job: router.JobDeps{
 			JobHdl: jobHdl,
