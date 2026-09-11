@@ -73,6 +73,9 @@ func (m *stubUserRepo) UpdateStatus(context.Context, uint64, int8) error { retur
 func (m *stubUserRepo) UpdatePassword(context.Context, uint64, string, *string) error {
 	return nil
 }
+func (m *stubUserRepo) SetMustChangePassword(context.Context, uint64, bool) error {
+	return nil
+}
 func (m *stubUserRepo) FindRoleCodeByID(ctx context.Context, roleID uint64) (string, error) {
 	if m.findRoleCodeErr != nil {
 		return "", m.findRoleCodeErr
@@ -108,7 +111,7 @@ func (m *stubUserRepo) FindExistingRoleIDs(ctx context.Context, ids []uint64) ([
 }
 
 func newTestUserService(repo UserRepositoryInterface) *UserService {
-	return NewUserService(repo, logger.NewNop(), nil)
+	return NewUserService(repo, logger.NewNop(), nil, nil)
 }
 
 func ctxWithOperator(id uint64) context.Context {

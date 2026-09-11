@@ -105,7 +105,7 @@ func Init(db *gorm.DB, sqlStats *database.SQLStats, redis goredis.UniversalClien
 	scopeResolver := datascope.NewScopeResolver([]datascope.DimensionResolver{deptResolver, selfResolver, roleResolver}, log)
 
 	// ── Services ───────────────────────────────────────────────────────
-	userSvc := service.NewUserService(userRepo, log, sessionStore)
+	userSvc := service.NewUserService(userRepo, log, sessionStore, configSvc)
 	roleSvc := service.NewRoleService(roleRepo, log, sessionStore)
 	menuSvc := service.NewMenuService(menuRepo, sessionStore, log)
 	deptSvc := service.NewDeptService(deptRepo, log)

@@ -81,12 +81,21 @@ type UserService struct {
 	repo         UserRepositoryInterface
 	logger       logger.LoggerInterface
 	sessionStore SessionStoreInterface
+	cfgProv      ConfigGetterInterface
 }
 
 // NewUserService constructs a UserService with the given dependencies.
 // Snowflake ID generation is handled by GORM callbacks (database.RegisterIDCallback).
-func NewUserService(repo UserRepositoryInterface, logger logger.LoggerInterface, tokenStore SessionStoreInterface) *UserService {
-	return &UserService{repo: repo, logger: logger, sessionStore: tokenStore}
+func NewUserService(repo UserRepositoryInterface, logger logger.LoggerInterface, tokenStore SessionStoreInterface, cfgProv ConfigGetterInterface) *UserService {
+	return &UserService{repo: repo, logger: logger, sessionStore: tokenStore, cfgProv: cfgProv}
+}
+
+// passwordCost 返回 bcrypt cost:优先 sys.auth.bcryptCost(热更),否则默认。
+func (s *UserService) passwordCost(ctx context.Context) int {
+	if s.cfgProv == nil {
+		return bcrypt.DefaultCost
+	}
+	return s.cfgProv.GetInt(ctx, "sys.auth.bcryptCost", bcrypt.DefaultCost)
 }
 
 func (s *UserService) FindPage(ctx context.Context, query *request.UserQuery) (*app.PageResponse, error) {
@@ -130,7 +139,7 @@ func (s *UserService) toUserResp(user *entity.SysUser) response.UserResp {
 }
 
 func (s *UserService) Create(ctx context.Context, req *request.CreateUserReq) (uint64, error) {
-	hashed, salt, err := crypto.HashPassword(req.Password, bcrypt.DefaultCost)
+	hashed, salt, err := crypto.HashPassword(req.Password, s.passwordCost(ctx))
 	if err != nil {
 		return 0, apperror.Internal("密码加密失败", err)
 	}
@@ -143,6 +152,8 @@ func (s *UserService) Create(ctx context.Context, req *request.CreateUserReq) (u
 	util.CopyEntity(user, req, s.logger)
 	user.Password = hashed
 	user.PasswordSalt = &salt
+	mustChange := true
+	user.MustChangePassword = &mustChange
 
 	// Default status to enabled if not provided.
 	if user.Status == nil {
@@ -368,13 +379,16 @@ func (s *UserService) Disable(ctx context.Context, id uint64) error {
 }
 
 func (s *UserService) ResetPassword(ctx context.Context, id uint64, req *request.ResetPasswordReq) error {
-	hashed, salt, err := crypto.HashPassword(req.NewPassword, bcrypt.DefaultCost)
+	hashed, salt, err := crypto.HashPassword(req.NewPassword, s.passwordCost(ctx))
 	if err != nil {
 		return apperror.Internal("密码加密失败", err)
 	}
 	if err := s.repo.UpdatePassword(ctx, id, hashed, &salt); err != nil {
 		s.logger.Warn("failed to reset password", zap.Uint64("userId", id), zap.Error(err))
 		return err
+	}
+	if err := s.repo.SetMustChangePassword(ctx, id, true); err != nil {
+		s.logger.Warn("failed to set must-change flag", zap.Uint64("userId", id), zap.Error(err))
 	}
 	// Revoke all sessions after password reset.
 	// 重置密码同样按用户吊销全部 access token:旧密码会话不得继续存活。

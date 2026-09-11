@@ -64,7 +64,7 @@ func (s *stubSessionStore) StoreSessionMeta(context.Context, string, *session.Se
 
 // newTestUserServiceWithSession 构造带 sessionStore 的 UserService(角色成员测试用)
 func newTestUserServiceWithSession(repo UserRepositoryInterface, ss SessionStoreInterface) *UserService {
-	return NewUserService(repo, logger.NewNop(), ss)
+	return NewUserService(repo, logger.NewNop(), ss, nil)
 }
 
 // ── AddRoleUsers ────────────────────────────────────────────────────
