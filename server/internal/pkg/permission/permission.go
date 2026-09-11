@@ -69,6 +69,8 @@ func All() []string {
 		PermNoticeList,
 		PermNoticePublish,
 		PermNoticeQuery,
+		PermOnlineKick,
+		PermOnlineList,
 		PermPprofDisable,
 		PermPprofEnable,
 		PermPprofList,
@@ -209,6 +211,12 @@ const (
 const (
 	PermServerList = "system:server:list"
 	PermSqlList    = "system:sql:list"
+)
+
+// ── 在线用户 / system:monitor:online:* ────────────────────────────────────
+const (
+	PermOnlineKick = "system:monitor:online:kick"
+	PermOnlineList = "system:monitor:online:list"
 )
 
 // ── 用户管理 / system:user:* ─────────────────────────────────────────────

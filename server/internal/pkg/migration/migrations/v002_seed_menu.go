@@ -46,6 +46,8 @@ var menuDefinitions = []menuDef{
 	{Key: "monitor:cache:query", Parent: "monitor:cache", Name: "缓存查询", Type: "btn", Perms: permission.PermCacheQuery, Sort: 1},
 	{Key: "monitor:cache:delete", Parent: "monitor:cache", Name: "缓存删除", Type: "btn", Perms: permission.PermCacheDelete, Sort: 2},
 	{Key: "monitor:sql", Parent: "monitor", Name: "SQL监控", Type: "menu", Perms: permission.PermSqlList, Path: "/monitor/sql", Component: "monitor/sql/index", Sort: 4, Icon: "hugeicons:sql"},
+	{Key: "monitor:online", Parent: "monitor", Name: "在线用户", Type: "menu", Perms: permission.PermOnlineList, Path: "/monitor/online", Component: "monitor/online/index", Sort: 5, Icon: "ri:user-follow-line"},
+	{Key: "monitor:online:kick", Parent: "monitor:online", Name: "强制下线", Type: "btn", Perms: permission.PermOnlineKick, Sort: 1},
 
 	// ── 系统管理 (dir, 根级) ───────────────────────────────────
 	{Key: "system", Name: "系统管理", Type: "dir", Sort: 1, Icon: "ri:settings-3-line"},
