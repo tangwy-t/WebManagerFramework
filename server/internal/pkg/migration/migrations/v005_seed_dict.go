@@ -5,7 +5,7 @@ import (
 
 	"github.com/tangwy-t/webmanager-server/internal/model/entity"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/migration"
-	"github.com/tangwy-t/webmanager-server/internal/pkg/ptr"
+	"github.com/tangwy-t/webmanager-server/internal/pkg/util"
 )
 
 func init() {
@@ -149,7 +149,7 @@ func seedDict(tx *gorm.DB) error {
 		types = append(types, entity.SysDictType{
 			Code:   d.Code,
 			Name:   d.Name,
-			Status: ptr.To[int8](entity.DictTypeStatusEnabled),
+			Status: util.Ptr[int8](entity.DictTypeStatusEnabled),
 		})
 	}
 	if err := tx.CreateInBatches(types, 100).Error; err != nil {
@@ -169,12 +169,12 @@ func seedDict(tx *gorm.DB) error {
 				TypeID:    typeID,
 				Label:     item.Label,
 				Value:     item.Value,
-				Sort:      ptr.To(item.Sort),
-				IsDefault: ptr.To[int8](boolToInt8(item.IsDefault)),
-				Status:    ptr.To[int8](entity.DictDataStatusEnabled),
+				Sort:      util.Ptr(item.Sort),
+				IsDefault: util.Ptr[int8](boolToInt8(item.IsDefault)),
+				Status:    util.Ptr[int8](entity.DictDataStatusEnabled),
 			}
 			if item.Class != "" {
-				dd.ListClass = ptr.To(item.Class)
+				dd.ListClass = util.Ptr(item.Class)
 			}
 			data = append(data, dd)
 		}

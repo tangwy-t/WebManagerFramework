@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/tangwy-t/webmanager-server/internal/model/entity"
-	"github.com/tangwy-t/webmanager-server/internal/pkg/ptr"
+	"github.com/tangwy-t/webmanager-server/internal/pkg/util"
 	"gorm.io/gorm"
 )
 
@@ -15,7 +15,7 @@ func TestFindReadStatusMap(t *testing.T) {
 	now := time.Now()
 
 	seed := func(db *gorm.DB) {
-		published := ptr.To[int8](entity.NoticeStatusPublished)
+		published := util.Ptr[int8](entity.NoticeStatusPublished)
 		// 公告 11/12 + 用户 7 的两条阅读行(11 已读,12 未读 但软删)
 		if err := db.Create(&entity.SysNotice{BaseEntity: entity.BaseEntity{ID: 11}, Title: "A", Status: published}).Error; err != nil {
 			t.Fatalf("seed notice: %v", err)
@@ -51,7 +51,7 @@ func TestFindReadStatusMap(t *testing.T) {
 
 	t.Run("无行缺键", func(t *testing.T) {
 		db := newNoticeReadAllDB(t)
-		if err := db.Create(&entity.SysNotice{BaseEntity: entity.BaseEntity{ID: 13}, Title: "C", Status: ptr.To[int8](entity.NoticeStatusPublished)}).Error; err != nil {
+		if err := db.Create(&entity.SysNotice{BaseEntity: entity.BaseEntity{ID: 13}, Title: "C", Status: util.Ptr[int8](entity.NoticeStatusPublished)}).Error; err != nil {
 			t.Fatalf("seed: %v", err)
 		}
 		repo := NewNoticeRepository(db)

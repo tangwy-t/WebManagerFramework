@@ -11,7 +11,7 @@ import (
 	"github.com/tangwy-t/webmanager-server/internal/model/entity"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/crypto"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/migration"
-	"github.com/tangwy-t/webmanager-server/internal/pkg/ptr"
+	"github.com/tangwy-t/webmanager-server/internal/pkg/util"
 )
 
 func init() {
@@ -60,7 +60,7 @@ func seedAdminUser(tx *gorm.DB) error {
 	user := entity.SysUser{
 		Username:     "admin",
 		Password:     hashed,
-		PasswordSalt: ptr.To(salt),
+		PasswordSalt: util.Ptr(salt),
 		DeptID:       &deptID,
 		Status:       &status,
 	}

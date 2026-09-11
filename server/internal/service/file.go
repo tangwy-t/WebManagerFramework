@@ -18,7 +18,6 @@ import (
 	"github.com/tangwy-t/webmanager-server/internal/pkg/app"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/apperror"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/logger"
-	"github.com/tangwy-t/webmanager-server/internal/pkg/ptr"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/util"
 
 	"go.uber.org/zap"
@@ -150,10 +149,10 @@ func (s *FileService) Upload(ctx context.Context, headers []*multipart.FileHeade
 			Name:         p.header.Filename,
 			OriginalName: p.header.Filename,
 			Path:         relKey,
-			Size:         ptr.To(n),
-			MimeType:     ptr.To(p.mime),
-			Ext:          ptr.To(p.ext),
-			Module:       ptr.To(defaultFileModule),
+			Size:         util.Ptr(n),
+			MimeType:     util.Ptr(p.mime),
+			Ext:          util.Ptr(p.ext),
+			Module:       util.Ptr(defaultFileModule),
 			StorageType:  "local",
 		})
 	}

@@ -13,7 +13,6 @@ import (
 	"github.com/tangwy-t/webmanager-server/internal/pkg/app"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/apperror"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/logger"
-	"github.com/tangwy-t/webmanager-server/internal/pkg/ptr"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/util"
 	"github.com/tangwy-t/webmanager-server/internal/task"
 
@@ -268,7 +267,7 @@ func (s *JobService) Resume(ctx context.Context, id uint64) error {
 		s.logger.Error("JobService.Resume failed", zap.Error(err))
 		return apperror.Internal("恢复任务失败")
 	}
-	job.Status = ptr.To[int8](entity.JobStatusEnabled)
+	job.Status = util.Ptr[int8](entity.JobStatusEnabled)
 	s.scheduler.Add(job)
 	s.scheduler.BroadcastJobChanged(ctx, "add", id)
 	s.logger.Info("job resumed", zap.Uint64("jobId", id))

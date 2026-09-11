@@ -5,7 +5,7 @@ import (
 
 	"github.com/tangwy-t/webmanager-server/internal/model/entity"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/migration"
-	"github.com/tangwy-t/webmanager-server/internal/pkg/ptr"
+	"github.com/tangwy-t/webmanager-server/internal/pkg/util"
 )
 
 func init() {
@@ -22,10 +22,10 @@ func init() {
 var adminRole = entity.SysRole{
 	Name:      "超级管理员",
 	Code:      "admin",
-	DataScope: ptr.To[int8](1),
-	Sort:      ptr.To(0),
-	Status:    ptr.To[int8](entity.RoleStatusEnabled),
-	Remark:    ptr.To("系统内置超级管理员角色"),
+	DataScope: util.Ptr[int8](1),
+	Sort:      util.Ptr(0),
+	Status:    util.Ptr[int8](entity.RoleStatusEnabled),
+	Remark:    util.Ptr("系统内置超级管理员角色"),
 }
 
 func seedRole(tx *gorm.DB) error {

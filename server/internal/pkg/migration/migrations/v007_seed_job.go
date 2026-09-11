@@ -5,7 +5,7 @@ import (
 
 	"github.com/tangwy-t/webmanager-server/internal/model/entity"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/migration"
-	"github.com/tangwy-t/webmanager-server/internal/pkg/ptr"
+	"github.com/tangwy-t/webmanager-server/internal/pkg/util"
 )
 
 func init() {
@@ -46,9 +46,9 @@ func seedJob(tx *gorm.DB) error {
 			JobGroup:       "system",
 			CronExpression: j.Cron,
 			InvokeTarget:   j.Invoke,
-			Concurrent:     ptr.To[int8](entity.JobConcurrentAllowed),
-			Status:         ptr.To[int8](entity.JobStatusEnabled),
-			RunAtStartup:   ptr.To[int8](runAtStartup),
+			Concurrent:     util.Ptr[int8](entity.JobConcurrentAllowed),
+			Status:         util.Ptr[int8](entity.JobStatusEnabled),
+			RunAtStartup:   util.Ptr[int8](runAtStartup),
 		})
 	}
 	return tx.CreateInBatches(jobs, 100).Error

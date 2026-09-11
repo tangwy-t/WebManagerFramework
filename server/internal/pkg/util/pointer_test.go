@@ -2,6 +2,17 @@ package util
 
 import "testing"
 
+func TestPtr(t *testing.T) {
+	p := Ptr(42)
+	if p == nil || *p != 42 {
+		t.Fatalf("Ptr(42) = %v, want *42", p)
+	}
+	ps := Ptr("x")
+	if ps == nil || *ps != "x" {
+		t.Fatalf("Ptr(x) = %v, want *x", ps)
+	}
+}
+
 func TestCoalesce(t *testing.T) {
 	var pf *float64
 	if got := Coalesce(pf); got != 0 {
@@ -18,5 +29,12 @@ func TestCoalesce(t *testing.T) {
 	s := "x"
 	if got := Coalesce(&s); got != "x" {
 		t.Errorf("Coalesce(&x) = %q, want x", got)
+	}
+}
+
+// TestPtrCoalesceRoundTrip 验证 Ptr 与 Coalesce 互逆。
+func TestPtrCoalesceRoundTrip(t *testing.T) {
+	if got := Coalesce(Ptr(7)); got != 7 {
+		t.Fatalf("Coalesce(Ptr(7)) = %v, want 7", got)
 	}
 }

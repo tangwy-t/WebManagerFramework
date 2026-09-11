@@ -6,7 +6,7 @@ import (
 	"github.com/tangwy-t/webmanager-server/internal/model/entity"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/migration"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/permission"
-	"github.com/tangwy-t/webmanager-server/internal/pkg/ptr"
+	"github.com/tangwy-t/webmanager-server/internal/pkg/util"
 )
 
 func init() {
@@ -173,16 +173,16 @@ func seedMenu(tx *gorm.DB) error {
 				parentID = idByKey[d.Parent]
 			}
 			batch = append(batch, entity.SysMenu{
-				ParentID:  ptr.To(parentID),
+				ParentID:  util.Ptr(parentID),
 				Name:      d.Name,
 				Type:      d.Type,
 				Perms:     strPtr(d.Perms),
 				Path:      strPtr(d.Path),
 				Component: strPtr(d.Component),
-				Sort:      ptr.To(d.Sort),
+				Sort:      util.Ptr(d.Sort),
 				Icon:      strPtr(d.Icon),
-				Visible:   ptr.To[int8](entity.MenuVisible),
-				Status:    ptr.To[int8](entity.MenuStatusEnabled),
+				Visible:   util.Ptr[int8](entity.MenuVisible),
+				Status:    util.Ptr[int8](entity.MenuStatusEnabled),
 			})
 			keys = append(keys, d.Key)
 			used[i] = true
@@ -212,5 +212,5 @@ func strPtr(s string) *string {
 	if s == "" {
 		return nil
 	}
-	return ptr.To(s)
+	return util.Ptr(s)
 }

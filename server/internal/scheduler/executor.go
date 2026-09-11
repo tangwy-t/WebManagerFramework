@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/tangwy-t/webmanager-server/internal/model/entity"
-	"github.com/tangwy-t/webmanager-server/internal/pkg/ptr"
+	"github.com/tangwy-t/webmanager-server/internal/pkg/util"
 
 	"go.uber.org/zap"
 )
@@ -169,7 +169,7 @@ func (s *Scheduler) writeLog(ctx context.Context, job *entity.SysJob, triggerTyp
 		Status:       status,
 	}
 	if execErr != nil {
-		log.ErrorMsg = ptr.To[string](execErr.Error())
+		log.ErrorMsg = util.Ptr[string](execErr.Error())
 	}
 	if err := s.logRepo.Create(ctx, log); err != nil {
 		s.logger.Error("scheduler: failed to write job log",

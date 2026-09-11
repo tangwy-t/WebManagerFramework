@@ -5,7 +5,7 @@ import (
 
 	"github.com/tangwy-t/webmanager-server/internal/model/entity"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/migration"
-	"github.com/tangwy-t/webmanager-server/internal/pkg/ptr"
+	"github.com/tangwy-t/webmanager-server/internal/pkg/util"
 )
 
 func init() {
@@ -85,8 +85,8 @@ func seedConfig(tx *gorm.DB) error {
 			ConfigKey:   c.Key,
 			ConfigValue: c.Value,
 			ConfigType:  c.Type,
-			Remark:      ptr.To(c.Remark),
-			Status:      ptr.To[int8](boolToInt8(c.Enabled)),
+			Remark:      util.Ptr(c.Remark),
+			Status:      util.Ptr[int8](boolToInt8(c.Enabled)),
 		})
 	}
 	return tx.CreateInBatches(configs, 100).Error

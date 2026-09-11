@@ -8,7 +8,7 @@ import (
 	"github.com/tangwy-t/webmanager-server/internal/model/entity"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/apperror"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/logger"
-	"github.com/tangwy-t/webmanager-server/internal/pkg/ptr"
+	"github.com/tangwy-t/webmanager-server/internal/pkg/util"
 
 	"gorm.io/gorm"
 )
@@ -115,9 +115,9 @@ func newTestDeptService(repo DeptRepositoryInterface) *DeptService {
 
 func TestDeptUpdateSort_BatchOverwrite(t *testing.T) {
 	repo := newStubDeptRepo([]entity.SysDept{
-		{BaseEntity: entity.BaseEntity{ID: 10}, Name: "A", Sort: ptr.To(1)},
-		{BaseEntity: entity.BaseEntity{ID: 11}, Name: "B", Sort: ptr.To(2)},
-		{BaseEntity: entity.BaseEntity{ID: 12}, Name: "C", Sort: ptr.To(3)},
+		{BaseEntity: entity.BaseEntity{ID: 10}, Name: "A", Sort: util.Ptr(1)},
+		{BaseEntity: entity.BaseEntity{ID: 11}, Name: "B", Sort: util.Ptr(2)},
+		{BaseEntity: entity.BaseEntity{ID: 12}, Name: "C", Sort: util.Ptr(3)},
 	})
 	svc := newTestDeptService(repo)
 	req := &request.UpdateDeptSortReq{
@@ -164,10 +164,10 @@ func TestDeptUpdateSort_DeptNotFound(t *testing.T) {
 // seedDeptTree 构造一棵三层部门树：总公司→研发部→前端组，另有一棵独立的空分公司。
 func seedDeptTree() []entity.SysDept {
 	return []entity.SysDept{
-		{BaseEntity: entity.BaseEntity{ID: 1}, ParentID: ptr.To(uint64(0)), Name: "总公司", Status: ptr.To(int8(1))},
-		{BaseEntity: entity.BaseEntity{ID: 2}, ParentID: ptr.To(uint64(1)), Name: "研发部", Status: ptr.To(int8(1))},
-		{BaseEntity: entity.BaseEntity{ID: 3}, ParentID: ptr.To(uint64(2)), Name: "前端组", Status: ptr.To(int8(1))},
-		{BaseEntity: entity.BaseEntity{ID: 4}, ParentID: ptr.To(uint64(0)), Name: "分公司", Status: ptr.To(int8(0))},
+		{BaseEntity: entity.BaseEntity{ID: 1}, ParentID: util.Ptr(uint64(0)), Name: "总公司", Status: util.Ptr(int8(1))},
+		{BaseEntity: entity.BaseEntity{ID: 2}, ParentID: util.Ptr(uint64(1)), Name: "研发部", Status: util.Ptr(int8(1))},
+		{BaseEntity: entity.BaseEntity{ID: 3}, ParentID: util.Ptr(uint64(2)), Name: "前端组", Status: util.Ptr(int8(1))},
+		{BaseEntity: entity.BaseEntity{ID: 4}, ParentID: util.Ptr(uint64(0)), Name: "分公司", Status: util.Ptr(int8(0))},
 	}
 }
 
@@ -212,7 +212,7 @@ func TestDeptFindTree_FilterByStatus(t *testing.T) {
 	repo := newStubDeptRepo(seedDeptTree())
 	svc := newTestDeptService(repo)
 
-	tree, err := svc.FindTree(context.Background(), request.DeptQuery{Status: ptr.To(int8(0))})
+	tree, err := svc.FindTree(context.Background(), request.DeptQuery{Status: util.Ptr(int8(0))})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

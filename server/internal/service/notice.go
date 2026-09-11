@@ -16,7 +16,6 @@ import (
 	"github.com/tangwy-t/webmanager-server/internal/pkg/apperror"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/contextkeys"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/logger"
-	"github.com/tangwy-t/webmanager-server/internal/pkg/ptr"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/util"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/ws"
 	wsPkg "github.com/tangwy-t/webmanager-server/internal/pkg/ws"
@@ -207,20 +206,20 @@ func (s *NoticeService) applyTargetScope(notice *entity.SysNotice, targetType *i
 		}
 		trimmed = strings.Join(parts, ",")
 	}
-	notice.TargetType = ptr.To[int8](*targetType)
+	notice.TargetType = util.Ptr[int8](*targetType)
 	notice.TargetIDs = trimmed
 	publishType := entity.NoticePublishTypeAll
 	if *targetType != entity.NoticeTargetTypeAll {
 		publishType = entity.NoticePublishTypeCustom
 	}
-	notice.PublishType = ptr.To[int8](publishType)
+	notice.PublishType = util.Ptr[int8](publishType)
 	return nil
 }
 
 func (s *NoticeService) Create(ctx context.Context, req *request.CreateNoticeReq) (uint64, error) {
 	notice := &entity.SysNotice{}
 	util.CopyEntity(notice, req, s.logger)
-	notice.Status = ptr.To[int8](entity.NoticeStatusDraft)
+	notice.Status = util.Ptr[int8](entity.NoticeStatusDraft)
 
 	if err := s.applyTargetScope(notice, req.TargetType, req.TargetIDs); err != nil {
 		return 0, err
@@ -285,7 +284,7 @@ func (s *NoticeService) Publish(ctx context.Context, id uint64, req *request.Pub
 	if notice.PublishType != nil {
 		publishType = *notice.PublishType
 	}
-	notice.Status = ptr.To[int8](entity.NoticeStatusPublished)
+	notice.Status = util.Ptr[int8](entity.NoticeStatusPublished)
 	notice.PublishTime = &now
 
 	// For custom publish, resolve target users (reads only, before the tx)
@@ -400,7 +399,7 @@ func (s *NoticeService) Revoke(ctx context.Context, id uint64) error {
 		return apperror.BadRequest("只有已发布的通知才能撤销")
 	}
 
-	notice.Status = ptr.To[int8](entity.NoticeStatusRevoked)
+	notice.Status = util.Ptr[int8](entity.NoticeStatusRevoked)
 	if err := s.repo.Update(ctx, notice); err != nil {
 		s.logger.Error("NoticeService.Revoke failed", zap.Error(err))
 		return apperror.Internal("撤销通知公告失败")

@@ -8,7 +8,7 @@ import (
 
 	"github.com/tangwy-t/webmanager-server/internal/model/entity"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/migration"
-	"github.com/tangwy-t/webmanager-server/internal/pkg/ptr"
+	"github.com/tangwy-t/webmanager-server/internal/pkg/util"
 )
 
 func init() {
@@ -33,7 +33,7 @@ func seedDept(tx *gorm.DB) error {
 	status := entity.DeptStatusEnabled
 	dept := entity.SysDept{
 		Name:   builtinDeptName,
-		Sort:   ptr.To(0),
+		Sort:   util.Ptr(0),
 		Status: &status,
 	}
 	if err := tx.Create(&dept).Error; err != nil {

@@ -10,7 +10,6 @@ import (
 	"github.com/tangwy-t/webmanager-server/internal/model/dto/request"
 	"github.com/tangwy-t/webmanager-server/internal/model/entity"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/logger"
-	"github.com/tangwy-t/webmanager-server/internal/pkg/ptr"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/util"
 )
 
@@ -133,10 +132,10 @@ func siblingSorts(t *testing.T, repo *stubMenuRepo, parentID, excludeID uint64) 
 
 func TestResolveSortAppendAtEnd(t *testing.T) {
 	repo := newStubMenuRepo([]entity.SysMenu{
-		{BaseEntity: entity.BaseEntity{ID: 1}, ParentID: ptr.To(uint64(0)), Sort: ptr.To(0)},
-		{BaseEntity: entity.BaseEntity{ID: 2}, ParentID: ptr.To(uint64(0)), Sort: ptr.To(1)},
-		{BaseEntity: entity.BaseEntity{ID: 3}, ParentID: ptr.To(uint64(0)), Sort: ptr.To(2)},
-		{BaseEntity: entity.BaseEntity{ID: 4}, ParentID: ptr.To(uint64(1)), Sort: ptr.To(9)},
+		{BaseEntity: entity.BaseEntity{ID: 1}, ParentID: util.Ptr(uint64(0)), Sort: util.Ptr(0)},
+		{BaseEntity: entity.BaseEntity{ID: 2}, ParentID: util.Ptr(uint64(0)), Sort: util.Ptr(1)},
+		{BaseEntity: entity.BaseEntity{ID: 3}, ParentID: util.Ptr(uint64(0)), Sort: util.Ptr(2)},
+		{BaseEntity: entity.BaseEntity{ID: 4}, ParentID: util.Ptr(uint64(1)), Sort: util.Ptr(9)},
 	})
 	svc := newTestMenuService(repo)
 
@@ -156,13 +155,13 @@ func TestResolveSortAppendAtEnd(t *testing.T) {
 func TestResolveSortToTop(t *testing.T) {
 	// 已有兄弟占据 sort=0 —— 原始实现下无法再插入到它前面。
 	repo := newStubMenuRepo([]entity.SysMenu{
-		{BaseEntity: entity.BaseEntity{ID: 1}, ParentID: ptr.To(uint64(0)), Sort: ptr.To(0)},
-		{BaseEntity: entity.BaseEntity{ID: 2}, ParentID: ptr.To(uint64(0)), Sort: ptr.To(1)},
-		{BaseEntity: entity.BaseEntity{ID: 3}, ParentID: ptr.To(uint64(0)), Sort: ptr.To(2)},
+		{BaseEntity: entity.BaseEntity{ID: 1}, ParentID: util.Ptr(uint64(0)), Sort: util.Ptr(0)},
+		{BaseEntity: entity.BaseEntity{ID: 2}, ParentID: util.Ptr(uint64(0)), Sort: util.Ptr(1)},
+		{BaseEntity: entity.BaseEntity{ID: 3}, ParentID: util.Ptr(uint64(0)), Sort: util.Ptr(2)},
 	})
 	svc := newTestMenuService(repo)
 
-	got, err := svc.resolveSort(context.Background(), 0, 0, ptr.To(0))
+	got, err := svc.resolveSort(context.Background(), 0, 0, util.Ptr(0))
 	if err != nil {
 		t.Fatalf("resolveSort error: %v", err)
 	}
@@ -177,13 +176,13 @@ func TestResolveSortToTop(t *testing.T) {
 
 func TestResolveSortMidInsert(t *testing.T) {
 	repo := newStubMenuRepo([]entity.SysMenu{
-		{BaseEntity: entity.BaseEntity{ID: 1}, ParentID: ptr.To(uint64(0)), Sort: ptr.To(0)},
-		{BaseEntity: entity.BaseEntity{ID: 2}, ParentID: ptr.To(uint64(0)), Sort: ptr.To(2)},
-		{BaseEntity: entity.BaseEntity{ID: 3}, ParentID: ptr.To(uint64(0)), Sort: ptr.To(5)},
+		{BaseEntity: entity.BaseEntity{ID: 1}, ParentID: util.Ptr(uint64(0)), Sort: util.Ptr(0)},
+		{BaseEntity: entity.BaseEntity{ID: 2}, ParentID: util.Ptr(uint64(0)), Sort: util.Ptr(2)},
+		{BaseEntity: entity.BaseEntity{ID: 3}, ParentID: util.Ptr(uint64(0)), Sort: util.Ptr(5)},
 	})
 	svc := newTestMenuService(repo)
 
-	got, err := svc.resolveSort(context.Background(), 0, 0, ptr.To(2))
+	got, err := svc.resolveSort(context.Background(), 0, 0, util.Ptr(2))
 	if err != nil {
 		t.Fatalf("resolveSort error: %v", err)
 	}
@@ -198,14 +197,14 @@ func TestResolveSortMidInsert(t *testing.T) {
 func TestResolveSortIgnoresOtherParentsAndSelf(t *testing.T) {
 	repo := newStubMenuRepo([]entity.SysMenu{
 		// 另一个父级下的 sort=0 兄弟，不应被位移。
-		{BaseEntity: entity.BaseEntity{ID: 1}, ParentID: ptr.To(uint64(9)), Sort: ptr.To(0)},
+		{BaseEntity: entity.BaseEntity{ID: 1}, ParentID: util.Ptr(uint64(9)), Sort: util.Ptr(0)},
 		// 待排除的自身。
-		{BaseEntity: entity.BaseEntity{ID: 2}, ParentID: ptr.To(uint64(0)), Sort: ptr.To(0)},
-		{BaseEntity: entity.BaseEntity{ID: 3}, ParentID: ptr.To(uint64(0)), Sort: ptr.To(1)},
+		{BaseEntity: entity.BaseEntity{ID: 2}, ParentID: util.Ptr(uint64(0)), Sort: util.Ptr(0)},
+		{BaseEntity: entity.BaseEntity{ID: 3}, ParentID: util.Ptr(uint64(0)), Sort: util.Ptr(1)},
 	})
 	svc := newTestMenuService(repo)
 
-	got, err := svc.resolveSort(context.Background(), 0, 2, ptr.To(0))
+	got, err := svc.resolveSort(context.Background(), 0, 2, util.Ptr(0))
 	if err != nil {
 		t.Fatalf("resolveSort error: %v", err)
 	}
@@ -230,8 +229,8 @@ func TestResolveSortIgnoresOtherParentsAndSelf(t *testing.T) {
 
 func TestCreateOmittedSortAppendsAtEnd(t *testing.T) {
 	repo := newStubMenuRepo([]entity.SysMenu{
-		{BaseEntity: entity.BaseEntity{ID: 1}, ParentID: ptr.To(uint64(0)), Name: "A", Sort: ptr.To(1)},
-		{BaseEntity: entity.BaseEntity{ID: 2}, ParentID: ptr.To(uint64(0)), Name: "B", Sort: ptr.To(3)},
+		{BaseEntity: entity.BaseEntity{ID: 1}, ParentID: util.Ptr(uint64(0)), Name: "A", Sort: util.Ptr(1)},
+		{BaseEntity: entity.BaseEntity{ID: 2}, ParentID: util.Ptr(uint64(0)), Name: "B", Sort: util.Ptr(3)},
 	})
 	svc := newTestMenuService(repo)
 
@@ -252,13 +251,13 @@ func TestCreateOmittedSortAppendsAtEnd(t *testing.T) {
 
 func TestCreateExplicitZeroSortLandsAtTop(t *testing.T) {
 	repo := newStubMenuRepo([]entity.SysMenu{
-		{BaseEntity: entity.BaseEntity{ID: 1}, ParentID: ptr.To(uint64(0)), Name: "A", Sort: ptr.To(0)},
-		{BaseEntity: entity.BaseEntity{ID: 2}, ParentID: ptr.To(uint64(0)), Name: "B", Sort: ptr.To(1)},
+		{BaseEntity: entity.BaseEntity{ID: 1}, ParentID: util.Ptr(uint64(0)), Name: "A", Sort: util.Ptr(0)},
+		{BaseEntity: entity.BaseEntity{ID: 2}, ParentID: util.Ptr(uint64(0)), Name: "B", Sort: util.Ptr(1)},
 	})
 	svc := newTestMenuService(repo)
 
 	id, err := svc.Create(context.Background(), &request.CreateMenuReq{
-		Name: "C", Type: "menu", Sort: ptr.To(0),
+		Name: "C", Type: "menu", Sort: util.Ptr(0),
 	})
 	if err != nil {
 		t.Fatalf("Create error: %v", err)
@@ -276,15 +275,15 @@ func TestCreateExplicitZeroSortLandsAtTop(t *testing.T) {
 
 func TestUpdateMovesMenuToTop(t *testing.T) {
 	repo := newStubMenuRepo([]entity.SysMenu{
-		{BaseEntity: entity.BaseEntity{ID: 1}, ParentID: ptr.To(uint64(0)), Name: "Top", Sort: ptr.To(0)},
-		{BaseEntity: entity.BaseEntity{ID: 2}, ParentID: ptr.To(uint64(0)), Name: "Mid", Sort: ptr.To(1)},
-		{BaseEntity: entity.BaseEntity{ID: 3}, ParentID: ptr.To(uint64(0)), Name: "X", Sort: ptr.To(5)},
+		{BaseEntity: entity.BaseEntity{ID: 1}, ParentID: util.Ptr(uint64(0)), Name: "Top", Sort: util.Ptr(0)},
+		{BaseEntity: entity.BaseEntity{ID: 2}, ParentID: util.Ptr(uint64(0)), Name: "Mid", Sort: util.Ptr(1)},
+		{BaseEntity: entity.BaseEntity{ID: 3}, ParentID: util.Ptr(uint64(0)), Name: "X", Sort: util.Ptr(5)},
 	})
 	svc := newTestMenuService(repo)
 
 	// 把 X(3) 的排序改为 0 —— 修复前它永远排在 Top(1) 之后。
 	err := svc.Update(context.Background(), &request.UpdateMenuReq{
-		ID: 3, Name: "X", Type: "menu", Sort: ptr.To(0),
+		ID: 3, Name: "X", Type: "menu", Sort: util.Ptr(0),
 	})
 	if err != nil {
 		t.Fatalf("Update error: %v", err)
@@ -303,13 +302,13 @@ func TestUpdateMovesMenuToTop(t *testing.T) {
 
 func TestUpdateUnchangedSortDoesNotShift(t *testing.T) {
 	repo := newStubMenuRepo([]entity.SysMenu{
-		{BaseEntity: entity.BaseEntity{ID: 1}, ParentID: ptr.To(uint64(0)), Name: "A", Sort: ptr.To(0)},
-		{BaseEntity: entity.BaseEntity{ID: 2}, ParentID: ptr.To(uint64(0)), Name: "B", Sort: ptr.To(2)},
+		{BaseEntity: entity.BaseEntity{ID: 1}, ParentID: util.Ptr(uint64(0)), Name: "A", Sort: util.Ptr(0)},
+		{BaseEntity: entity.BaseEntity{ID: 2}, ParentID: util.Ptr(uint64(0)), Name: "B", Sort: util.Ptr(2)},
 	})
 	svc := newTestMenuService(repo)
 
 	err := svc.Update(context.Background(), &request.UpdateMenuReq{
-		ID: 2, Name: "B2", Type: "menu", Sort: ptr.To(2), // 排序未变
+		ID: 2, Name: "B2", Type: "menu", Sort: util.Ptr(2), // 排序未变
 	})
 	if err != nil {
 		t.Fatalf("Update error: %v", err)
@@ -325,18 +324,18 @@ func TestUpdateUnchangedSortDoesNotShift(t *testing.T) {
 func TestUpdateMoveToNewParentShiftsNewGroupOnly(t *testing.T) {
 	repo := newStubMenuRepo([]entity.SysMenu{
 		// 旧父级组。
-		{BaseEntity: entity.BaseEntity{ID: 1}, ParentID: ptr.To(uint64(10)), Name: "A1", Sort: ptr.To(0)},
-		{BaseEntity: entity.BaseEntity{ID: 2}, ParentID: ptr.To(uint64(10)), Name: "X", Sort: ptr.To(1)},
+		{BaseEntity: entity.BaseEntity{ID: 1}, ParentID: util.Ptr(uint64(10)), Name: "A1", Sort: util.Ptr(0)},
+		{BaseEntity: entity.BaseEntity{ID: 2}, ParentID: util.Ptr(uint64(10)), Name: "X", Sort: util.Ptr(1)},
 		// 新父级组。
-		{BaseEntity: entity.BaseEntity{ID: 3}, ParentID: ptr.To(uint64(20)), Name: "B1", Sort: ptr.To(0)},
-		{BaseEntity: entity.BaseEntity{ID: 4}, ParentID: ptr.To(uint64(20)), Name: "B2", Sort: ptr.To(2)},
+		{BaseEntity: entity.BaseEntity{ID: 3}, ParentID: util.Ptr(uint64(20)), Name: "B1", Sort: util.Ptr(0)},
+		{BaseEntity: entity.BaseEntity{ID: 4}, ParentID: util.Ptr(uint64(20)), Name: "B2", Sort: util.Ptr(2)},
 	})
 	svc := newTestMenuService(repo)
 
 	// 把 X(2) 从父级 10 移到父级 20，并置顶。
 	newParent := util.JsonUint64(20)
 	err := svc.Update(context.Background(), &request.UpdateMenuReq{
-		ID: 2, Name: "X", Type: "menu", ParentID: &newParent, Sort: ptr.To(0),
+		ID: 2, Name: "X", Type: "menu", ParentID: &newParent, Sort: util.Ptr(0),
 	})
 	if err != nil {
 		t.Fatalf("Update error: %v", err)

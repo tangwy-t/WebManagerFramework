@@ -12,7 +12,7 @@ import (
 	"github.com/tangwy-t/webmanager-server/internal/pkg/apperror"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/contextkeys"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/logger"
-	"github.com/tangwy-t/webmanager-server/internal/pkg/ptr"
+	"github.com/tangwy-t/webmanager-server/internal/pkg/util"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/ws"
 
 	"gorm.io/gorm"
@@ -145,13 +145,13 @@ func TestTargetDesc(t *testing.T) {
 		notice *entity.SysNotice
 		want   string
 	}{
-		{"遗留-全员发布", &entity.SysNotice{PublishType: ptr.To[int8](entity.NoticePublishTypeAll)}, "全体成员"},
-		{"遗留-自定义发布", &entity.SysNotice{PublishType: ptr.To[int8](entity.NoticePublishTypeCustom)}, "指定成员"},
-		{"全体成员", &entity.SysNotice{TargetType: ptr.To[int8](0)}, "全体成员"},
-		{"指定角色", &entity.SysNotice{TargetType: ptr.To[int8](1), TargetIDs: "3,4,5"}, "指定角色（3个）"},
-		{"指定部门", &entity.SysNotice{TargetType: ptr.To[int8](2), TargetIDs: "7"}, "指定部门（1个）"},
-		{"指定个人-空ID", &entity.SysNotice{TargetType: ptr.To[int8](3), TargetIDs: ""}, "指定个人"},
-		{"未知类型兜底", &entity.SysNotice{TargetType: ptr.To[int8](9)}, "全体成员"},
+		{"遗留-全员发布", &entity.SysNotice{PublishType: util.Ptr[int8](entity.NoticePublishTypeAll)}, "全体成员"},
+		{"遗留-自定义发布", &entity.SysNotice{PublishType: util.Ptr[int8](entity.NoticePublishTypeCustom)}, "指定成员"},
+		{"全体成员", &entity.SysNotice{TargetType: util.Ptr[int8](0)}, "全体成员"},
+		{"指定角色", &entity.SysNotice{TargetType: util.Ptr[int8](1), TargetIDs: "3,4,5"}, "指定角色（3个）"},
+		{"指定部门", &entity.SysNotice{TargetType: util.Ptr[int8](2), TargetIDs: "7"}, "指定部门（1个）"},
+		{"指定个人-空ID", &entity.SysNotice{TargetType: util.Ptr[int8](3), TargetIDs: ""}, "指定个人"},
+		{"未知类型兜底", &entity.SysNotice{TargetType: util.Ptr[int8](9)}, "全体成员"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -169,13 +169,13 @@ func TestApplyTargetScope_Validation(t *testing.T) {
 
 	// 非法类型
 	n := &entity.SysNotice{}
-	assertCode(t, svc.applyTargetScope(n, ptr.To[int8](9), ""), apperror.CodeBadRequest)
+	assertCode(t, svc.applyTargetScope(n, util.Ptr[int8](9), ""), apperror.CodeBadRequest)
 	// 指定范围但未选对象
-	assertCode(t, svc.applyTargetScope(n, ptr.To[int8](entity.NoticeTargetTypeRole), "  "), apperror.CodeBadRequest)
+	assertCode(t, svc.applyTargetScope(n, util.Ptr[int8](entity.NoticeTargetTypeRole), "  "), apperror.CodeBadRequest)
 	// ID 非法
-	assertCode(t, svc.applyTargetScope(n, ptr.To[int8](entity.NoticeTargetTypeUser), "1,abc"), apperror.CodeBadRequest)
+	assertCode(t, svc.applyTargetScope(n, util.Ptr[int8](entity.NoticeTargetTypeUser), "1,abc"), apperror.CodeBadRequest)
 	// nil 目标类型(旧客户端)不报错、不改字段
-	old := &entity.SysNotice{PublishType: ptr.To[int8](entity.NoticePublishTypeAll), TargetType: nil}
+	old := &entity.SysNotice{PublishType: util.Ptr[int8](entity.NoticePublishTypeAll), TargetType: nil}
 	if err := svc.applyTargetScope(old, nil, ""); err != nil {
 		t.Fatalf("nil targetType should pass, got %v", err)
 	}
@@ -185,7 +185,7 @@ func TestApplyTargetScope_DerivesPublishType(t *testing.T) {
 	svc, _ := newTestNoticeService(&stubNoticeRepo{})
 
 	n := &entity.SysNotice{}
-	if err := svc.applyTargetScope(n, ptr.To[int8](entity.NoticeTargetTypeRole), " 11 , 12 "); err != nil {
+	if err := svc.applyTargetScope(n, util.Ptr[int8](entity.NoticeTargetTypeRole), " 11 , 12 "); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if n.TargetType == nil || *n.TargetType != entity.NoticeTargetTypeRole {
@@ -199,7 +199,7 @@ func TestApplyTargetScope_DerivesPublishType(t *testing.T) {
 	}
 
 	m := &entity.SysNotice{}
-	if err := svc.applyTargetScope(m, ptr.To[int8](entity.NoticeTargetTypeAll), ""); err != nil {
+	if err := svc.applyTargetScope(m, util.Ptr[int8](entity.NoticeTargetTypeAll), ""); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if m.PublishType == nil || *m.PublishType != entity.NoticePublishTypeAll {
@@ -215,8 +215,8 @@ func TestCreate_AppliesTargetScope(t *testing.T) {
 
 	id, err := svc.Create(context.Background(), &request.CreateNoticeReq{
 		Title:      "测试",
-		Content:    ptr.To("内容"),
-		TargetType: ptr.To[int8](entity.NoticeTargetTypeDept),
+		Content:    util.Ptr("内容"),
+		TargetType: util.Ptr[int8](entity.NoticeTargetTypeDept),
 		TargetIDs:  "20,21",
 	})
 	if err != nil {
@@ -246,9 +246,9 @@ func TestPublish_FallsBackToStoredScope(t *testing.T) {
 		findByIDNotice: &entity.SysNotice{
 			BaseEntity:  entity.BaseEntity{ID: 55},
 			Title:       "T",
-			Status:      ptr.To[int8](entity.NoticeStatusDraft),
-			PublishType: ptr.To[int8](entity.NoticePublishTypeCustom),
-			TargetType:  ptr.To[int8](entity.NoticeTargetTypeRole),
+			Status:      util.Ptr[int8](entity.NoticeStatusDraft),
+			PublishType: util.Ptr[int8](entity.NoticePublishTypeCustom),
+			TargetType:  util.Ptr[int8](entity.NoticeTargetTypeRole),
 			TargetIDs:   "31,32",
 		},
 		roleUsers: map[uint64][]uint64{31: {101, 102}, 32: {103}},
@@ -284,9 +284,9 @@ func TestPublish_ExplicitIDsOverrideStoredScope(t *testing.T) {
 		findByIDNotice: &entity.SysNotice{
 			BaseEntity:  entity.BaseEntity{ID: 56},
 			Title:       "T",
-			Status:      ptr.To[int8](entity.NoticeStatusDraft),
-			PublishType: ptr.To[int8](entity.NoticePublishTypeCustom),
-			TargetType:  ptr.To[int8](entity.NoticeTargetTypeRole),
+			Status:      util.Ptr[int8](entity.NoticeStatusDraft),
+			PublishType: util.Ptr[int8](entity.NoticePublishTypeCustom),
+			TargetType:  util.Ptr[int8](entity.NoticeTargetTypeRole),
 			TargetIDs:   "31",
 		},
 		roleUsers: map[uint64][]uint64{31: {101}},
@@ -310,8 +310,8 @@ func TestPublish_CustomWithoutAnyScopeFails(t *testing.T) {
 		findByIDNotice: &entity.SysNotice{
 			BaseEntity:  entity.BaseEntity{ID: 57},
 			Title:       "T",
-			Status:      ptr.To[int8](entity.NoticeStatusDraft),
-			PublishType: ptr.To[int8](entity.NoticePublishTypeCustom),
+			Status:      util.Ptr[int8](entity.NoticeStatusDraft),
+			PublishType: util.Ptr[int8](entity.NoticePublishTypeCustom),
 		},
 	}
 	svc, _ := newTestNoticeService(repo)
@@ -326,14 +326,14 @@ func TestFindPage_AttachesCreatorsAndTargetDesc(t *testing.T) {
 	repo := &stubNoticeRepo{
 		findPageList: []entity.SysNotice{
 			{
-				BaseEntity: entity.BaseEntity{ID: 1, CreatedBy: ptr.To(uint64(41))},
+				BaseEntity: entity.BaseEntity{ID: 1, CreatedBy: util.Ptr(uint64(41))},
 				Title:      "A",
-				TargetType: ptr.To[int8](entity.NoticeTargetTypeAll),
+				TargetType: util.Ptr[int8](entity.NoticeTargetTypeAll),
 			},
 			{
-				BaseEntity: entity.BaseEntity{ID: 2, CreatedBy: ptr.To(uint64(42))},
+				BaseEntity: entity.BaseEntity{ID: 2, CreatedBy: util.Ptr(uint64(42))},
 				Title:      "B",
-				TargetType: ptr.To[int8](entity.NoticeTargetTypeUser),
+				TargetType: util.Ptr[int8](entity.NoticeTargetTypeUser),
 				TargetIDs:  "71",
 			},
 		},
@@ -392,8 +392,8 @@ func TestFindReadUsers_OK(t *testing.T) {
 func TestFindTargetUsers_OrderPreserved(t *testing.T) {
 	repo := &stubNoticeRepo{
 		targetUsers: []entity.SysUser{
-			{BaseEntity: entity.BaseEntity{ID: 3}, Username: "c3", RealName: ptr.To("丙")},
-			{BaseEntity: entity.BaseEntity{ID: 1}, Username: "a1", RealName: ptr.To("甲")},
+			{BaseEntity: entity.BaseEntity{ID: 3}, Username: "c3", RealName: util.Ptr("丙")},
+			{BaseEntity: entity.BaseEntity{ID: 1}, Username: "a1", RealName: util.Ptr("甲")},
 			{BaseEntity: entity.BaseEntity{ID: 2}, Username: "b2"},
 		},
 	}
@@ -519,12 +519,12 @@ func TestNoticeServiceMarkAllRead(t *testing.T) {
 // ── FindPage · 阅读状态聚合 ──────────────────────────
 
 func TestFindPage_AttachesReadStatus(t *testing.T) {
-	published := ptr.To[int8](entity.NoticeStatusPublished)
+	published := util.Ptr[int8](entity.NoticeStatusPublished)
 	repo := &stubNoticeRepo{
 		findPageList: []entity.SysNotice{
 			{BaseEntity: entity.BaseEntity{ID: 1}, Title: "A", Status: published},
-			{BaseEntity: entity.BaseEntity{ID: 2}, Title: "B", Status: ptr.To[int8](entity.NoticeStatusPublished)},
-			{BaseEntity: entity.BaseEntity{ID: 3}, Title: "C", Status: ptr.To[int8](entity.NoticeStatusDraft)},
+			{BaseEntity: entity.BaseEntity{ID: 2}, Title: "B", Status: util.Ptr[int8](entity.NoticeStatusPublished)},
+			{BaseEntity: entity.BaseEntity{ID: 3}, Title: "C", Status: util.Ptr[int8](entity.NoticeStatusDraft)},
 		},
 		findPageTotal: 3,
 		findReadMap:   map[uint64]int8{1: 1},
