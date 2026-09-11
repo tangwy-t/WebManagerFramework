@@ -57,6 +57,8 @@ type UserRepositoryInterface interface {
 	UpdateStatus(ctx context.Context, id uint64, status int8) error
 	// UpdatePassword sets the password field for the given user ID.
 	UpdatePassword(ctx context.Context, id uint64, password string, salt *string) error
+	// SetMustChangePassword sets the "must change password" flag for the given user.
+	SetMustChangePassword(ctx context.Context, id uint64, mustChange bool) error
 	// Update updates basic user fields without touching role associations.
 	Update(ctx context.Context, user *entity.SysUser) error
 	// ReplaceRoles replaces all role associations for the given user ID in a single transaction.

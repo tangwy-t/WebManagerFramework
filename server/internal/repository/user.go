@@ -198,6 +198,12 @@ func (r *UserRepo) UpdatePassword(ctx context.Context, id uint64, password strin
 		Updates(updates).Error
 }
 
+// SetMustChangePassword 写入“建议改密”标记。重置密码后置 true,改密后清 false。
+func (r *UserRepo) SetMustChangePassword(ctx context.Context, id uint64, mustChange bool) error {
+	return r.db.WithContext(ctx).Model(&entity.SysUser{}).Where("id = ?", id).
+		Update("must_change_password", mustChange).Error
+}
+
 // FindRoleCodeByID returns the role's code (used by role-member guards:
 // the built-in admin role's membership is not modifiable via the role page).
 func (r *UserRepo) FindRoleCodeByID(ctx context.Context, roleID uint64) (string, error) {

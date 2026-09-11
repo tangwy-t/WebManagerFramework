@@ -65,6 +65,12 @@ func (r *AuthRepo) UpdatePassword(ctx context.Context, userID uint64, newPasswor
 		Updates(updates).Error
 }
 
+// SetMustChangePassword 写入“建议改密”标记。false 由改密成功后调用清除。
+func (r *AuthRepo) SetMustChangePassword(ctx context.Context, userID uint64, mustChange bool) error {
+	return r.db.WithContext(ctx).Model(&entity.SysUser{}).Where("id = ?", userID).
+		Update("must_change_password", mustChange).Error
+}
+
 // UpdateProfile updates only the self-editable profile columns (real_name,
 // email, phone) — explicit column list, no mass assignment. A nil pointer
 // writes SQL NULL ("clear the field"), mirroring the semantics of
