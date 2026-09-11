@@ -44,13 +44,16 @@
   import { reactive, ref, h } from 'vue'
   import { ElMessage, ElMessageBox } from 'element-plus'
   import { useTableColumns } from '@/hooks/core/useTableColumns'
+  import { useAuth } from '@/hooks/core/useAuth'
   import { useDict } from '@/hooks/core/useDict'
+  import { operationColumn } from '@/components/core/tables/operation-column'
   import ArtButtonTable from '@/components/core/forms/art-button-table/index.vue'
   import { fetchConfigs, removeConfig } from '../api'
   import ConfigDialog from './config-dialog.vue'
 
   defineOptions({ name: 'SystemConfig' })
 
+  const { hasAuth } = useAuth()
   const searchForm = ref<{ configKey?: string }>({})
   const showSearchBar = ref(false)
   const searchItems = [
@@ -104,29 +107,9 @@
     await loadList()
   }
 
-  const { columns, columnChecks } = useTableColumns<Api.Config.Config>(() => [
-    { type: 'index', width: 60, label: '序号' },
-    { prop: 'name', label: '参数名称', minWidth: 140 },
-    { prop: 'configKey', label: '参数键', minWidth: 180 },
-    { prop: 'configValue', label: '参数值', minWidth: 140, showOverflowTooltip: true },
-    {
-      prop: 'configType',
-      label: '类型',
-      width: 90,
-      formatter: (row) => typeLabels[row.configType] ?? row.configType
-    },
-    {
-      prop: 'status',
-      label: '状态',
-      width: 90,
-      formatter: (row) => statusDict.render(row.status)
-    },
-    { prop: 'remark', label: '备注', minWidth: 140, showOverflowTooltip: true },
-    {
-      prop: 'operation',
-      label: '操作',
-      width: 110,
-      fixed: 'right',
+  const { columns, columnChecks } = useTableColumns<Api.Config.Config>(() => {
+    const operationColumnConfig = operationColumn<Api.Config.Config>({
+      count: (hasAuth('system:config:edit') ? 1 : 0) + (hasAuth('system:config:delete') ? 1 : 0),
       formatter: (row) =>
         h('div', { class: 'flex items-center' }, [
           h(ArtButtonTable, {
@@ -142,8 +125,29 @@
             onClick: () => onRemove(row)
           })
         ])
-    }
-  ])
+    })
+
+    return [
+      { type: 'index', width: 60, label: '序号' },
+      { prop: 'name', label: '参数名称', minWidth: 140 },
+      { prop: 'configKey', label: '参数键', minWidth: 180 },
+      { prop: 'configValue', label: '参数值', minWidth: 140, showOverflowTooltip: true },
+      {
+        prop: 'configType',
+        label: '类型',
+        width: 90,
+        formatter: (row) => typeLabels[row.configType] ?? row.configType
+      },
+      {
+        prop: 'status',
+        label: '状态',
+        width: 90,
+        formatter: (row) => statusDict.render(row.status)
+      },
+      { prop: 'remark', label: '备注', minWidth: 140, showOverflowTooltip: true },
+      ...(operationColumnConfig ? [operationColumnConfig] : [])
+    ]
+  })
 
   function handleSearch() {
     pagination.current = 1

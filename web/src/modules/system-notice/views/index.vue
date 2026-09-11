@@ -48,6 +48,7 @@
   import { useTableColumns } from '@/hooks/core/useTableColumns'
   import { useDict } from '@/hooks/core/useDict'
   import { useAuth } from '@/hooks/core/useAuth'
+  import { operationColumn } from '@/components/core/tables/operation-column'
   import ArtButtonTable from '@/components/core/forms/art-button-table/index.vue'
   import ArtButtonMore from '@/components/core/forms/art-button-more/index.vue'
   import { fetchNotices, removeNotice, publishNotice, revokeNotice } from '../api'
@@ -173,63 +174,15 @@
     else if (key === 'delete') await onRemove(row)
   }
 
-  const { columns, columnChecks } = useTableColumns<Api.Notice.Notice>(() => [
-    { type: 'index', width: 60, label: '序号' },
-    {
-      prop: 'title',
-      label: '公告标题',
-      minWidth: 220,
-      showOverflowTooltip: true,
-      formatter: (row) =>
-        h('a', { class: 'notice-title-link', onClick: () => openDetail(row) }, row.title)
-    },
-    {
-      prop: 'noticeType',
-      label: '公告类型',
-      width: 100,
-      formatter: (row) => noticeTypeDict.render(row.noticeType)
-    },
-    {
-      prop: 'status',
-      label: '状态',
-      width: 100,
-      formatter: (row) => statusDict.render(row.status)
-    },
-    {
-      prop: 'readStatus',
-      label: '阅读状态',
-      width: 100,
-      formatter: (row) => (row.readStatus == null ? '—' : readStatusDict.render(row.readStatus))
-    },
-    {
-      prop: 'priority',
-      label: '优先级',
-      width: 100,
-      formatter: (row) => priorityDict.render(row.priority)
-    },
-    {
-      prop: 'targetType',
-      label: '接收范围',
-      width: 180,
-      showOverflowTooltip: true,
-      formatter: (row) => {
-        const label = targetTypeDict.labelOf(row.targetType)
-        const extra = row.targetDesc && row.targetDesc !== label ? row.targetDesc : ''
-        return extra
-          ? h('div', { class: 'flex items-center gap-1.5' }, [
-              targetTypeDict.render(row.targetType),
-              h('span', { class: 'text-xs text-g-500' }, extra)
-            ])
-          : targetTypeDict.render(row.targetType)
-      }
-    },
-    { prop: 'createBy', label: '创建者', width: 110, showOverflowTooltip: true },
-    { prop: 'publishTime', label: '发布时间', width: 170 },
-    {
-      prop: 'operation',
-      label: '操作',
-      width: 150,
-      fixed: 'right',
+  const { columns, columnChecks } = useTableColumns<Api.Notice.Notice>(() => {
+    const operationColumnConfig = operationColumn<Api.Notice.Notice>({
+      count:
+        (hasAuth('system:notice:edit') ? 1 : 0) +
+        (hasAuth('system:notice:query') ||
+        hasAuth('system:notice:publish') ||
+        hasAuth('system:notice:delete')
+          ? 1
+          : 0),
       formatter: (row) =>
         h('div', { class: 'flex items-center' }, [
           hasAuth('system:notice:edit')
@@ -274,8 +227,63 @@
             onClick: (item: { key: string | number }) => onMore(item, row)
           })
         ])
-    }
-  ])
+    })
+
+    return [
+      { type: 'index', width: 60, label: '序号' },
+      {
+        prop: 'title',
+        label: '公告标题',
+        minWidth: 220,
+        showOverflowTooltip: true,
+        formatter: (row) =>
+          h('a', { class: 'notice-title-link', onClick: () => openDetail(row) }, row.title)
+      },
+      {
+        prop: 'noticeType',
+        label: '公告类型',
+        width: 100,
+        formatter: (row) => noticeTypeDict.render(row.noticeType)
+      },
+      {
+        prop: 'status',
+        label: '状态',
+        width: 100,
+        formatter: (row) => statusDict.render(row.status)
+      },
+      {
+        prop: 'readStatus',
+        label: '阅读状态',
+        width: 100,
+        formatter: (row) => (row.readStatus == null ? '—' : readStatusDict.render(row.readStatus))
+      },
+      {
+        prop: 'priority',
+        label: '优先级',
+        width: 100,
+        formatter: (row) => priorityDict.render(row.priority)
+      },
+      {
+        prop: 'targetType',
+        label: '接收范围',
+        width: 180,
+        showOverflowTooltip: true,
+        formatter: (row) => {
+          const label = targetTypeDict.labelOf(row.targetType)
+          const extra = row.targetDesc && row.targetDesc !== label ? row.targetDesc : ''
+          return extra
+            ? h('div', { class: 'flex items-center gap-1.5' }, [
+                targetTypeDict.render(row.targetType),
+                h('span', { class: 'text-xs text-g-500' }, extra)
+              ])
+            : targetTypeDict.render(row.targetType)
+        }
+      },
+      { prop: 'createBy', label: '创建者', width: 110, showOverflowTooltip: true },
+      { prop: 'publishTime', label: '发布时间', width: 170 },
+      ...(operationColumnConfig ? [operationColumnConfig] : [])
+    ]
+  })
 
   function handleSearch() {
     pagination.current = 1

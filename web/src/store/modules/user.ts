@@ -41,7 +41,6 @@ import { RoutesAlias } from '@/router/routesAlias'
 import { resetRouterState, rememberPermissionFingerprint } from '@/router/guards/beforeEach'
 import { useMenuStore } from './menu'
 import { StorageConfig } from '@/utils/storage/storage-config'
-import { clearRememberedLogin } from '@/utils/auth/remember-login'
 import { fetchLogin, fetchGetUserInfo, fetchLogout } from '@/api/auth'
 import { useSocketStore } from './socket'
 
@@ -159,9 +158,9 @@ export const useUserStore = defineStore(
 
       // 清空用户信息
       info.value = {}
-      // 清除「记住密码」凭据:密码以 base64 明文落 localStorage,登出时
-      // 主动清除可避免共享设备/他人在本机还原出明文密码的残留风险。
-      clearRememberedLogin()
+      // 注意：「记住密码」凭据在登出时**保留**，这样用户勾选过记住密码后，
+      // 下次回到登录页仍会自动回填账号密码并默认勾选。凭据仅在用户取消
+      // 勾选或登录失败时由登录页清洗（见 views/auth/login/index.vue）。
       // 重置登录状态
       isLogin.value = false
       // 重置锁屏状态

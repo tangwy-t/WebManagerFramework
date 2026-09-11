@@ -91,6 +91,7 @@
   import { useTableColumns } from '@/hooks/core/useTableColumns'
   import { useDict } from '@/hooks/core/useDict'
   import { useAuth } from '@/hooks/core/useAuth'
+  import { operationColumn } from '@/components/core/tables/operation-column'
   import ArtButtonTable from '@/components/core/forms/art-button-table/index.vue'
   import ArtSvgIcon from '@/components/core/base/art-svg-icon/index.vue'
   import { fetchRoles, removeRole, updateRoleStatus, updateRoleSort } from '../api'
@@ -396,27 +397,36 @@
   }
 
   /* ── 表格列 ─────────────────────────────────────── */
-  const { columns, columnChecks } = useTableColumns<Api.System.Role>(() => [
-    { type: 'selection', width: 46 },
-    { type: 'index', width: 60, label: '序号' },
-    { prop: 'name', label: '角色', minWidth: 190, formatter: (row) => renderRoleCell(row) },
-    { prop: 'dataScope', label: '数据权限', width: 110, formatter: (row) => renderDataScope(row) },
-    { prop: 'sort', label: '排序', width: 150, align: 'center', useSlot: true },
-    { prop: 'status', label: '状态', width: 104, formatter: (row) => renderStatus(row) },
-    {
-      prop: 'createdAt',
-      label: '创建时间',
-      width: 150,
-      formatter: (row) => fmtTime(row.createdAt)
-    },
-    {
-      prop: 'operation',
-      label: '操作',
-      width: 150,
-      fixed: 'right',
+  const { columns, columnChecks } = useTableColumns<Api.System.Role>(() => {
+    const operationColumnConfig = operationColumn<Api.System.Role>({
+      count:
+        (hasAuth('system:role:edit') ? 1 : 0) +
+        (hasAuth('system:role:assign') ? 1 : 0) +
+        (hasAuth('system:role:delete') ? 1 : 0),
       formatter: (row) => renderOperation(row)
-    }
-  ])
+    })
+
+    return [
+      { type: 'selection', width: 46 },
+      { type: 'index', width: 60, label: '序号' },
+      { prop: 'name', label: '角色', minWidth: 190, formatter: (row) => renderRoleCell(row) },
+      {
+        prop: 'dataScope',
+        label: '数据权限',
+        width: 110,
+        formatter: (row) => renderDataScope(row)
+      },
+      { prop: 'sort', label: '排序', width: 150, align: 'center', useSlot: true },
+      { prop: 'status', label: '状态', width: 104, formatter: (row) => renderStatus(row) },
+      {
+        prop: 'createdAt',
+        label: '创建时间',
+        width: 150,
+        formatter: (row) => fmtTime(row.createdAt)
+      },
+      ...(operationColumnConfig ? [operationColumnConfig] : [])
+    ]
+  })
 
   loadList()
 </script>

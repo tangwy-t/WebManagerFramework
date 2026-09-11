@@ -116,8 +116,10 @@
   import { ElSwitch, ElTag, ElTooltip, ElMessage, ElMessageBox } from 'element-plus'
   import { useWindowSize } from '@vueuse/core'
   import { useTableColumns } from '@/hooks/core/useTableColumns'
+  import { useAuth } from '@/hooks/core/useAuth'
   import { useDict } from '@/hooks/core/useDict'
   import { resolveAvatar } from '@/utils/avatar'
+  import { operationColumn } from '@/components/core/tables/operation-column'
   import ArtButtonTable from '@/components/core/forms/art-button-table/index.vue'
   import ArtButtonMore from '@/components/core/forms/art-button-more/index.vue'
   import ArtSvgIcon from '@/components/core/base/art-svg-icon/index.vue'
@@ -139,6 +141,7 @@
 
   const { width } = useWindowSize()
   const isMobile = computed(() => width.value < 1024)
+  const { hasAuth } = useAuth()
 
   /* ── 部门树 ─────────────────────────────────────── */
   const deptTree = ref<Api.System.Dept[]>([])
@@ -485,59 +488,72 @@
   }
 
   /* ── 表格列 ─────────────────────────────────────── */
-  const { columns, columnChecks } = useTableColumns<Api.System.User>(() => [
-    { type: 'selection', width: 46 },
-    {
-      prop: 'avatar',
-      label: '头像',
-      width: 72,
-      align: 'center',
-      formatter: (row) => renderAvatar(row)
-    },
-    {
-      prop: 'username',
-      label: '账号',
-      minWidth: 120,
-      formatter: (row) =>
-        h(
-          'a',
-          { class: 'cell-username', title: '查看用户详情', onClick: () => openDetail(row) },
-          row.username
-        )
-    },
-    { prop: 'realName', label: '姓名', width: 100, formatter: (row) => row.realName || '—' },
-    { prop: 'deptName', label: '部门', width: 130, formatter: (row) => row.deptName || '—' },
-    { prop: 'phone', label: '手机', width: 120, formatter: (row) => row.phone || '—' },
-    {
-      prop: 'email',
-      label: '邮箱',
-      minWidth: 150,
-      showOverflowTooltip: true,
-      visible: false,
-      formatter: (row) => row.email || '—'
-    },
-    { prop: 'roleNames', label: '角色', minWidth: 150, formatter: (row) => renderRoleTags(row) },
-    { prop: 'status', label: '状态', width: 96, formatter: (row) => renderStatus(row) },
-    {
-      prop: 'lastLoginTime',
-      label: '最后登录',
-      width: 140,
-      formatter: (row) => fmtTime(row.lastLoginTime)
-    },
-    {
-      prop: 'createdAt',
-      label: '创建时间',
-      width: 140,
-      formatter: (row) => fmtTime(row.createdAt)
-    },
-    {
-      prop: 'operation',
-      label: '操作',
-      width: 150,
-      fixed: 'right',
+  const { columns, columnChecks } = useTableColumns<Api.System.User>(() => {
+    const operationColumnConfig = operationColumn<Api.System.User>({
+      count:
+        (hasAuth('system:user:edit') ? 1 : 0) +
+        (hasAuth('system:user:assign') ? 1 : 0) +
+        ([
+          'system:user:query',
+          'system:user:reset',
+          'system:user:unlock',
+          'system:user:disable',
+          'system:user:enable',
+          'system:user:delete'
+        ].some((p) => hasAuth(p))
+          ? 1
+          : 0),
       formatter: (row) => renderOperation(row)
-    }
-  ])
+    })
+
+    return [
+      { type: 'selection', width: 46 },
+      {
+        prop: 'avatar',
+        label: '头像',
+        width: 72,
+        align: 'center',
+        formatter: (row) => renderAvatar(row)
+      },
+      {
+        prop: 'username',
+        label: '账号',
+        minWidth: 120,
+        formatter: (row) =>
+          h(
+            'a',
+            { class: 'cell-username', title: '查看用户详情', onClick: () => openDetail(row) },
+            row.username
+          )
+      },
+      { prop: 'realName', label: '姓名', width: 100, formatter: (row) => row.realName || '—' },
+      { prop: 'deptName', label: '部门', width: 130, formatter: (row) => row.deptName || '—' },
+      { prop: 'phone', label: '手机', width: 120, formatter: (row) => row.phone || '—' },
+      {
+        prop: 'email',
+        label: '邮箱',
+        minWidth: 150,
+        showOverflowTooltip: true,
+        visible: false,
+        formatter: (row) => row.email || '—'
+      },
+      { prop: 'roleNames', label: '角色', minWidth: 150, formatter: (row) => renderRoleTags(row) },
+      { prop: 'status', label: '状态', width: 96, formatter: (row) => renderStatus(row) },
+      {
+        prop: 'lastLoginTime',
+        label: '最后登录',
+        width: 140,
+        formatter: (row) => fmtTime(row.lastLoginTime)
+      },
+      {
+        prop: 'createdAt',
+        label: '创建时间',
+        width: 140,
+        formatter: (row) => fmtTime(row.createdAt)
+      },
+      ...(operationColumnConfig ? [operationColumnConfig] : [])
+    ]
+  })
 
   loadDeptTree()
   loadList()

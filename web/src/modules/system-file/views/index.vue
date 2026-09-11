@@ -369,6 +369,7 @@
   import { ElMessage, ElMessageBox } from 'element-plus'
   import { useDebounceFn, useStorage } from '@vueuse/core'
   import ArtTable from '@/components/core/tables/art-table/index.vue'
+  import { operationColumn } from '@/components/core/tables/operation-column'
   import ArtButtonTable from '@/components/core/forms/art-button-table/index.vue'
   import ArtSvgIcon from '@/components/core/base/art-svg-icon/index.vue'
   import type { ColumnOption } from '@/types/component'
@@ -725,6 +726,15 @@
           : [])
       ])
 
+    // 操作列：按可见按钮数量自动计算宽度；无可用操作时整列隐藏
+    const operationColumnConfig = operationColumn<Api.File.FileItem>({
+      count:
+        (hasPermission('system:file:download') ? 2 : 0) +
+        (hasPermission('system:file:edit') ? 1 : 0) +
+        (hasPermission('system:file:delete') ? 1 : 0),
+      formatter: actions
+    })
+
     return [
       { type: 'selection', width: 48 },
       {
@@ -801,7 +811,7 @@
         width: 150,
         formatter: (row: Api.File.FileItem) => formatTime(row.createdAt)
       },
-      { prop: 'operation', label: '操作', width: 210, fixed: 'right', formatter: actions }
+      ...(operationColumnConfig ? [operationColumnConfig] : [])
     ]
   })
 

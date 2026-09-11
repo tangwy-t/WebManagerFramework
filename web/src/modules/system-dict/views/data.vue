@@ -39,6 +39,8 @@
   import { useRoute, useRouter } from 'vue-router'
   import { ElTag, ElMessage, ElMessageBox } from 'element-plus'
   import { useTableColumns } from '@/hooks/core/useTableColumns'
+  import { useAuth } from '@/hooks/core/useAuth'
+  import { operationColumn } from '@/components/core/tables/operation-column'
   import ArtButtonTable from '@/components/core/forms/art-button-table/index.vue'
   import { fetchDictType, fetchDictData, removeDictData } from '../api'
   import { useDictStatus } from '../useDictStatus'
@@ -46,6 +48,7 @@
 
   defineOptions({ name: 'SystemDictData' })
 
+  const { hasAuth } = useAuth()
   const route = useRoute()
   const router = useRouter()
 
@@ -97,29 +100,10 @@
     await loadAll()
   }
 
-  const { columns } = useTableColumns<Api.Dict.DictData>(() => [
-    { type: 'index', width: 60, label: '序号' },
-    {
-      prop: 'label',
-      label: '标签',
-      minWidth: 130,
-      formatter: (row) =>
-        h(ElTag, { type: tagType(row.listClass), effect: 'light' }, () => row.label)
-    },
-    { prop: 'value', label: '值', minWidth: 120 },
-    { prop: 'sort', label: '排序', width: 80 },
-    {
-      prop: 'status',
-      label: '状态',
-      width: 90,
-      formatter: (row) => dictStatus.render(row.status)
-    },
-    { prop: 'remark', label: '备注', minWidth: 160, showOverflowTooltip: true },
-    {
-      prop: 'operation',
-      label: '操作',
-      width: 120,
-      fixed: 'right',
+  const { columns } = useTableColumns<Api.Dict.DictData>(() => {
+    const operationColumnConfig = operationColumn<Api.Dict.DictData>({
+      count:
+        (hasAuth('system:dict:data:edit') ? 1 : 0) + (hasAuth('system:dict:data:delete') ? 1 : 0),
       formatter: (row) =>
         h('div', { class: 'flex items-center' }, [
           h(ArtButtonTable, {
@@ -135,8 +119,29 @@
             onClick: () => onRemoveData(row)
           })
         ])
-    }
-  ])
+    })
+
+    return [
+      { type: 'index', width: 60, label: '序号' },
+      {
+        prop: 'label',
+        label: '标签',
+        minWidth: 130,
+        formatter: (row) =>
+          h(ElTag, { type: tagType(row.listClass), effect: 'light' }, () => row.label)
+      },
+      { prop: 'value', label: '值', minWidth: 120 },
+      { prop: 'sort', label: '排序', width: 80 },
+      {
+        prop: 'status',
+        label: '状态',
+        width: 90,
+        formatter: (row) => dictStatus.render(row.status)
+      },
+      { prop: 'remark', label: '备注', minWidth: 160, showOverflowTooltip: true },
+      ...(operationColumnConfig ? [operationColumnConfig] : [])
+    ]
+  })
 
   loadAll()
 </script>

@@ -69,9 +69,11 @@
   import { computed, ref, h } from 'vue'
   import { ElMessage, ElMessageBox, ElTag } from 'element-plus'
   import { useTableColumns } from '@/hooks/core/useTableColumns'
+  import { useAuth } from '@/hooks/core/useAuth'
   import { useDict } from '@/hooks/core/useDict'
   import { useTreeExpand } from '@/hooks/core/useTreeExpand'
   import ArtSvgIcon from '@/components/core/base/art-svg-icon/index.vue'
+  import { operationColumn } from '@/components/core/tables/operation-column'
   import ArtButtonTable from '@/components/core/forms/art-button-table/index.vue'
   import { fetchMenus, removeMenu, updateMenuSort } from '../api'
   import { MENU_TYPE_META, MENU_TYPE_OPTIONS } from '../constants'
@@ -79,6 +81,7 @@
 
   defineOptions({ name: 'SystemMenu' })
 
+  const { hasAuth } = useAuth()
   const loading = ref(false)
   const data = ref<Api.System.Menu[]>([])
   const dialog = ref<InstanceType<typeof MenuDialog>>()
@@ -219,77 +222,9 @@
     await loadList()
   }
 
-  const { columns, columnChecks } = useTableColumns<Api.System.Menu>(() => [
-    {
-      prop: 'name',
-      label: '菜单名称',
-      minWidth: 220,
-      showOverflowTooltip: true,
-      formatter: (row) =>
-        h(
-          'div',
-          {
-            class: 'menu-name-cell',
-            // 必须保持行内级（inline-flex 而非 flex），否则该 div 是块级元素，
-            // 会被挤到展开箭头（行内元素）的下一行。
-            style: {
-              display: 'inline-flex',
-              alignItems: 'center',
-              verticalAlign: 'middle',
-              maxWidth: '100%'
-            }
-          },
-          [
-            row.icon
-              ? h(ArtSvgIcon, {
-                  icon: row.icon,
-                  class: 'menu-name-icon',
-                  style: { flexShrink: 0 }
-                })
-              : null,
-            h('span', { class: 'ml5' }, row.name)
-          ]
-        )
-    },
-    {
-      prop: 'type',
-      label: '类型',
-      width: 90,
-      align: 'center',
-      formatter: (row) => {
-        const m = typeMeta[row.type] ?? { label: row.type, tag: 'info' as any }
-        return h(ElTag, { type: m.tag, size: 'small' }, () => m.label)
-      }
-    },
-    {
-      prop: 'sort',
-      label: '排序',
-      width: 150,
-      align: 'center',
-      useSlot: true,
-      slotName: 'sort'
-    },
-    { prop: 'perms', label: '权限标识', minWidth: 160, showOverflowTooltip: true },
-    { prop: 'component', label: '组件路径', minWidth: 140, showOverflowTooltip: true },
-    {
-      prop: 'visible',
-      label: '显示',
-      width: 80,
-      align: 'center',
-      formatter: (row) => visibleDict.render(row.visible)
-    },
-    {
-      prop: 'status',
-      label: '状态',
-      width: 80,
-      align: 'center',
-      formatter: (row) => statusDict.render(row.status)
-    },
-    {
-      prop: 'operation',
-      label: '操作',
-      width: 150,
-      fixed: 'right',
+  const { columns, columnChecks } = useTableColumns<Api.System.Menu>(() => {
+    const operationColumnConfig = operationColumn<Api.System.Menu>({
+      count: (hasAuth('system:menu:edit') ? 1 : 0) + (hasAuth('system:menu:add') ? 1 : 0) + 1,
       formatter: (row) =>
         h('div', { class: 'flex items-center' }, [
           h(ArtButtonTable, {
@@ -319,8 +254,77 @@
                 onClick: () => onRemove(row)
               })
         ])
-    }
-  ])
+    })
+
+    return [
+      {
+        prop: 'name',
+        label: '菜单名称',
+        minWidth: 220,
+        showOverflowTooltip: true,
+        formatter: (row) =>
+          h(
+            'div',
+            {
+              class: 'menu-name-cell',
+              // 必须保持行内级（inline-flex 而非 flex），否则该 div 是块级元素，
+              // 会被挤到展开箭头（行内元素）的下一行。
+              style: {
+                display: 'inline-flex',
+                alignItems: 'center',
+                verticalAlign: 'middle',
+                maxWidth: '100%'
+              }
+            },
+            [
+              row.icon
+                ? h(ArtSvgIcon, {
+                    icon: row.icon,
+                    class: 'menu-name-icon',
+                    style: { flexShrink: 0 }
+                  })
+                : null,
+              h('span', { class: 'ml5' }, row.name)
+            ]
+          )
+      },
+      {
+        prop: 'type',
+        label: '类型',
+        width: 90,
+        align: 'center',
+        formatter: (row) => {
+          const m = typeMeta[row.type] ?? { label: row.type, tag: 'info' as any }
+          return h(ElTag, { type: m.tag, size: 'small' }, () => m.label)
+        }
+      },
+      {
+        prop: 'sort',
+        label: '排序',
+        width: 150,
+        align: 'center',
+        useSlot: true,
+        slotName: 'sort'
+      },
+      { prop: 'perms', label: '权限标识', minWidth: 160, showOverflowTooltip: true },
+      { prop: 'component', label: '组件路径', minWidth: 140, showOverflowTooltip: true },
+      {
+        prop: 'visible',
+        label: '显示',
+        width: 80,
+        align: 'center',
+        formatter: (row) => visibleDict.render(row.visible)
+      },
+      {
+        prop: 'status',
+        label: '状态',
+        width: 80,
+        align: 'center',
+        formatter: (row) => statusDict.render(row.status)
+      },
+      ...(operationColumnConfig ? [operationColumnConfig] : [])
+    ]
+  })
 
   loadList()
 </script>

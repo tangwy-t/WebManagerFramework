@@ -58,9 +58,11 @@
   import { reactive, ref, h, computed } from 'vue'
   import { ElMessage, ElMessageBox, ElSwitch, ElTooltip } from 'element-plus'
   import { useTableColumns } from '@/hooks/core/useTableColumns'
+  import { useAuth } from '@/hooks/core/useAuth'
   import { useDict } from '@/hooks/core/useDict'
   import { useUserStore } from '@/store/modules/user'
   import { useRouter } from 'vue-router'
+  import { operationColumn } from '@/components/core/tables/operation-column'
   import ArtButtonTable from '@/components/core/forms/art-button-table/index.vue'
   import ArtButtonMore from '@/components/core/forms/art-button-more/index.vue'
   import ArtSvgIcon from '@/components/core/base/art-svg-icon/index.vue'
@@ -72,6 +74,7 @@
 
   defineOptions({ name: 'SystemJob' })
 
+  const { hasAuth } = useAuth()
   const searchForm = ref<Api.Job.Query>({})
   const showSearchBar = ref(false)
   const loading = ref(false)
@@ -205,85 +208,13 @@
     if (key === 'delete') await onRemove(row)
   }
 
-  const { columns, columnChecks } = useTableColumns<Api.Job.Job>(() => [
-    { type: 'index', width: 60, label: '序号' },
-    { prop: 'name', label: '任务名称', minWidth: 140, showOverflowTooltip: true },
-    { prop: 'jobGroup', label: '任务组', width: 100 },
-    {
-      prop: 'invokeTarget',
-      label: '调用目标',
-      minWidth: 160,
-      formatter: (row) => {
-        const displayName = targets.value.find((t) => t.target === row.invokeTarget)?.displayName
-        const registered = targets.value.some((t) => t.target === row.invokeTarget)
-        const warn = targets.value.length > 0 && !registered
-        return h('div', { class: 'target-cell' }, [
-          h('div', { class: 'target-name-row' }, [
-            h('span', { class: 'target-name' }, displayName || row.invokeTarget),
-            warn
-              ? h(ArtSvgIcon, {
-                  icon: 'ri:error-warning-line',
-                  class: 'text-warning',
-                  title: '该目标未在注册表中'
-                })
-              : null
-          ]),
-          displayName ? h('div', { class: 'target-sub font-mono' }, row.invokeTarget) : null
-        ])
-      }
-    },
-    {
-      prop: 'cronExpression',
-      label: '执行周期',
-      minWidth: 190,
-      formatter: (row) => {
-        const desc = describeCron(row.cronExpression) || '自定义表达式'
-        return h('div', { class: 'cron-cell' }, [
-          h('div', { class: 'cron-desc' }, desc),
-          h(
-            'div',
-            {
-              class: 'cron-raw font-mono',
-              title: `原始表达式：${row.cronExpression}`
-            },
-            row.cronExpression
-          )
-        ])
-      }
-    },
-    {
-      prop: 'concurrent',
-      label: '并发',
-      width: 80,
-      align: 'center',
-      formatter: (row) => concurrentDict.render(row.concurrent)
-    },
-    { prop: 'status', label: '状态', width: 140, useSlot: true, slotName: 'status' },
-    {
-      prop: 'nextRunTime',
-      label: '下次执行',
-      width: 175,
-      formatter: (row) => {
-        const next = row.nextRunTime
-        if (!next || row.status !== 1) {
-          return h('span', { class: 'text-g-500' }, '—')
-        }
-        const relative = formatRelative(next)
-        return h(
-          ElTooltip,
-          { content: relative, placement: 'top', disabled: !relative },
-          {
-            default: () =>
-              h('span', { class: 'next-run' }, formatShortTime(new Date(next.replace(' ', 'T'))))
-          }
-        )
-      }
-    },
-    {
-      prop: 'operation',
-      label: '操作',
-      width: 185,
-      fixed: 'right',
+  const { columns, columnChecks } = useTableColumns<Api.Job.Job>(() => {
+    const operationColumnConfig = operationColumn<Api.Job.Job>({
+      count:
+        (hasAuth('system:job:edit') ? 1 : 0) +
+        (hasAuth('system:job:once') ? 1 : 0) +
+        (hasAuth('system:job:log:list') ? 1 : 0) +
+        (hasAuth('system:job:delete') ? 1 : 0),
       formatter: (row) =>
         h('div', { class: 'flex items-center' }, [
           h(ArtButtonTable, {
@@ -322,8 +253,85 @@
             onClick: (item: { key: string | number }) => onMore(item, row)
           })
         ])
-    }
-  ])
+    })
+
+    return [
+      { type: 'index', width: 60, label: '序号' },
+      { prop: 'name', label: '任务名称', minWidth: 140, showOverflowTooltip: true },
+      { prop: 'jobGroup', label: '任务组', width: 100 },
+      {
+        prop: 'invokeTarget',
+        label: '调用目标',
+        minWidth: 160,
+        formatter: (row) => {
+          const displayName = targets.value.find((t) => t.target === row.invokeTarget)?.displayName
+          const registered = targets.value.some((t) => t.target === row.invokeTarget)
+          const warn = targets.value.length > 0 && !registered
+          return h('div', { class: 'target-cell' }, [
+            h('div', { class: 'target-name-row' }, [
+              h('span', { class: 'target-name' }, displayName || row.invokeTarget),
+              warn
+                ? h(ArtSvgIcon, {
+                    icon: 'ri:error-warning-line',
+                    class: 'text-warning',
+                    title: '该目标未在注册表中'
+                  })
+                : null
+            ]),
+            displayName ? h('div', { class: 'target-sub font-mono' }, row.invokeTarget) : null
+          ])
+        }
+      },
+      {
+        prop: 'cronExpression',
+        label: '执行周期',
+        minWidth: 190,
+        formatter: (row) => {
+          const desc = describeCron(row.cronExpression) || '自定义表达式'
+          return h('div', { class: 'cron-cell' }, [
+            h('div', { class: 'cron-desc' }, desc),
+            h(
+              'div',
+              {
+                class: 'cron-raw font-mono',
+                title: `原始表达式：${row.cronExpression}`
+              },
+              row.cronExpression
+            )
+          ])
+        }
+      },
+      {
+        prop: 'concurrent',
+        label: '并发',
+        width: 80,
+        align: 'center',
+        formatter: (row) => concurrentDict.render(row.concurrent)
+      },
+      { prop: 'status', label: '状态', width: 140, useSlot: true, slotName: 'status' },
+      {
+        prop: 'nextRunTime',
+        label: '下次执行',
+        width: 175,
+        formatter: (row) => {
+          const next = row.nextRunTime
+          if (!next || row.status !== 1) {
+            return h('span', { class: 'text-g-500' }, '—')
+          }
+          const relative = formatRelative(next)
+          return h(
+            ElTooltip,
+            { content: relative, placement: 'top', disabled: !relative },
+            {
+              default: () =>
+                h('span', { class: 'next-run' }, formatShortTime(new Date(next.replace(' ', 'T'))))
+            }
+          )
+        }
+      },
+      ...(operationColumnConfig ? [operationColumnConfig] : [])
+    ]
+  })
 
   function handleSearch() {
     pagination.current = 1

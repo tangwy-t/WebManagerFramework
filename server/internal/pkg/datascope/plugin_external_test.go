@@ -46,6 +46,60 @@ func selfScopeCtx(userID uint64) context.Context {
 	})
 }
 
+// newDeptScopeTestDB 构造 sys_dept + sys_user 两张表,用于验证 sys_dept
+// 的 self 维度规则(经 sys_user 把用户 ID 翻译成 dept_id)。
+func newDeptScopeTestDB(t *testing.T) *gorm.DB {
+	t.Helper()
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	if err := db.AutoMigrate(&entity.SysUser{}, &entity.SysDept{}); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+	ownDept := uint64(10)
+	otherDept := uint64(20)
+	depts := []entity.SysDept{
+		{BaseEntity: entity.BaseEntity{ID: 10}, Name: "own-dept"},
+		{BaseEntity: entity.BaseEntity{ID: 20}, Name: "other-dept"},
+	}
+	for i := range depts {
+		if err := db.Create(&depts[i]).Error; err != nil {
+			t.Fatalf("seed dept: %v", err)
+		}
+	}
+	users := []entity.SysUser{
+		{BaseEntity: entity.BaseEntity{ID: 7}, Username: "self", DeptID: &ownDept},
+		{BaseEntity: entity.BaseEntity{ID: 8}, Username: "other", DeptID: &otherDept},
+	}
+	for i := range users {
+		if err := db.Create(&users[i]).Error; err != nil {
+			t.Fatalf("seed user: %v", err)
+		}
+	}
+	return db
+}
+
+// TestScopeCallbackSelfSeesOwnDept 仅本人数据范围下,用户仍应能看见自己
+// 所属的部门(经 sys_user.dept_id 翻译),且看不到其它部门。
+func TestScopeCallbackSelfSeesOwnDept(t *testing.T) {
+	db := newDeptScopeTestDB(t)
+	plugin := datascope.NewScopePlugin()
+	plugin.RegisterPlugin(db)
+	plugin.RegisterEntity("sys_dept", entity.SysDept{})
+
+	var depts []entity.SysDept
+	if err := db.WithContext(selfScopeCtx(7)).Find(&depts).Error; err != nil {
+		t.Fatalf("find depts: %v", err)
+	}
+	if len(depts) != 1 {
+		t.Fatalf("self-scoped dept query returned %d rows, want exactly own dept", len(depts))
+	}
+	if depts[0].ID != 10 || depts[0].Name != "own-dept" {
+		t.Fatalf("self-scoped dept query returned dept %q(id=%d), want own dept 10", depts[0].Name, depts[0].ID)
+	}
+}
+
 // TestScopeCallbackBlocksOutOfScopeDelete Delete 回调注入 scope 条件:
 // self 用户不得删除他人行(IDOR 防线),但可删除自己。
 func TestScopeCallbackBlocksOutOfScopeDelete(t *testing.T) {

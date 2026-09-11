@@ -152,8 +152,10 @@
   import { useRoute, useRouter } from 'vue-router'
   import { ElMessage } from 'element-plus'
   import { useTableColumns } from '@/hooks/core/useTableColumns'
+  import { useAuth } from '@/hooks/core/useAuth'
   import { useDict } from '@/hooks/core/useDict'
   import { useDictStore } from '@/store/modules/dict'
+  import { operationColumn } from '@/components/core/tables/operation-column'
   import ArtButtonTable from '@/components/core/forms/art-button-table/index.vue'
   import ArtSvgIcon from '@/components/core/base/art-svg-icon/index.vue'
   import { fetchJob, fetchJobLogs, deleteJobLogs } from '../api'
@@ -161,6 +163,7 @@
 
   defineOptions({ name: 'SystemJobLogs' })
 
+  const { hasAuth } = useAuth()
   const route = useRoute()
   const router = useRouter()
 
@@ -349,58 +352,9 @@
     }
   }
 
-  const { columns } = useTableColumns<Api.Job.JobLog>(() => [
-    { type: 'index', width: 55, label: '序号' },
-    { prop: 'jobName', label: '任务名称', minWidth: 120, showOverflowTooltip: true },
-    {
-      prop: 'invokeTarget',
-      label: '调用目标',
-      minWidth: 150,
-      formatter: (row) => {
-        const displayName = targets.value.find((t) => t.target === row.invokeTarget)?.displayName
-        return h('div', { class: 'target-cell' }, [
-          h('div', { class: 'target-name-row' }, [
-            h('span', { class: 'target-name' }, displayName || row.invokeTarget)
-          ]),
-          displayName ? h('div', { class: 'target-sub font-mono' }, row.invokeTarget) : null
-        ])
-      }
-    },
-    {
-      prop: 'triggerType',
-      label: '触发方式',
-      width: 95,
-      align: 'center',
-      formatter: (row) => triggerDict.render(row.triggerType)
-    },
-    { prop: 'startTime', label: '开始时间', width: 165 },
-    {
-      prop: 'costTime',
-      label: '耗时',
-      width: 90,
-      formatter: (row) =>
-        h('span', { class: row.costTime > 10_000 ? 'text-danger' : '' }, formatCost(row.costTime))
-    },
-    {
-      prop: 'status',
-      label: '状态',
-      width: 90,
-      align: 'center',
-      formatter: (row) => statusDict.render(row.status)
-    },
-    {
-      prop: 'errorMsg',
-      label: '错误信息',
-      minWidth: 140,
-      useSlot: true,
-      slotName: 'error-info',
-      showOverflowTooltip: true
-    },
-    {
-      prop: 'operation',
-      label: '操作',
-      width: 80,
-      fixed: 'right',
+  const { columns } = useTableColumns<Api.Job.JobLog>(() => {
+    const operationColumnConfig = operationColumn<Api.Job.JobLog>({
+      count: hasAuth('system:job:log:list') ? 1 : 0,
       formatter: (row) =>
         h('div', { class: 'flex items-center' }, [
           h(ArtButtonTable, {
@@ -410,8 +364,58 @@
             onClick: () => openDetail(row)
           })
         ])
-    }
-  ])
+    })
+
+    return [
+      { type: 'index', width: 55, label: '序号' },
+      { prop: 'jobName', label: '任务名称', minWidth: 120, showOverflowTooltip: true },
+      {
+        prop: 'invokeTarget',
+        label: '调用目标',
+        minWidth: 150,
+        formatter: (row) => {
+          const displayName = targets.value.find((t) => t.target === row.invokeTarget)?.displayName
+          return h('div', { class: 'target-cell' }, [
+            h('div', { class: 'target-name-row' }, [
+              h('span', { class: 'target-name' }, displayName || row.invokeTarget)
+            ]),
+            displayName ? h('div', { class: 'target-sub font-mono' }, row.invokeTarget) : null
+          ])
+        }
+      },
+      {
+        prop: 'triggerType',
+        label: '触发方式',
+        width: 95,
+        align: 'center',
+        formatter: (row) => triggerDict.render(row.triggerType)
+      },
+      { prop: 'startTime', label: '开始时间', width: 165 },
+      {
+        prop: 'costTime',
+        label: '耗时',
+        width: 90,
+        formatter: (row) =>
+          h('span', { class: row.costTime > 10_000 ? 'text-danger' : '' }, formatCost(row.costTime))
+      },
+      {
+        prop: 'status',
+        label: '状态',
+        width: 90,
+        align: 'center',
+        formatter: (row) => statusDict.render(row.status)
+      },
+      {
+        prop: 'errorMsg',
+        label: '错误信息',
+        minWidth: 140,
+        useSlot: true,
+        slotName: 'error-info',
+        showOverflowTooltip: true
+      },
+      ...(operationColumnConfig ? [operationColumnConfig] : [])
+    ]
+  })
 
   function handleSizeChange(size: number) {
     pagination.size = size

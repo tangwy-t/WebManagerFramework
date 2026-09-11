@@ -69,14 +69,17 @@
   import { computed, ref, h } from 'vue'
   import { ElMessage, ElMessageBox } from 'element-plus'
   import { useTableColumns } from '@/hooks/core/useTableColumns'
+  import { useAuth } from '@/hooks/core/useAuth'
   import { useDict } from '@/hooks/core/useDict'
   import { useTreeExpand } from '@/hooks/core/useTreeExpand'
+  import { operationColumn } from '@/components/core/tables/operation-column'
   import ArtButtonTable from '@/components/core/forms/art-button-table/index.vue'
   import { fetchDepts, removeDept, updateDeptSort } from '../api'
   import DeptDialog from './dept-dialog.vue'
 
   defineOptions({ name: 'SystemDept' })
 
+  const { hasAuth } = useAuth()
   const loading = ref(false)
   const data = ref<Api.System.Dept[]>([])
   const dialog = ref<InstanceType<typeof DeptDialog>>()
@@ -197,36 +200,9 @@
     await loadList()
   }
 
-  const { columns, columnChecks } = useTableColumns<Api.System.Dept>(() => [
-    {
-      prop: 'name',
-      label: '部门名称',
-      minWidth: 220,
-      showOverflowTooltip: true
-    },
-    {
-      prop: 'sort',
-      label: '排序',
-      width: 150,
-      align: 'center',
-      useSlot: true,
-      slotName: 'sort'
-    },
-    { prop: 'leader', label: '负责人', width: 110 },
-    { prop: 'phone', label: '联系电话', width: 140 },
-    { prop: 'email', label: '邮箱', minWidth: 160 },
-    {
-      prop: 'status',
-      label: '状态',
-      width: 80,
-      align: 'center',
-      formatter: (row) => statusDict.render(row.status)
-    },
-    {
-      prop: 'operation',
-      label: '操作',
-      width: 150,
-      fixed: 'right',
+  const { columns, columnChecks } = useTableColumns<Api.System.Dept>(() => {
+    const operationColumnConfig = operationColumn<Api.System.Dept>({
+      count: (hasAuth('system:dept:edit') ? 1 : 0) + (hasAuth('system:dept:add') ? 1 : 0) + 1,
       formatter: (row) =>
         h('div', { class: 'flex items-center' }, [
           h(ArtButtonTable, {
@@ -256,8 +232,36 @@
                 onClick: () => onRemove(row)
               })
         ])
-    }
-  ])
+    })
+
+    return [
+      {
+        prop: 'name',
+        label: '部门名称',
+        minWidth: 220,
+        showOverflowTooltip: true
+      },
+      {
+        prop: 'sort',
+        label: '排序',
+        width: 150,
+        align: 'center',
+        useSlot: true,
+        slotName: 'sort'
+      },
+      { prop: 'leader', label: '负责人', width: 110 },
+      { prop: 'phone', label: '联系电话', width: 140 },
+      { prop: 'email', label: '邮箱', minWidth: 160 },
+      {
+        prop: 'status',
+        label: '状态',
+        width: 80,
+        align: 'center',
+        formatter: (row) => statusDict.render(row.status)
+      },
+      ...(operationColumnConfig ? [operationColumnConfig] : [])
+    ]
+  })
 
   loadList()
 </script>

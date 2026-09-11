@@ -42,12 +42,15 @@
   import { reactive, ref, h, computed } from 'vue'
   import { ElMessage, ElMessageBox, ElTag } from 'element-plus'
   import { useTableColumns } from '@/hooks/core/useTableColumns'
+  import { useAuth } from '@/hooks/core/useAuth'
   import { useDict } from '@/hooks/core/useDict'
+  import { operationColumn } from '@/components/core/tables/operation-column'
   import ArtButtonTable from '@/components/core/forms/art-button-table/index.vue'
   import { fetchOperationLogs, clearOperationLogs } from '../api'
 
   defineOptions({ name: 'LogOperation' })
 
+  const { hasAuth } = useAuth()
   const searchForm = ref<{ username?: string; module?: string; code?: number | string }>({})
   const showSearchBar = ref(false)
 
@@ -179,48 +182,9 @@
     }
   }
 
-  const { columns, columnChecks } = useTableColumns<Api.Log.OperationLog>(() => [
-    { type: 'index', width: 60, label: '序号' },
-    {
-      prop: 'module',
-      label: '系统模块',
-      minWidth: 120,
-      // 模块是分类信息:统一中性标签,不与状态列的语义色抢注意力
-      formatter: (row) =>
-        row.module ? h(ElTag, { type: 'info', effect: 'light' }, () => row.module) : '—'
-    },
-    { prop: 'operationType', label: '操作类型', minWidth: 120, showOverflowTooltip: true },
-    { prop: 'username', label: '操作人员', width: 120 },
-    { prop: 'ip', label: 'IP', width: 140 },
-    {
-      prop: 'requestMethod',
-      label: '请求方式',
-      width: 100,
-      formatter: (row) => {
-        const method = (row.requestMethod ?? '').toUpperCase()
-        if (!method) return '—'
-        return h(ElTag, { type: METHOD_TAG_TYPE[method] ?? 'info', effect: 'light' }, () => method)
-      }
-    },
-    { prop: 'requestUrl', label: '请求地址', minWidth: 180, showOverflowTooltip: true },
-    {
-      prop: 'code',
-      label: '状态',
-      width: 130,
-      formatter: (row) => resultCodeDict.render(row.code)
-    },
-    {
-      prop: 'costTime',
-      label: '耗时',
-      width: 100,
-      formatter: (row) => `${row.costTime}ms`
-    },
-    { prop: 'operTime', label: '操作时间', width: 180 },
-    {
-      prop: 'operation',
-      label: '操作',
-      width: 110,
-      fixed: 'right',
+  const { columns, columnChecks } = useTableColumns<Api.Log.OperationLog>(() => {
+    const operationColumnConfig = operationColumn<Api.Log.OperationLog>({
+      count: hasAuth('system:log:operation:list') ? 1 : 0,
       formatter: (row) =>
         h('div', { class: 'flex items-center' }, [
           h(ArtButtonTable, {
@@ -230,8 +194,52 @@
             onClick: () => viewDetail(row)
           })
         ])
-    }
-  ])
+    })
+
+    return [
+      { type: 'index', width: 60, label: '序号' },
+      {
+        prop: 'module',
+        label: '系统模块',
+        minWidth: 120,
+        // 模块是分类信息:统一中性标签,不与状态列的语义色抢注意力
+        formatter: (row) =>
+          row.module ? h(ElTag, { type: 'info', effect: 'light' }, () => row.module) : '—'
+      },
+      { prop: 'operationType', label: '操作类型', minWidth: 120, showOverflowTooltip: true },
+      { prop: 'username', label: '操作人员', width: 120 },
+      { prop: 'ip', label: 'IP', width: 140 },
+      {
+        prop: 'requestMethod',
+        label: '请求方式',
+        width: 100,
+        formatter: (row) => {
+          const method = (row.requestMethod ?? '').toUpperCase()
+          if (!method) return '—'
+          return h(
+            ElTag,
+            { type: METHOD_TAG_TYPE[method] ?? 'info', effect: 'light' },
+            () => method
+          )
+        }
+      },
+      { prop: 'requestUrl', label: '请求地址', minWidth: 180, showOverflowTooltip: true },
+      {
+        prop: 'code',
+        label: '状态',
+        width: 130,
+        formatter: (row) => resultCodeDict.render(row.code)
+      },
+      {
+        prop: 'costTime',
+        label: '耗时',
+        width: 100,
+        formatter: (row) => `${row.costTime}ms`
+      },
+      { prop: 'operTime', label: '操作时间', width: 180 },
+      ...(operationColumnConfig ? [operationColumnConfig] : [])
+    ]
+  })
 
   function handleSearch() {
     pagination.current = 1

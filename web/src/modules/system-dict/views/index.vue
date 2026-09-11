@@ -49,6 +49,8 @@
   import { useRouter } from 'vue-router'
   import { ElMessage, ElMessageBox } from 'element-plus'
   import { useTableColumns } from '@/hooks/core/useTableColumns'
+  import { useAuth } from '@/hooks/core/useAuth'
+  import { operationColumn } from '@/components/core/tables/operation-column'
   import ArtButtonTable from '@/components/core/forms/art-button-table/index.vue'
   import { fetchDictTypes, removeDictType } from '../api'
   import { useDictStatus } from '../useDictStatus'
@@ -56,6 +58,7 @@
 
   defineOptions({ name: 'SystemDict' })
 
+  const { hasAuth } = useAuth()
   const router = useRouter()
 
   // 搜索表单
@@ -128,23 +131,12 @@
   }
 
   // 列配置（操作列使用图标按钮）
-  const { columns, columnChecks } = useTableColumns<Api.Dict.DictType>(() => [
-    { type: 'index', width: 60, label: '序号' },
-    { prop: 'name', label: '字典名称', minWidth: 140 },
-    { prop: 'code', label: '字典编码', minWidth: 160 },
-    {
-      prop: 'status',
-      label: '状态',
-      width: 90,
-      formatter: (row) => dictStatus.render(row.status)
-    },
-    { prop: 'remark', label: '备注', minWidth: 160, showOverflowTooltip: true },
-    { prop: 'createdAt', label: '创建时间', width: 180 },
-    {
-      prop: 'operation',
-      label: '操作',
-      width: 170,
-      fixed: 'right',
+  const { columns, columnChecks } = useTableColumns<Api.Dict.DictType>(() => {
+    const operationColumnConfig = operationColumn<Api.Dict.DictType>({
+      count:
+        (hasAuth('system:dict:data:list') ? 1 : 0) +
+        (hasAuth('system:dict:type:edit') ? 1 : 0) +
+        (hasAuth('system:dict:type:delete') ? 1 : 0),
       formatter: (row) =>
         h('div', { class: 'flex items-center' }, [
           h(ArtButtonTable, {
@@ -167,8 +159,23 @@
             onClick: () => onRemoveType(row)
           })
         ])
-    }
-  ])
+    })
+
+    return [
+      { type: 'index', width: 60, label: '序号' },
+      { prop: 'name', label: '字典名称', minWidth: 140 },
+      { prop: 'code', label: '字典编码', minWidth: 160 },
+      {
+        prop: 'status',
+        label: '状态',
+        width: 90,
+        formatter: (row) => dictStatus.render(row.status)
+      },
+      { prop: 'remark', label: '备注', minWidth: 160, showOverflowTooltip: true },
+      { prop: 'createdAt', label: '创建时间', width: 180 },
+      ...(operationColumnConfig ? [operationColumnConfig] : [])
+    ]
+  })
 
   function handleSearch() {
     pagination.current = 1
