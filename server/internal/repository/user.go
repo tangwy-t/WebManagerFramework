@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"strconv"
 
 	"github.com/tangwy-t/webmanager-server/internal/model/dto/request"
 	"github.com/tangwy-t/webmanager-server/internal/model/entity"
@@ -35,7 +36,15 @@ func (r *UserRepo) applyUserFilters(db *gorm.DB, query *request.UserQuery) *gorm
 		db = db.Where("status = ?", *query.Status)
 	}
 	if query.DeptID != nil {
-		db = db.Where("dept_id = ?", *query.DeptID)
+		// 部门筛选「含子部门」:选中节点 + 其全部后代部门。ancestors 为「根,…,自身」
+		// 链路,(',' || ancestors || ',') LIKE '%,{id},%' 命中自身及所有含该节点的后代。
+		// 与数据范围(scope 插件)相互独立:插件再以 AND 叠加 dept 维度,不会放大越权。
+		deptIDStr := strconv.FormatUint(*query.DeptID, 10)
+		pattern := "%," + deptIDStr + ",%"
+		db = db.Where(
+			"dept_id IN (SELECT id FROM sys_dept WHERE id = ? OR (',' || ancestors || ',') LIKE ?)",
+			*query.DeptID, pattern,
+		)
 	}
 	if query.RoleID != nil {
 		// 过滤已分配该角色的用户:不用 JOIN,交给子查询,避免与 Roles Preload 的
