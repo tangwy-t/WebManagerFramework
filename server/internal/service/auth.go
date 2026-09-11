@@ -76,6 +76,7 @@ type AuthService struct {
 	captchaSvc    CaptchaInterface
 	apiPrefix     string // server.apiPrefix,用于拼接头像访问路径
 	scopeResolver *datascope.ScopeResolver
+	passwordSvc   *PasswordService
 }
 
 // NewAuthService constructs an AuthService with the given dependencies.
@@ -88,6 +89,7 @@ func NewAuthService(
 	captchaSvc CaptchaInterface,
 	apiPrefix string,
 	scopeResolver *datascope.ScopeResolver,
+	passwordSvc *PasswordService,
 ) *AuthService {
 	return &AuthService{
 		cfgProv:       cfgProv,
@@ -98,7 +100,18 @@ func NewAuthService(
 		captchaSvc:    captchaSvc,
 		apiPrefix:     apiPrefix,
 		scopeResolver: scopeResolver,
+		passwordSvc:   passwordSvc,
 	}
+}
+
+// ChangePassword 委托给密码域服务(含强度策略与改密提醒清理)。
+func (s *AuthService) ChangePassword(ctx context.Context, req *request.ChangePasswordReq, accessToken string) error {
+	return s.passwordSvc.ChangePassword(ctx, req, accessToken)
+}
+
+// VerifyPassword 委托给密码域服务(锁屏解锁校验)。
+func (s *AuthService) VerifyPassword(ctx context.Context, req *request.VerifyPasswordReq) (*response.VerifyPasswordResp, error) {
+	return s.passwordSvc.VerifyPassword(ctx, req)
 }
 
 // issueTokens generates a signed access token and refresh token for the given user.
