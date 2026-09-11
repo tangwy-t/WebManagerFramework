@@ -63,6 +63,11 @@ func (s *CacheService) GetKeyValue(ctx context.Context, req *request.GetKeyValue
 	if page.TTL == -2 {
 		return nil, apperror.NotFound("key 不存在: " + req.Key)
 	}
+	// 安全修复（评审 #2）：缓存接口读 config:values 共享 hash 时，对敏感字段
+	// （sys.jwt.[FUNC] 等）做与 config 管理接口一致的掩码，堵住"掩码被第二条
+	// 读路径绕过"的密钥泄露。此前 GetValuePage 裸读 hash 字段，持
+	// system:cache:query 的账号可读出当前 HMAC 签名密钥并伪造任意 token。
+	value := maskCacheValue(page.Key, page.Type, page.Value)
 	return &response.CacheValuePage{
 		Key:        page.Key,
 		Type:       page.Type,
@@ -72,8 +77,41 @@ func (s *CacheService) GetKeyValue(ctx context.Context, req *request.GetKeyValue
 		HasMore:    page.HasMore,
 		NextCursor: page.NextCursor,
 		Truncated:  page.Truncated,
-		Value:      page.Value,
+		Value:      value,
 	}, nil
+}
+
+// maskCacheValue 对缓存页内容中的敏感字段值做掩码。
+// hash 类型的 Value 为 []cache.HashEntry（field=配置键），按 field 匹配
+// 敏感键正则；string 类型仅当 key 本身为敏感键（如直接读 "access:<token>"
+// 之外的敏感 string 键）时掩码。其余类型（list/set/zset）不掩码，保持语义。
+func maskCacheValue(key, typ string, value any) any {
+	switch typ {
+	case "hash":
+		entries, ok := value.([]cache.HashEntry)
+		if !ok {
+			return value
+		}
+		out := make([]cache.HashEntry, len(entries))
+		copy(out, entries)
+		for i := range out {
+			if isSensitiveConfigKey(out[i].Field) {
+				out[i].Value = maskedConfigValue
+			}
+		}
+		return out
+	case "string":
+		s, ok := value.(string)
+		if !ok {
+			return value
+		}
+		if isSensitiveConfigKey(key) {
+			return maskedConfigValue
+		}
+		return s
+	default:
+		return value
+	}
 }
 
 func (s *CacheService) DeleteKeys(ctx context.Context, req *request.DeleteKeysRequest) (*response.DeleteKeysResponse, error) {

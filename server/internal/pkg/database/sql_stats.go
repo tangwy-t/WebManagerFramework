@@ -215,6 +215,14 @@ func (s *SQLStats) Record(table, op string, duration time.Duration, sql string, 
 	}
 
 	// 按表统计
+	// 安全修复（评审 #12）：在持锁之前分配本次访问的单调时间戳 ts，新键与
+	// 已存在键都统一用它写入 lastAccess，且新键入堆也用它。此前新键 heap.Push
+	// 的 access 恒为 0、锁外才 Store(ts)，导致：① 0 与 lastAccess>=1 恒不等，
+	// evictLRU 的 currentAccess==item.access 判定永不命中（淘汰退化）；② push
+	// 后、锁外 Store(ts) 前，另一 goroutine 触发 evictLRU 读到 lastAccess==0
+	// 会 0==0 命中删除分支、误删刚创建的键。统一用同一 ts 后两者恒一致。
+	ts := s.accessCounter.Add(1)
+
 	s.mu.RLock()
 	ds, ok := s.tableStats[table]
 	s.mu.RUnlock()
@@ -228,14 +236,15 @@ func (s *SQLStats) Record(table, op string, duration time.Duration, sql string, 
 				s.evictLRU()
 			}
 			ds = &dimStats{}
+			ds.lastAccess.Store(ts)
 			ds.minDur.Store(ns)
 			s.tableStats[table] = ds
-			heap.Push(&s.lruHeap, lruItem{access: 0, key: table})
+			heap.Push(&s.lruHeap, lruItem{access: ts, key: table})
 		}
 		s.mu.Unlock()
 	}
-	// 更新 lastAccess 用于 LRU 淘汰
-	ts := s.accessCounter.Add(1)
+	// 更新 lastAccess 用于 LRU 淘汰：已存在键在此刷新热度；新键已在持锁
+	// 分支内写入同一 ts，此处重复 Store 同一值幂等无害。
 	ds.lastAccess.Store(ts)
 	ds.count.Add(1)
 	ds.duration.Add(ns)

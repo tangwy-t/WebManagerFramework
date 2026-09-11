@@ -107,7 +107,7 @@ func TestRoleUpdateStatus_RoleNotFound(t *testing.T) {
 	assertCode(t, err, apperror.CodeNotFound)
 }
 
-func TestRoleUpdateStatus_Success_RevokesUsersPerms(t *testing.T) {
+func TestRoleUpdateStatus_Success_RevokesUsersSessions(t *testing.T) {
 	repo := &stubRoleRepo{
 		findByIDRole:  &entity.SysRole{Code: "dev"},
 		userIDsByRole: []uint64{10, 11},
@@ -121,8 +121,9 @@ func TestRoleUpdateStatus_Success_RevokesUsersPerms(t *testing.T) {
 		t.Fatalf("unexpected update args: called=%v id=%d status=%d",
 			repo.updateStatusCalled, repo.updateStatusID, repo.updateStatusVal)
 	}
-	if len(ss.revoked) != 2 || ss.revoked[0] != 10 || ss.revoked[1] != 11 {
-		t.Fatalf("expected RevokePerms for [10 11], got %v", ss.revoked)
+	// 安全修复（#3）：停用角色须 RevokeAll 吊销受影响用户的全部会话。
+	if len(ss.revokeAll) != 2 || ss.revokeAll[0] != 10 || ss.revokeAll[1] != 11 {
+		t.Fatalf("expected RevokeAll for [10 11], got %v", ss.revokeAll)
 	}
 }
 

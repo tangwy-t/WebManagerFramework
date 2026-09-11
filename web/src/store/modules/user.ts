@@ -42,7 +42,7 @@ import { resetRouterState, rememberPermissionFingerprint } from '@/router/guards
 import { useMenuStore } from './menu'
 import { StorageConfig } from '@/utils/storage/storage-config'
 import { clearRememberedLogin } from '@/utils/auth/remember-login'
-import { fetchLogin, fetchGetUserInfo } from '@/api/auth'
+import { fetchLogin, fetchGetUserInfo, fetchLogout } from '@/api/auth'
 import { useSocketStore } from './socket'
 
 /**
@@ -143,6 +143,18 @@ export const useUserStore = defineStore(
         localStorage.setItem(StorageConfig.LAST_USER_ID_KEY, String(currentUserId))
       } else {
         localStorage.removeItem(StorageConfig.LAST_USER_ID_KEY)
+      }
+
+      // 安全修复（评审 #1）：登出时调用后端 /logout，吊销服务端 refresh
+      // token。此前前端只清本地状态、从不调 /logout，导致被盗的 refresh
+      // token 在受害者"登出"后仍长期有效、可无限续期。此处用当前 refresh
+      // token 尽力而为地通知服务端（失败不阻断本地登出，服务端 token 会
+      // 自然过期）。
+      const rt = refreshToken.value
+      if (rt) {
+        fetchLogout().catch(() => {
+          // 网络/服务端异常时静默降级：本地登出照常，服务端 refresh 过期兜底。
+        })
       }
 
       // 清空用户信息

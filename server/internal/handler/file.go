@@ -2,9 +2,11 @@ package handler
 
 import (
 	"context"
+	"fmt"
 	"mime/multipart"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -13,6 +15,7 @@ import (
 	"github.com/tangwy-t/webmanager-server/internal/model/entity"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/app"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/apperror"
+	"github.com/tangwy-t/webmanager-server/internal/service"
 )
 
 // FileServiceInterface 文件管理服务方法集(消费方接口,按需定义)。
@@ -231,10 +234,46 @@ func (h *FileHandler) Preview(c *gin.Context) {
 		app.Error(c, err)
 		return
 	}
-	if file.MimeType != nil && *file.MimeType != "" {
-		// 先写 Content-Type:http.ServeContent 仅在未设置时自动推断。
-		c.Header("Content-Type", *file.MimeType)
+
+	// 安全修复（存储型 XSS 纵深防御）：
+	//  1. 恒加 X-Content-Type-Options: nosniff —— 阻止浏览器按内容二次嗅探
+	//     （否则即使 Content-Type 为 text/plain，含 HTML 的内容仍可能被当作
+	//     HTML 渲染执行脚本）。
+	//  2. 恒加 CSP default-src 'none' —— 即便内联渲染，也禁止加载/执行任何
+	//     子资源与脚本。
+	//  3. 活动内容（text/html / image/svg+xml / text/javascript 等）或服务端
+	//     无法确认安全的类型，一律 Content-Disposition: attachment 强制下载，
+	//     绝不内联渲染。
+	c.Header("X-Content-Type-Options", "nosniff")
+	c.Header("Content-Security-Policy", "default-src 'none'; sandbox")
+
+	mimeType := ""
+	if file.MimeType != nil {
+		mimeType = *file.MimeType
 	}
-	// c.File → http.ServeContent:支持 Range 请求。
+	if mimeType == "" || !service.IsInlineSafeMime(mimeType) {
+		// 活动内容/未知类型：强制下载，禁止内联执行。
+		c.Header("Content-Type", "application/octet-stream")
+		c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, sanitizeFilename(file.Name)))
+		http.ServeFile(c.Writer, c.Request, fullPath)
+		return
+	}
+
+	// 安全类型（图片/视频/文档等）内联渲染，但仍带 nosniff + CSP。
+	c.Header("Content-Type", mimeType)
 	http.ServeFile(c.Writer, c.Request, fullPath)
+}
+
+// sanitizeFilename 去除文件名中的 CR/LF 与引号，防止 Content-Disposition
+// 头部注入；同时剔除路径分隔符，保证附件名仅为单一文件名的安全展示。
+func sanitizeFilename(name string) string {
+	name = strings.ReplaceAll(name, "\r", "")
+	name = strings.ReplaceAll(name, "\n", "")
+	name = strings.ReplaceAll(name, `"`, "")
+	name = strings.ReplaceAll(name, "\\", "")
+	name = strings.ReplaceAll(name, "/", "")
+	if name == "" {
+		return "download"
+	}
+	return name
 }

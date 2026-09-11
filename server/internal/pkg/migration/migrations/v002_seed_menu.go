@@ -136,7 +136,7 @@ var menuDefinitions = []menuDef{
 	{Key: "job:log:delete", Parent: "job", Name: "清空日志", Type: "btn", Perms: permission.PermJobLogDelete, Sort: 9},
 
 	// ── 日志管理 (dir, 根级) ───────────────────────────────────
-	{Key: "log", Name: "日志管理", Type: "dir", Sort: 3, Icon: "icon-park-outline:log"},
+	{Key: "log", Name: "日志管理", Type: "dir", Sort: 3, Icon: "streamline-plump:log"},
 
 	// ── 操作日志 ───────────────────────────────────────────────
 	{Key: "operlog", Parent: "log", Name: "操作日志", Type: "menu", Perms: permission.PermLogOperationList, Path: "/monitor/operlog", Component: "monitor/operlog/index", Sort: 1, Icon: "streamline-ultimate:common-file-text-clock"},

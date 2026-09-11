@@ -71,7 +71,7 @@ func (r *recordingSessionStore) StoreAccess(context.Context, string, uint64, tim
 	r.order = append(r.order, "storeAccess")
 	return nil
 }
-func (r *recordingSessionStore) StorePerms(context.Context, uint64, []string, time.Duration) error {
+func (r *recordingSessionStore) StorePerms(context.Context, uint64, string, []string, time.Duration) error {
 	r.order = append(r.order, "storePerms")
 	return nil
 }

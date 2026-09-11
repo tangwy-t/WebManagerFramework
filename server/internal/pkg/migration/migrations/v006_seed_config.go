@@ -27,7 +27,12 @@ type configDef struct {
 }
 
 // 上传文件白名单：与文件管理 7 分类扩展名清单对齐（历史 v020 终态）。
-const fileAllowedExtsFull = ".jpg,.jpeg,.png,.gif,.webp,.svg,.bmp,.ico,.avif,.mp4,.avi,.mov,.mkv,.webm,.flv,.wmv,.m4v,.rmvb,.mp3,.wav,.flac,.aac,.ogg,.wma,.m4a,.amr,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.md,.csv,.rtf,.odt,.zip,.rar,.7z,.tar,.gz,.bz2,.xz,.js,.ts,.jsx,.tsx,.vue,.py,.go,.java,.c,.cpp,.h,.html,.css,.scss,.json,.xml,.yml,.yaml,.sql,.sh,.toml"
+// 安全修复：移除可在同源内联预览时执行脚本的「活动内容」扩展名
+// （.html/.htm/.svg/.js/.mjs/.jsx/.tsx/.vue）。这些后缀此前会让攻击者
+// 上传同源 HTML/SVG/JS 并经 Preview 内联渲染执行脚本（存储型 XSS）。
+// 代码类文件仍可上传，但 Preview 对它们强制 Content-Disposition: attachment
+// 下载，不再内联渲染（见 handler/file.go Preview 的 nosniff + attachment 逻辑）。
+const fileAllowedExtsFull = ".jpg,.jpeg,.png,.gif,.webp,.bmp,.ico,.avif,.mp4,.avi,.mov,.mkv,.webm,.flv,.wmv,.m4v,.rmvb,.mp3,.wav,.flac,.aac,.ogg,.wma,.m4a,.amr,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.md,.csv,.rtf,.odt,.zip,.rar,.7z,.tar,.gz,.bz2,.xz,.ts,.py,.go,.java,.c,.cpp,.h,.css,.scss,.json,.xml,.yml,.yaml,.sql,.sh,.toml"
 
 // configDefinitions 是全部系统配置项的唯一来源，Name 已内联（历史 v018 回填终态）。
 var configDefinitions = []configDef{

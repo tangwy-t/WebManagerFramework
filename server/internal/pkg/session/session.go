@@ -87,12 +87,24 @@ func (s *SessionStore) RotateRefresh(ctx context.Context, userID uint64, old, ne
 	return s.cacheStore.CompareAndSwap(ctx, key, old, new, ttl)
 }
 
-func (s *SessionStore) StorePerms(ctx context.Context, userID uint64, perms []string, ttl time.Duration) error {
+// permsKey 计算权限缓存的持久化键。安全修复（评审 #6）：键必须携带 scope
+// 指纹，与 middleware.Permission 的 singleflight 去重键粒度一致。此前仅按
+// uid 分键，同一用户在不同 scope 上下文（登录构造的 ctx 与请求经
+// ScopeResolverHandler 注入的 ctx）回源结果不同，却写入/复用同一个键，
+// 最长固化 accessExpire(2h) 的越界权限。
+func permsKey(userID uint64, scopeKey string) string {
+	if scopeKey == "" {
+		return fmt.Sprintf("%s%d", PermsPrefix, userID)
+	}
+	return fmt.Sprintf("%s%d:%s", PermsPrefix, userID, scopeKey)
+}
+
+func (s *SessionStore) StorePerms(ctx context.Context, userID uint64, scopeKey string, perms []string, ttl time.Duration) error {
 	data, err := json.Marshal(perms)
 	if err != nil {
 		return err
 	}
-	return s.cacheStore.Set(ctx, fmt.Sprintf("%s%d", PermsPrefix, userID), string(data), ttl)
+	return s.cacheStore.Set(ctx, permsKey(userID, scopeKey), string(data), ttl)
 }
 
 // RevokeAll 吊销用户的全部会话:access 白名单(全部已签发 token)、
@@ -121,7 +133,9 @@ func (s *SessionStore) RevokeAll(ctx context.Context, userID uint64, token strin
 	if err := s.cacheStore.Del(ctx, fmt.Sprintf("%s%d", RefreshPrefix, userID)); err != nil {
 		return err
 	}
-	return s.cacheStore.Del(ctx, fmt.Sprintf("%s%d", PermsPrefix, userID))
+	// 权限缓存键现在带 scope 指纹后缀，按用户吊销须前缀删除全部形态。
+	_, err := s.cacheStore.DeleteByPattern(ctx, fmt.Sprintf("%s%d", PermsPrefix, userID)+"*", maxPermsInvalidation)
+	return err
 }
 
 // revokeUserAccessTokens 删除该用户索引中的全部 access 白名单键,并清除索引本身。
@@ -151,7 +165,10 @@ func (s *SessionStore) revokeUserAccessTokens(ctx context.Context, userID uint64
 }
 
 func (s *SessionStore) RevokePerms(ctx context.Context, userID uint64) error {
-	return s.cacheStore.Del(ctx, fmt.Sprintf("%s%d", PermsPrefix, userID))
+	// 安全修复（评审 #6）：权限缓存键现在带 scope 指纹后缀，按用户吊销须
+	// 匹配 perms:<uid> 与 perms:<uid>:* 两种形态，故改用前缀删除。
+	_, err := s.cacheStore.DeleteByPattern(ctx, fmt.Sprintf("%s%d", PermsPrefix, userID)+"*", maxPermsInvalidation)
+	return err
 }
 
 // maxPermsInvalidation 一次全量失效最多删除的 perms 缓存键数(防御性上限)。
@@ -189,8 +206,8 @@ func (s *SessionStore) DeleteRefresh(ctx context.Context, userID uint64) error {
 	return s.cacheStore.Del(ctx, fmt.Sprintf("%s%d", RefreshPrefix, userID))
 }
 
-func (s *SessionStore) LoadPerms(ctx context.Context, userID uint64) ([]string, error) {
-	cached, err := s.cacheStore.Get(ctx, fmt.Sprintf("%s%d", PermsPrefix, userID))
+func (s *SessionStore) LoadPerms(ctx context.Context, userID uint64, scopeKey string) ([]string, error) {
+	cached, err := s.cacheStore.Get(ctx, permsKey(userID, scopeKey))
 	if err != nil {
 		return nil, err
 	}

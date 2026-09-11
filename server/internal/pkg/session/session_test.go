@@ -134,21 +134,21 @@ func TestPermsCacheRoundTrip(t *testing.T) {
 	ctx := context.Background()
 	s := NewSession(newFakeCache())
 
-	perms, err := s.LoadPerms(ctx, 7)
+	perms, err := s.LoadPerms(ctx, 7, "")
 	if err != nil || perms != nil {
 		t.Fatalf("miss LoadPerms = %v/%v, want nil/nil(消费方回源 DB)", perms, err)
 	}
-	if err := s.StorePerms(ctx, 7, []string{"a", "b"}, time.Minute); err != nil {
+	if err := s.StorePerms(ctx, 7, "", []string{"a", "b"}, time.Minute); err != nil {
 		t.Fatalf("StorePerms: %v", err)
 	}
-	perms, err = s.LoadPerms(ctx, 7)
+	perms, err = s.LoadPerms(ctx, 7, "")
 	if err != nil || len(perms) != 2 || perms[1] != "b" {
 		t.Fatalf("LoadPerms = %v/%v", perms, err)
 	}
 	if err := s.RevokePerms(ctx, 7); err != nil {
 		t.Fatalf("RevokePerms: %v", err)
 	}
-	perms, _ = s.LoadPerms(ctx, 7)
+	perms, _ = s.LoadPerms(ctx, 7, "")
 	if perms != nil {
 		t.Fatal("RevokePerms 后应回源 miss")
 	}
@@ -182,7 +182,7 @@ func TestRevokeAllPermsPattern(t *testing.T) {
 	s := NewSession(c)
 
 	for _, uid := range []uint64{1, 2, 3} {
-		if err := s.StorePerms(ctx, uid, []string{"x"}, time.Minute); err != nil {
+		if err := s.StorePerms(ctx, uid, "", []string{"x"}, time.Minute); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -278,7 +278,7 @@ func TestRevokeAll_ClearsIndexAndPerms(t *testing.T) {
 	if err := s.StoreAccess(ctx, "tok-1", 7, time.Hour); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.StorePerms(ctx, 7, []string{"a"}, time.Hour); err != nil {
+	if err := s.StorePerms(ctx, 7, "", []string{"a"}, time.Hour); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.RevokeAll(ctx, 7, ""); err != nil {
@@ -292,7 +292,7 @@ func TestRevokeAll_ClearsIndexAndPerms(t *testing.T) {
 	if ok, _ := s.IsAccessValid(ctx, "tok-2"); !ok {
 		t.Fatal("吊销后重新登录的 token 应有效(索引未清理会导致误删)")
 	}
-	if perms, _ := s.LoadPerms(ctx, 7); perms != nil {
+	if perms, _ := s.LoadPerms(ctx, 7, ""); perms != nil {
 		t.Error("perms 缓存未被吊销")
 	}
 }

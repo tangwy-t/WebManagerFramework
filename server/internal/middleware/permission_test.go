@@ -25,8 +25,8 @@ func (s *stubAuthSvc) GetUserPermissions(ctx context.Context, userID uint64) ([]
 
 type stubPermStore struct{}
 
-func (stubPermStore) LoadPerms(context.Context, uint64) ([]string, error) { return nil, nil }
-func (stubPermStore) StorePerms(context.Context, uint64, []string, time.Duration) error {
+func (stubPermStore) LoadPerms(context.Context, uint64, string) ([]string, error) { return nil, nil }
+func (stubPermStore) StorePerms(context.Context, uint64, string, []string, time.Duration) error {
 	return nil
 }
 

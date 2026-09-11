@@ -80,7 +80,9 @@ func (m *stubUserRepo) FindRoleCodeByID(ctx context.Context, roleID uint64) (str
 	if m.findRoleCode != "" {
 		return m.findRoleCode, nil
 	}
-	return "", gorm.ErrRecordNotFound
+	// 默认返回良性非 admin code：AssignRoles/Create 的新守卫只拦截 "admin"，
+	// 普通角色 code 应放行（与生产 FindRoleCodeByID 返回真实 code 语义一致）。
+	return "dev", nil
 }
 func (m *stubUserRepo) AddUsersToRole(ctx context.Context, roleID uint64, userIDs []uint64) error {
 	m.addRoleID = roleID

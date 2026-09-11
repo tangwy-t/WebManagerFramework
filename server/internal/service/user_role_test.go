@@ -15,6 +15,8 @@ import (
 // 只关心 RevokePerms 的调用记录(role_update_status_test.go 复用)。
 type stubSessionStore struct {
 	revoked []uint64
+	// revokeAll 记录 RevokeAll 的调用（角色变更/状态变更路径现在吊销会话）。
+	revokeAll []uint64
 	// rotateConsumed / rotateErr 供 refresh 轮换相关测试定制 CAS 结果;
 	// 为 nil 时默认放行(consumed=true),既有测试无需改动。
 	rotateConsumed *bool
@@ -29,10 +31,13 @@ func (s *stubSessionStore) StoreAccess(context.Context, string, uint64, time.Dur
 func (s *stubSessionStore) StoreRefresh(context.Context, uint64, string, time.Duration) error {
 	return nil
 }
-func (s *stubSessionStore) StorePerms(context.Context, uint64, []string, time.Duration) error {
+func (s *stubSessionStore) StorePerms(context.Context, uint64, string, []string, time.Duration) error {
 	return nil
 }
-func (s *stubSessionStore) RevokeAll(context.Context, uint64, string) error { return nil }
+func (s *stubSessionStore) RevokeAll(_ context.Context, userID uint64, _ string) error {
+	s.revokeAll = append(s.revokeAll, userID)
+	return nil
+}
 func (s *stubSessionStore) GetRefresh(context.Context, uint64) (string, error) {
 	return "", nil
 }

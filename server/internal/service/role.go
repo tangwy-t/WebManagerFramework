@@ -150,6 +150,18 @@ func (s *RoleService) Update(ctx context.Context, req *request.UpdateRoleReq) er
 		return translateNotFound(err, "角色不存在")
 	}
 
+	// 安全修复（评审 #4）：内置 admin 角色是全局唯一哨兵（GetUserRoleScope/
+	// GetUserDataScope 都靠 code=="admin" 判定 ScopeAll）。UpdateStatus/Delete
+	// 都有 admin 只读守卫，唯独 Update 缺 —— 持 system:role:edit 者可把内置
+	// admin 改名为其他 code（释放 uk_role_code），或把任意角色改名为 "admin"
+	// （伪造第二个哨兵）→ 竖直提权。
+	if role.Code == "admin" && req.Code != "admin" {
+		return apperror.BadRequest("内置管理员角色的标识码不允许修改")
+	}
+	if role.Code != "admin" && req.Code == "admin" {
+		return apperror.BadRequest("不允许将角色标识码设置为 admin")
+	}
+
 	util.CopyEntity(role, req, s.logger)
 
 	menuIDs := []uint64(req.MenuIDs)
@@ -176,13 +188,14 @@ func (s *RoleService) Update(ctx context.Context, req *request.UpdateRoleReq) er
 		return err
 	}
 
-	// Invalidate permission cache for every user assigned to this role.
-	// Failures are returned as errors rather than silently swallowed, so the
-	// caller knows the cache may be stale and can retry.
+	// 安全修复（评审 #3）：角色 code/dataScope 变更会影响已签发 token 内嵌的
+	// claims.Scopes，仅清权限缓存无法让旧 token 的旧 scope 失效。必须按用户
+	// RevokeAll 吊销其全部已签发 access token（与禁用/删除/改密一致），否则
+	// 被缩小数据范围/降权的用户仍以旧 scope 行权直到 token 过期(最长 2h)。
 	for _, uid := range userIDs {
-		if err := s.sessionStore.RevokePerms(ctx, uid); err != nil {
-			s.logger.Error("failed to revoke perms cache", zap.Uint64("userId", uid), zap.Error(err))
-			return apperror.Internal("权限缓存刷新失败，请重试")
+		if err := s.sessionStore.RevokeAll(ctx, uid, ""); err != nil {
+			s.logger.Error("failed to revoke sessions after role update", zap.Uint64("userId", uid), zap.Error(err))
+			return apperror.Internal("会话吊销失败，请重试")
 		}
 	}
 	s.logger.Info("role updated", zap.Uint64("roleId", req.ID))
@@ -217,10 +230,13 @@ func (s *RoleService) UpdateStatus(ctx context.Context, id uint64, status int8) 
 			zap.Uint64("roleId", id), zap.Int8("status", status))
 		return nil
 	}
+	// 安全修复（评审 #3）：停用角色会让其下用户的权限失效，而权限的权威
+	// 来源是已签发 token 内嵌的 claims.Scopes。仅 RevokePerms 清缓存不足以
+	// 让旧 token 失效，必须 RevokeAll 吊销其全部已签发 access token。
 	for _, uid := range userIDs {
-		if err := s.sessionStore.RevokePerms(ctx, uid); err != nil {
-			s.logger.Error("failed to revoke perms cache", zap.Uint64("userId", uid), zap.Error(err))
-			return apperror.Internal("权限缓存刷新失败，请重试")
+		if err := s.sessionStore.RevokeAll(ctx, uid, ""); err != nil {
+			s.logger.Error("failed to revoke sessions after role status change", zap.Uint64("userId", uid), zap.Error(err))
+			return apperror.Internal("会话吊销失败，请重试")
 		}
 	}
 	s.logger.Info("role status updated", zap.Uint64("roleId", id), zap.Int8("status", status))

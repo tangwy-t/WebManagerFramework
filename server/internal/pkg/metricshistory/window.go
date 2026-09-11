@@ -3,10 +3,12 @@ package metricshistory
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"sync"
 	"time"
 
 	goredis "github.com/redis/go-redis/v9"
+	"golang.org/x/sync/singleflight"
 )
 
 // Options 配置一个 Redis 滚动窗口。
@@ -31,12 +33,20 @@ type Window[P, S any] struct {
 
 	mu    sync.Mutex
 	cache map[queryKey]queryEntry[S]
+	// sf 合并同一 queryKey 的并发缓存 miss，把 Redis 往返移到互斥锁之外，
+	// 同时避免"释放锁后各自回源"的惊群（评审 #20）。
+	sf singleflight.Group
 }
 
 // queryKey 按归一化后的 window/step 秒数分键。与旧实现的原始
 // duration 分键相比,1m 与 60s 现在共享同一缓存项(聚合结果本就相同),
 // 其余行为一致。
 type queryKey struct{ windowSec, stepSec int64 }
+
+// String 返回 queryKey 的稳定字符串形式，供 singleflight 去重键使用。
+func (k queryKey) String() string {
+	return fmt.Sprintf("%d:%d", k.windowSec, k.stepSec)
+}
 
 type queryEntry[S any] struct {
 	snap *S
@@ -70,28 +80,46 @@ func (w *Window[P, S]) Append(ctx context.Context, p P) error {
 }
 
 // Query 返回 [now-window, now] 内按 step 聚合的快照,TTL 内共享同一份结果。
+//
+// 安全修复（评审 #20）：此前在 w.mu.Lock() 内调用 w.rdb.LRange，整个 Redis
+// 网络往返都在互斥锁内完成，任何一次 Redis 抖动都会串行阻塞同一 Window 上
+// 的所有并发 Query（队头阻塞）。现在互斥锁只保护内存 cache 的快读写，Redis
+// 往返移到锁外，并用 singleflight 合并同一 key 的并发 miss 以避免惊群。
 func (w *Window[P, S]) Query(ctx context.Context, window, step time.Duration) (*S, error) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-
 	b, err := AlignBuckets(window, step)
 	if err != nil {
 		return nil, err
 	}
 	key := queryKey{windowSec: b.WindowSec, stepSec: b.StepSec}
-	if e, ok := w.cache[key]; ok && b.Now.Sub(e.at) < w.opts.QueryTTL {
-		return e.snap, nil
-	}
 
-	snap, err := w.queryUncached(ctx, b)
+	// 快路径：TTL 内命中内存缓存，仅在锁内做一次 map 读。
+	w.mu.Lock()
+	if e, ok := w.cache[key]; ok && b.Now.Sub(e.at) < w.opts.QueryTTL {
+		snap := e.snap
+		w.mu.Unlock()
+		return snap, nil
+	}
+	w.mu.Unlock()
+
+	// 慢路径：Redis 往返在锁外完成，同一 key 的并发 miss 由 singleflight
+	// 合并为一次回源，避免惊群与锁跨 IO 持有。
+	v, err, _ := w.sf.Do(key.String(), func() (any, error) {
+		snap, err := w.queryUncached(ctx, b)
+		if err != nil {
+			return nil, err
+		}
+		w.mu.Lock()
+		if len(w.cache) >= w.opts.CacheMax {
+			w.cache = make(map[queryKey]queryEntry[S])
+		}
+		w.cache[key] = queryEntry[S]{snap: snap, at: b.Now}
+		w.mu.Unlock()
+		return snap, nil
+	})
 	if err != nil {
 		return nil, err
 	}
-	if len(w.cache) >= w.opts.CacheMax {
-		w.cache = make(map[queryKey]queryEntry[S])
-	}
-	w.cache[key] = queryEntry[S]{snap: snap, at: b.Now}
-	return snap, nil
+	return v.(*S), nil
 }
 
 // queryUncached 从 Redis 读头部采样点并聚合;单条坏数据跳过,不影响整体。

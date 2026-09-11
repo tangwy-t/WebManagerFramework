@@ -25,6 +25,6 @@ type AuthServiceInterface interface {
 }
 
 type SessionStoreInterface interface {
-	LoadPerms(ctx context.Context, userID uint64) ([]string, error)
-	StorePerms(ctx context.Context, userID uint64, perms []string, ttl time.Duration) error
+	LoadPerms(ctx context.Context, userID uint64, scopeKey string) ([]string, error)
+	StorePerms(ctx context.Context, userID uint64, scopeKey string, perms []string, ttl time.Duration) error
 }

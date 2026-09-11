@@ -65,8 +65,14 @@ func (g *PermissionGuard) Permission(requiredPerm string) gin.HandlerFunc {
 		uid := claims.UserID
 		logger.Debug("permission check", zap.Uint64("userId", uid), zap.String("requiredPerm", requiredPerm))
 
+		// 安全修复（评审 #6）：权限缓存的持久键现在携带 scope 指纹，与
+		// singleflight 去重键一致。此前 LoadPerms 只按 uid 读 "perms:<uid>"，
+		// 而 singleflight 已按 scope 分流 —— 结果写进同一个无 scope 的键，
+		// 后续不同 scope 的请求会读到越界缓存。
+		sfKey := scopeFingerprint(c.Request.Context())
+
 		// Check session store cache
-		perms, err := permStore.LoadPerms(c.Request.Context(), uid)
+		perms, err := permStore.LoadPerms(c.Request.Context(), uid, sfKey)
 		if err != nil {
 			logger.Warn("permission cache read failed, falling back to service", zap.Error(err))
 		}
@@ -82,8 +88,8 @@ func (g *PermissionGuard) Permission(requiredPerm string) gin.HandlerFunc {
 			// 不同,仅按 uid 合并会把其中一个的结果写进缓存供另一个复用,
 			// 最长固化 accessExpire(默认 2h)。带上指纹后不同上下文各飞各的,
 			// 相同上下文(绝大多数并发场景)仍然合并。
-			sfKey := strconv.FormatUint(uid, 10) + ":" + scopeFingerprint(c.Request.Context())
-			v, err, _ := g.sfGroup.Do(sfKey, func() (any, error) {
+			sfKeyFull := strconv.FormatUint(uid, 10) + ":" + sfKey
+			v, err, _ := g.sfGroup.Do(sfKeyFull, func() (any, error) {
 				// 回源必须携带请求 ctx:经 ScopeResolverHandler(router 组级中间件)
 				// 注入 ScopeContext,scope 插件据此过滤 sys_menu,权限点与运行时同源。
 				// 传 Background 会让 scope 静默失效(旧行为)。
@@ -93,7 +99,7 @@ func (g *PermissionGuard) Permission(requiredPerm string) gin.HandlerFunc {
 				}
 				// 写入缓存
 				ttl := time.Duration(cfgProv.GetInt(context.Background(), "sys.jwt.accessExpire", 7200)) * time.Second
-				if storeErr := permStore.StorePerms(context.Background(), uid, p, ttl); storeErr != nil {
+				if storeErr := permStore.StorePerms(context.Background(), uid, sfKey, p, ttl); storeErr != nil {
 					logger.Warn("failed to cache permissions", zap.Error(storeErr))
 				}
 				return p, nil

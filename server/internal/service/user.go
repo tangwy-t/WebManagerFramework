@@ -25,7 +25,7 @@ import (
 type SessionStoreInterface interface {
 	StoreAccess(ctx context.Context, token string, userID uint64, ttl time.Duration) error
 	StoreRefresh(ctx context.Context, userID uint64, token string, ttl time.Duration) error
-	StorePerms(ctx context.Context, userID uint64, perms []string, ttl time.Duration) error
+	StorePerms(ctx context.Context, userID uint64, scopeKey string, perms []string, ttl time.Duration) error
 	RevokeAll(ctx context.Context, userID uint64, token string) error
 	GetRefresh(ctx context.Context, userID uint64) (string, error)
 	DeleteRefresh(ctx context.Context, userID uint64) error
@@ -148,6 +148,16 @@ func (s *UserService) Create(ctx context.Context, req *request.CreateUserReq) (u
 	if err := validateIDsExist(ctx, "角色", []uint64(req.RoleIDs), s.repo.FindExistingRoleIDs); err != nil {
 		return 0, err
 	}
+	// 安全修复（评审 #5）：新建账号时同样拦截 admin 角色授予。
+	for _, roleID := range []uint64(req.RoleIDs) {
+		code, err := s.repo.FindRoleCodeByID(ctx, roleID)
+		if err != nil {
+			return 0, translateNotFound(err, "角色不存在")
+		}
+		if code == "admin" {
+			return 0, apperror.BadRequest("内置管理员角色不允许通过接口授予")
+		}
+	}
 
 	if err := s.repo.CreateWithRoles(ctx, user, []uint64(req.RoleIDs)); err != nil {
 		if database.IsDuplicateKey(err) {
@@ -204,17 +214,34 @@ func (s *UserService) AssignRoles(ctx context.Context, id uint64, roleIDs []uint
 	if err := validateIDsExist(ctx, "角色", roleIDs, s.repo.FindExistingRoleIDs); err != nil {
 		return err
 	}
+	// 安全修复（评审 #5）：授予角色时须拦截内置 admin 角色。与
+	// AddRoleUsers/RemoveRoleUsers 的 guardRoleMembershipEditable 对齐 ——
+	// 内置 admin 角色的成员集合固定，不允许通过 API 授予/收回，否则持
+	// user:assign 的非 admin 操作者可给他人直接授 admin → 竖直提权。
+	for _, roleID := range roleIDs {
+		code, err := s.repo.FindRoleCodeByID(ctx, roleID)
+		if err != nil {
+			return translateNotFound(err, "角色不存在")
+		}
+		if code == "admin" {
+			return apperror.BadRequest("内置管理员角色不允许通过接口授予")
+		}
+	}
 	if err := s.repo.ReplaceRoles(ctx, id, roleIDs); err != nil {
 		s.logger.Warn("failed to assign roles", zap.Uint64("userId", id), zap.Error(err))
 		return err
 	}
 	// 角色变更立即失效该用户的权限缓存:否则被收回的权限最长延迟
 	// accessExpire(默认 2h)才生效(PermissionGuard 缓存 TTL 与之同长)。
+	//
+	// 安全修复（评审 #3）：数据范围与 "admin" 判定的权威来源是登录时签发
+	// 的 JWT claims.Scopes，而非权限缓存。仅 RevokePerms 清缓存无法让旧
+	// token 内嵌的旧 scope 失效 —— 被降职/降权者的旧 token 会继续以
+	// ScopeAll 行权直到过期。因此角色变更必须 RevokeAll 吊销其全部已签发
+	// access token（与禁用/删除/改密一致）。
 	if s.sessionStore != nil {
-		if err := s.sessionStore.RevokePerms(ctx, id); err != nil {
-			// Error:旧权限在 Redis 残留至 TTL(默认最长 2h),
-			// 该窗口内角色变更不生效,运维必须可见。
-			s.logger.Error("failed to revoke perms cache after role change",
+		if err := s.sessionStore.RevokeAll(ctx, id, ""); err != nil {
+			s.logger.Error("failed to revoke sessions after role change",
 				zap.Uint64("userId", id), zap.Error(err))
 		}
 	}

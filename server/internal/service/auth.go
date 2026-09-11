@@ -129,7 +129,7 @@ func (s *AuthService) storeAccessAndPerms(ctx context.Context, userID uint64, ac
 		s.logger.Error("failed to store access token whitelist", zap.Error(err))
 		return err
 	}
-	if err := s.sessionStore.StorePerms(ctx, userID, perms, accessTTL); err != nil {
+	if err := s.sessionStore.StorePerms(ctx, userID, "", perms, accessTTL); err != nil {
 		s.logger.Warn("failed to store permissions", zap.Error(err))
 	}
 	return nil
@@ -145,7 +145,7 @@ func (s *AuthService) storeSession(ctx context.Context, userID uint64, accessTok
 	if err := s.sessionStore.StoreRefresh(ctx, userID, refreshToken, refreshTTL); err != nil {
 		s.logger.Warn("failed to store refresh token", zap.Error(err))
 	}
-	if err := s.sessionStore.StorePerms(ctx, userID, perms, accessTTL); err != nil {
+	if err := s.sessionStore.StorePerms(ctx, userID, "", perms, accessTTL); err != nil {
 		s.logger.Warn("failed to store permissions", zap.Error(err))
 	}
 	return nil
