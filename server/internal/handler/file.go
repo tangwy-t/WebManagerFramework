@@ -6,7 +6,6 @@ import (
 	"mime/multipart"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -15,7 +14,7 @@ import (
 	"github.com/tangwy-t/webmanager-server/internal/model/entity"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/app"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/apperror"
-	"github.com/tangwy-t/webmanager-server/internal/service"
+	"github.com/tangwy-t/webmanager-server/internal/pkg/util"
 )
 
 // FileServiceInterface 文件管理服务方法集(消费方接口,按需定义)。
@@ -251,10 +250,10 @@ func (h *FileHandler) Preview(c *gin.Context) {
 	if file.MimeType != nil {
 		mimeType = *file.MimeType
 	}
-	if mimeType == "" || !service.IsInlineSafeMime(mimeType) {
+	if mimeType == "" || !util.IsInlineSafeMime(mimeType) {
 		// 活动内容/未知类型：强制下载，禁止内联执行。
 		c.Header("Content-Type", "application/octet-stream")
-		c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, sanitizeFilename(file.Name)))
+		c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, util.SanitizeFilename(file.Name)))
 		http.ServeFile(c.Writer, c.Request, fullPath)
 		return
 	}
@@ -262,18 +261,4 @@ func (h *FileHandler) Preview(c *gin.Context) {
 	// 安全类型（图片/视频/文档等）内联渲染，但仍带 nosniff + CSP。
 	c.Header("Content-Type", mimeType)
 	http.ServeFile(c.Writer, c.Request, fullPath)
-}
-
-// sanitizeFilename 去除文件名中的 CR/LF 与引号，防止 Content-Disposition
-// 头部注入；同时剔除路径分隔符，保证附件名仅为单一文件名的安全展示。
-func sanitizeFilename(name string) string {
-	name = strings.ReplaceAll(name, "\r", "")
-	name = strings.ReplaceAll(name, "\n", "")
-	name = strings.ReplaceAll(name, `"`, "")
-	name = strings.ReplaceAll(name, "\\", "")
-	name = strings.ReplaceAll(name, "/", "")
-	if name == "" {
-		return "download"
-	}
-	return name
 }

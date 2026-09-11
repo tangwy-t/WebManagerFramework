@@ -2,11 +2,12 @@ package service
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
+	"strings"
+
 	"github.com/tangwy-t/webmanager-server/internal/model/dto/request"
 	"github.com/tangwy-t/webmanager-server/internal/model/dto/response"
 	"github.com/tangwy-t/webmanager-server/internal/model/entity"
@@ -15,9 +16,6 @@ import (
 	"github.com/tangwy-t/webmanager-server/internal/pkg/jwt"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/logger"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/util"
-	"regexp"
-	"strconv"
-	"strings"
 
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -77,30 +75,6 @@ func NewConfigService(repo ConfigRepositoryInterface, hashStore HashStoreInterfa
 	return &ConfigService{repo: repo, hashStore: hashStore, broker: broker, logger: logger}
 }
 
-// maskedConfigValue is the placeholder returned by the API instead of the
-// real value of a sensitive config entry. The Update path treats it as "keep
-// the existing value" so an edit form that echoes the placeholder back does
-// not destroy the secret.
-const maskedConfigValue = "******"
-
-// sensitiveConfigKeyRe matches config keys whose values must not be exposed
-// through the API (signing secrets, credentials, private keys, ...).
-var sensitiveConfigKeyRe = regexp.MustCompile(`(?i)(secret|password|passwd|private[_-]?key|credential)`)
-
-// isSensitiveConfigKey reports whether values of the given config key must be
-// masked in API responses.
-func isSensitiveConfigKey(key string) bool {
-	return sensitiveConfigKeyRe.MatchString(key)
-}
-
-// maskConfigValue hides the value of sensitive config keys from API responses.
-func maskConfigValue(key, val string) string {
-	if isSensitiveConfigKey(key) {
-		return maskedConfigValue
-	}
-	return val
-}
-
 // defaultJWTSecretMarkers lists known insecure fallback values for
 // "sys.jwt.secret". Any of them committed in source (the v006 seed) lets
 // anyone with repository access forge admin tokens.
@@ -118,7 +92,7 @@ func (s *ConfigService) RotateDefaultJWTSecret(ctx context.Context) {
 	if err != nil || !defaultJWTSecretMarkers[val] {
 		return
 	}
-	secret, err := generateRandomSecret(48)
+	secret, err := util.RandomHex(48)
 	if err != nil {
 		s.logger.Error("failed to generate random jwt secret, insecure default still active", zap.Error(err))
 		return
@@ -138,14 +112,6 @@ func (s *ConfigService) RotateDefaultJWTSecret(ctx context.Context) {
 		"existing tokens signed with the old secret are now invalid")
 }
 
-func generateRandomSecret(nBytes int) (string, error) {
-	b := make([]byte, nBytes)
-	if _, err := rand.Read(b); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(b), nil
-}
-
 func (s *ConfigService) FindPage(ctx context.Context, query *request.ConfigQuery) (*app.PageResponse, error) {
 	list, total, err := s.repo.FindPage(ctx, query)
 	if err != nil {
@@ -160,7 +126,7 @@ func (s *ConfigService) FindPage(ctx context.Context, query *request.ConfigQuery
 	// 持较低权限的账号读到签名密钥即可伪造任意用户 token。
 	// 掩码在组装 ConfigResp 时统一完成,任何新的读路径自动继承。
 	for i := range resp {
-		resp[i].ConfigValue = maskConfigValue(resp[i].ConfigKey, resp[i].ConfigValue)
+		resp[i].ConfigValue = util.MaskIfSensitive(resp[i].ConfigKey, resp[i].ConfigValue)
 	}
 	return app.NewPageResponse(resp, total, query.GetPage(), query.GetPageSize()), nil
 }
@@ -171,7 +137,7 @@ func (s *ConfigService) FindByID(ctx context.Context, id uint64) (*response.Conf
 		return nil, translateNotFound(err, "参数配置不存在")
 	}
 	resp := util.MapEntity[response.ConfigResp](cfg, s.logger)
-	resp.ConfigValue = maskConfigValue(resp.ConfigKey, resp.ConfigValue)
+	resp.ConfigValue = util.MaskIfSensitive(resp.ConfigKey, resp.ConfigValue)
 	return &resp, nil
 }
 
@@ -247,8 +213,8 @@ func (s *ConfigService) GetByKey(ctx context.Context, key string) (string, error
 	if err != nil {
 		return "", err
 	}
-	if isSensitiveConfigKey(key) {
-		return maskedConfigValue, nil
+	if util.IsSensitiveConfigKey(key) {
+		return util.MaskedValue, nil
 	}
 	return val, nil
 }
@@ -353,7 +319,7 @@ func (s *ConfigService) Update(ctx context.Context, id uint64, req *request.Upda
 
 	// 敏感配置的值在 API 读取时被掩码；若编辑表单原样回传占位符，视为
 	// "不修改该值"，避免把真实密钥覆盖成 "******"。
-	if isSensitiveConfigKey(old.ConfigKey) && req.ConfigValue == maskedConfigValue {
+	if util.IsSensitiveConfigKey(old.ConfigKey) && req.ConfigValue == util.MaskedValue {
 		req.ConfigValue = old.ConfigValue
 	}
 

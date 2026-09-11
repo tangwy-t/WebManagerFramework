@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"strings"
 	"time"
 
 	"github.com/tangwy-t/webmanager-server/internal/model/dto/request"
@@ -58,7 +57,7 @@ func (s *LoginLogService) FindPage(ctx context.Context, query *request.LoginLogQ
 // 失败时为 apperror 包的具体业务码(10001 用户名或密码错误、10005 验证码错误、
 // 10008 账号已锁定等,完整取值见字典 sys_opt_result_code),msg 为补充文案。
 func (s *LoginLogService) RecordLogin(ctx context.Context, userID uint64, username, ip, userAgent string, code int, msg string) error {
-	browser, os := parseUserAgent(userAgent)
+	browser, os := util.ParseUserAgent(userAgent)
 
 	var uid *uint64
 	if userID > 0 {
@@ -111,44 +110,4 @@ func (s *LoginLogService) RecordLogout(ctx context.Context, userID uint64, usern
 	}
 
 	return s.repo.Create(ctx, entry)
-}
-
-// parseUserAgent extracts browser and OS names from a User-Agent string using simple string matching.
-func parseUserAgent(ua string) (browser *string, os *string) {
-	b := parseBrowser(ua)
-	o := parseOS(ua)
-	return &b, &o
-}
-
-func parseBrowser(ua string) string {
-	uaLower := strings.ToLower(ua)
-	switch {
-	case strings.Contains(ua, "Edg/"):
-		return "Edge"
-	case strings.Contains(ua, "Firefox/"):
-		return "Firefox"
-	case strings.Contains(ua, "Chrome/") && !strings.Contains(ua, "Edg/"):
-		return "Chrome"
-	case strings.Contains(ua, "Safari/") && !strings.Contains(uaLower, "chrome") && !strings.Contains(uaLower, "edg"):
-		return "Safari"
-	default:
-		return "Unknown"
-	}
-}
-
-func parseOS(ua string) string {
-	switch {
-	case strings.Contains(ua, "Windows NT") || strings.Contains(ua, "Windows"):
-		return "Windows"
-	case strings.Contains(ua, "Mac OS") || strings.Contains(ua, "Macintosh"):
-		return "Mac"
-	case strings.Contains(ua, "Linux") && !strings.Contains(ua, "Android"):
-		return "Linux"
-	case strings.Contains(ua, "Android"):
-		return "Android"
-	case strings.Contains(ua, "iPhone") || strings.Contains(ua, "iPad"):
-		return "iOS"
-	default:
-		return "Unknown"
-	}
 }

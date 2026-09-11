@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"runtime"
 	"sync"
@@ -248,7 +247,7 @@ func (h *ServerMonitorHandler) appendHistory(resp *response.ServerMonitorResp) {
 	}
 	p := serverstats.Point{
 		T:          time.Now().UnixMilli(),
-		CPU:        coalesceFloat(resp.CPU.UsagePercent),
+		CPU:        util.Coalesce(resp.CPU.UsagePercent),
 		MemSys:     coalesceSystemMem(resp.Memory.System),
 		HeapAlloc:  resp.Memory.HeapAllocMB,
 		SysMem:     resp.Memory.SysMB,
@@ -270,14 +269,6 @@ func (h *ServerMonitorHandler) appendHistory(resp *response.ServerMonitorResp) {
 	}
 }
 
-// coalesceFloat 指针为 nil 时返回 0,便于写入值语义的 Point。
-func coalesceFloat(v *float64) float64 {
-	if v == nil {
-		return 0
-	}
-	return *v
-}
-
 // coalesceSystemMem 系统内存信息缺失时返回 0。
 func coalesceSystemMem(v *response.SystemMemoryInfo) float64 {
 	if v == nil {
@@ -293,7 +284,7 @@ func (h *ServerMonitorHandler) collectServerInfo(elapsed time.Duration) response
 		BuildTime:     version.BuildTime,
 		CommitHash:    version.CommitHash,
 		StartTime:     h.startTime.Format("2006-01-02 15:04:05"),
-		Uptime:        formatDuration(elapsed),
+		Uptime:        util.FormatDuration(elapsed),
 		UptimeSeconds: int64(elapsed.Seconds()),
 	}
 }
@@ -346,7 +337,7 @@ func (h *ServerMonitorHandler) collectCPU() response.CPUInfo {
 		info.Error = "cpu percent returned empty"
 		return info
 	}
-	p := roundTo2(percentages[0])
+	p := util.Round2(percentages[0])
 	info.UsagePercent = &p
 
 	// 每核心使用率，用于前端核心热力图，失败不影响整体响应。
@@ -356,7 +347,7 @@ func (h *ServerMonitorHandler) collectCPU() response.CPUInfo {
 	} else {
 		info.PerCore = make([]float64, 0, len(perCore))
 		for _, v := range perCore {
-			info.PerCore = append(info.PerCore, roundTo2(v))
+			info.PerCore = append(info.PerCore, util.Round2(v))
 		}
 	}
 
@@ -365,9 +356,9 @@ func (h *ServerMonitorHandler) collectCPU() response.CPUInfo {
 	if err != nil {
 		h.logger.Warn("failed to collect load average", zap.Error(err))
 	} else {
-		l1 := roundTo2(avg.Load1)
-		l5 := roundTo2(avg.Load5)
-		l15 := roundTo2(avg.Load15)
+		l1 := util.Round2(avg.Load1)
+		l5 := util.Round2(avg.Load5)
+		l15 := util.Round2(avg.Load15)
 		info.Load = &response.LoadInfo{Load1: &l1, Load5: &l5, Load15: &l15}
 	}
 	return info
@@ -376,11 +367,11 @@ func (h *ServerMonitorHandler) collectCPU() response.CPUInfo {
 // collectMemory gathers memory allocation stats from a pre-collected runtime.MemStats snapshot.
 func (h *ServerMonitorHandler) collectMemory(m *runtime.MemStats) response.MemoryInfo {
 
-	alloc := bytesToMB(m.Alloc)
-	totalAlloc := bytesToMB(m.TotalAlloc)
-	sys := bytesToMB(m.Sys)
-	heapAlloc := bytesToMB(m.HeapAlloc)
-	heapSys := bytesToMB(m.HeapSys)
+	alloc := util.BytesToMB(m.Alloc)
+	totalAlloc := util.BytesToMB(m.TotalAlloc)
+	sys := util.BytesToMB(m.Sys)
+	heapAlloc := util.BytesToMB(m.HeapAlloc)
+	heapSys := util.BytesToMB(m.HeapSys)
 
 	info := response.MemoryInfo{
 		AllocMB:      alloc,
@@ -396,10 +387,10 @@ func (h *ServerMonitorHandler) collectMemory(m *runtime.MemStats) response.Memor
 		h.logger.Warn("failed to collect system memory", zap.Error(err))
 	} else {
 		info.System = &response.SystemMemoryInfo{
-			TotalMB:     bytesToMB(vm.Total),
-			UsedMB:      bytesToMB(vm.Used),
-			AvailableMB: bytesToMB(vm.Available),
-			UsedPercent: roundTo2(vm.UsedPercent),
+			TotalMB:     util.BytesToMB(vm.Total),
+			UsedMB:      util.BytesToMB(vm.Used),
+			AvailableMB: util.BytesToMB(vm.Available),
+			UsedPercent: util.Round2(vm.UsedPercent),
 		}
 	}
 
@@ -409,10 +400,10 @@ func (h *ServerMonitorHandler) collectMemory(m *runtime.MemStats) response.Memor
 		h.logger.Warn("failed to collect swap memory", zap.Error(err))
 	} else {
 		info.Swap = &response.SwapMemoryInfo{
-			TotalMB:     bytesToMB(swap.Total),
-			UsedMB:      bytesToMB(swap.Used),
-			FreeMB:      bytesToMB(swap.Free),
-			UsedPercent: roundTo2(swap.UsedPercent),
+			TotalMB:     util.BytesToMB(swap.Total),
+			UsedMB:      util.BytesToMB(swap.Used),
+			FreeMB:      util.BytesToMB(swap.Free),
+			UsedPercent: util.Round2(swap.UsedPercent),
 		}
 	}
 
@@ -431,13 +422,13 @@ func (h *ServerMonitorHandler) collectGoroutines() response.GoroutineInfo {
 func (h *ServerMonitorHandler) collectGC(m *runtime.MemStats) response.GCInfo {
 
 	numGC := m.NumGC
-	pauseTotalMs := roundTo2(float64(m.PauseTotalNs) / 1e6)
+	pauseTotalMs := util.Round2(float64(m.PauseTotalNs) / 1e6)
 	var lastPauseMs *float64
 	if numGC > 0 {
 		// PauseNs is a circular buffer of 256 entries; the most recent pause
 		// is at index (numGC+255) % 256.
 		idx := (numGC + 255) % 256
-		lpm := roundTo2(float64(m.PauseNs[idx]) / 1e6)
+		lpm := util.Round2(float64(m.PauseNs[idx]) / 1e6)
 		lastPauseMs = &lpm
 	}
 
@@ -473,12 +464,12 @@ func (h *ServerMonitorHandler) collectDisk() response.DiskInfo {
 
 	usedBytes := totalBytes - freeBytes
 
-	totalGB := roundTo2(float64(totalBytes) / 1e9)
-	usedGB := roundTo2(float64(usedBytes) / 1e9)
-	freeGB := roundTo2(float64(freeBytes) / 1e9)
+	totalGB := util.Round2(float64(totalBytes) / 1e9)
+	usedGB := util.Round2(float64(usedBytes) / 1e9)
+	freeGB := util.Round2(float64(freeBytes) / 1e9)
 	var usagePercent float64
 	if totalBytes > 0 {
-		usagePercent = roundTo2(float64(usedBytes) / float64(totalBytes) * 100)
+		usagePercent = util.Round2(float64(usedBytes) / float64(totalBytes) * 100)
 	}
 
 	info.TotalGB = totalGB
@@ -486,36 +477,4 @@ func (h *ServerMonitorHandler) collectDisk() response.DiskInfo {
 	info.FreeGB = freeGB
 	info.UsagePercent = usagePercent
 	return info
-}
-
-// formatDuration returns a human-readable duration string like "3h15m30s".
-func formatDuration(d time.Duration) string {
-	d = d.Round(time.Second)
-	h := d / time.Hour
-	d -= h * time.Hour
-	m := d / time.Minute
-	d -= m * time.Minute
-	s := d / time.Second
-
-	if h > 0 {
-		return fmt.Sprintf("%dh%dm%ds", h, m, s)
-	}
-	if m > 0 {
-		return fmt.Sprintf("%dm%ds", m, s)
-	}
-	return fmt.Sprintf("%ds", s)
-}
-
-// bytesToMB converts bytes to megabytes with 2 decimal places.
-func bytesToMB(b uint64) float64 {
-	return roundTo2(float64(b) / 1024 / 1024)
-}
-
-// roundTo2 rounds a float64 to 2 decimal places.
-// 委托 util.Round2(全仓统一精度约定):math.Round 语义是
-// nearest-half-away-from-zero,在 .005 这类精确边界上比旧的
-// int(v*100+0.5) 截断实现更稳定(后者会因二进制浮点表示误差
-// 如 80.005*100 = 8000.49999... 向下错舍)。
-func roundTo2(v float64) float64 {
-	return util.Round2(v)
 }

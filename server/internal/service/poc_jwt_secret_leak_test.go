@@ -7,6 +7,7 @@ import (
 	"github.com/tangwy-t/webmanager-server/internal/model/dto/request"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/logger"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/redis/cache"
+	"github.com/tangwy-t/webmanager-server/internal/pkg/util"
 )
 
 // 本文件是「JWT 密钥经缓存管理接口泄露」（评审报告 #2）修复后的回归验证。
@@ -42,10 +43,10 @@ func (s *pocCacheStore) GetStats(context.Context) (*cache.Stats, error) { return
 // 证据①：config 管理接口判定敏感键并掩码（与缓存接口一致）。
 func TestPoc_ConfigApiMasksSensitiveKey(t *testing.T) {
 	key := "sys.jwt.secret"
-	if !isSensitiveConfigKey(key) {
+	if !util.IsSensitiveConfigKey(key) {
 		t.Fatalf("%s 应被判定为敏感键", key)
 	}
-	if got := maskConfigValue(key, "actual-secret"); got != maskedConfigValue {
+	if got := util.MaskIfSensitive(key, "actual-secret"); got != util.MaskedValue {
 		t.Fatalf("config API 应掩码 %s，实际返回 %q", key, got)
 	}
 }
@@ -88,7 +89,7 @@ func TestPoc_CacheEndpointMasksSensitiveField(t *testing.T) {
 	for _, e := range entries {
 		switch e.Field {
 		case "sys.jwt.secret":
-			if e.Value != maskedConfigValue {
+			if e.Value != util.MaskedValue {
 				t.Fatalf("缓存接口应掩码 sys.jwt.secret，实际 %q", e.Value)
 			}
 		case "sys.app.name":

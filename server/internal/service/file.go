@@ -2,8 +2,6 @@ package service
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"mime"
@@ -21,6 +19,7 @@ import (
 	"github.com/tangwy-t/webmanager-server/internal/pkg/apperror"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/logger"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/ptr"
+	"github.com/tangwy-t/webmanager-server/internal/pkg/util"
 
 	"go.uber.org/zap"
 )
@@ -98,7 +97,7 @@ func (s *FileService) Upload(ctx context.Context, headers []*multipart.FileHeade
 	}
 
 	maxSize := s.cfg.GetInt(ctx, "sys.file.upload.maxSize", defaultFileUploadMaxSize)
-	allowedExts := parseAllowedExts(s.cfg.GetString(ctx, "sys.file.upload.allowedExts", ""))
+	allowedExts := util.ParseExtSet(s.cfg.GetString(ctx, "sys.file.upload.allowedExts", ""))
 	basePath := s.cfg.GetString(ctx, "sys.file.upload.path", defaultFileUploadPath)
 
 	type pendingFile struct {
@@ -109,7 +108,7 @@ func (s *FileService) Upload(ctx context.Context, headers []*multipart.FileHeade
 	pending := make([]pendingFile, 0, len(headers))
 	for _, h := range headers {
 		if h.Size > int64(maxSize) {
-			return nil, apperror.BadRequest(fmt.Sprintf("%s 超过上传大小限制(%s)", h.Filename, formatFileBytes(int64(maxSize))))
+			return nil, apperror.BadRequest(fmt.Sprintf("%s 超过上传大小限制(%s)", h.Filename, util.FormatBytes(int64(maxSize))))
 		}
 		ext := strings.ToLower(filepath.Ext(h.Filename))
 		if len(allowedExts) > 0 && !allowedExts[ext] {
@@ -277,30 +276,14 @@ func toFileResp(f entity.SysFile) response.FileResp {
 	return resp
 }
 
-// parseAllowedExts 解析逗号分隔的扩展名白名单(小写、含点);空配置 = 不限制。
-func parseAllowedExts(raw string) map[string]bool {
-	allowed := make(map[string]bool)
-	for _, ext := range strings.Split(raw, ",") {
-		ext = strings.ToLower(strings.TrimSpace(ext))
-		if ext == "" {
-			continue
-		}
-		if !strings.HasPrefix(ext, ".") {
-			ext = "." + ext
-		}
-		allowed[ext] = true
-	}
-	return allowed
-}
-
 // randomFileKey 生成 16 字节随机 hex 存储键(crypto/rand,零额外依赖)。
 func randomFileKey() string {
-	buf := make([]byte, 16)
-	if _, err := rand.Read(buf); err != nil {
+	key, err := util.RandomHex(16)
+	if err != nil {
 		// crypto/rand 失败属极端情形:时间戳兜底,保证可用性优先。
 		return fmt.Sprintf("%d", time.Now().UnixNano())
 	}
-	return hex.EncodeToString(buf)
+	return key
 }
 
 // saveMultipart 将 multipart 文件写入目标路径,双重校验大小上限。
@@ -334,7 +317,7 @@ func saveMultipart(header *multipart.FileHeader, dstPath string, maxSize int64) 
 		return 0, apperror.Internal("写入上传文件失败", closeErr)
 	}
 	if n > maxSize {
-		return 0, apperror.BadRequest(fmt.Sprintf("%s 超过上传大小限制(%s)", header.Filename, formatFileBytes(maxSize)))
+		return 0, apperror.BadRequest(fmt.Sprintf("%s 超过上传大小限制(%s)", header.Filename, util.FormatBytes(maxSize)))
 	}
 	removeOnError = false
 	return n, nil
@@ -356,7 +339,7 @@ func detectFileMime(header *multipart.FileHeader) string {
 		return mimeType
 	}
 	ext := strings.ToLower(filepath.Ext(header.Filename))
-	if mimeType := mime.TypeByExtension(ext); mimeType != "" && IsInlineSafeMime(mimeType) {
+	if mimeType := mime.TypeByExtension(ext); mimeType != "" && util.IsInlineSafeMime(mimeType) {
 		return mimeType
 	}
 	// 无法确定为安全类型时，一律按二进制流处理，阻止内联脚本执行。
@@ -379,36 +362,4 @@ func sniffFileMime(header *multipart.FileHeader) string {
 		return ""
 	}
 	return http.DetectContentType(buf[:n])
-}
-
-// IsInlineSafeMime 判定 MIME 类型是否允许在 Preview 内联渲染。
-// 任何可承载脚本的类型（text/html、image/svg+xml、text/javascript 等）
-// 都必须判定为不安全，Preview 将强制下载而非内联。
-func IsInlineSafeMime(mimeType string) bool {
-	m := strings.ToLower(strings.TrimSpace(strings.SplitN(mimeType, ";", 2)[0]))
-	switch m {
-	case "text/html", "application/xhtml+xml", "image/svg+xml",
-		"text/javascript", "application/javascript", "application/x-javascript",
-		"text/ecmascript", "application/ecmascript",
-		"text/xml", "application/xml",
-		"text/vbscript", "application/x-shockwave-flash":
-		return false
-	}
-	return true
-}
-
-// formatFileBytes 将字节数格式化为可读文案(用于错误提示)。
-func formatFileBytes(size int64) string {
-	const unit = 1024
-	units := []string{"B", "KB", "MB", "GB", "TB"}
-	value := float64(size)
-	i := 0
-	for value >= unit && i < len(units)-1 {
-		value /= unit
-		i++
-	}
-	if i == 0 {
-		return fmt.Sprintf("%d %s", size, units[i])
-	}
-	return fmt.Sprintf("%.1f %s", value, units[i])
 }

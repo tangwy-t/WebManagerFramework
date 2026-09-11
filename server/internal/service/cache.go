@@ -9,6 +9,7 @@ import (
 	"github.com/tangwy-t/webmanager-server/internal/pkg/apperror"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/logger"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/redis/cache"
+	"github.com/tangwy-t/webmanager-server/internal/pkg/util"
 
 	"go.uber.org/zap"
 )
@@ -95,8 +96,8 @@ func maskCacheValue(key, typ string, value any) any {
 		out := make([]cache.HashEntry, len(entries))
 		copy(out, entries)
 		for i := range out {
-			if isSensitiveConfigKey(out[i].Field) {
-				out[i].Value = maskedConfigValue
+			if util.IsSensitiveConfigKey(out[i].Field) {
+				out[i].Value = util.MaskedValue
 			}
 		}
 		return out
@@ -105,8 +106,8 @@ func maskCacheValue(key, typ string, value any) any {
 		if !ok {
 			return value
 		}
-		if isSensitiveConfigKey(key) {
-			return maskedConfigValue
+		if util.IsSensitiveConfigKey(key) {
+			return util.MaskedValue
 		}
 		return s
 	default:

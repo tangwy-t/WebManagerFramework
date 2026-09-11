@@ -62,3 +62,4 @@ server/configs/config.docker.yaml
 .idea/
 .vscode/
 *.iml
+docs/

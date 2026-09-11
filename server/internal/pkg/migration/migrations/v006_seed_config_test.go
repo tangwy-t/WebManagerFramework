@@ -1,8 +1,9 @@
 package migrations
 
 import (
-	"strings"
 	"testing"
+
+	"github.com/tangwy-t/webmanager-server/internal/pkg/util"
 )
 
 // TestFileAllowedExtsRejectsActiveContent 是上传白名单的安全守卫：
@@ -10,7 +11,7 @@ import (
 // 这些后缀此前会让攻击者上传同源 HTML/SVG/JS 并经 Preview 内联渲染执行
 // 脚本（存储型 XSS，评审 #1）。
 func TestFileAllowedExtsRejectsActiveContent(t *testing.T) {
-	allowed := parseExtSet(fileAllowedExtsFull)
+	allowed := util.ParseExtSet(fileAllowedExtsFull)
 	activeExts := []string{".html", ".htm", ".svg", ".js", ".mjs", ".jsx", ".tsx", ".vue"}
 	for _, ext := range activeExts {
 		if allowed[ext] {
@@ -23,20 +24,4 @@ func TestFileAllowedExtsRejectsActiveContent(t *testing.T) {
 			t.Errorf("代码类扩展名 %s 应保留在上传白名单（仅 Preview 强制下载）", ext)
 		}
 	}
-}
-
-// parseExtSet 解析逗号分隔的扩展名白名单为集合（小写、含点）。
-func parseExtSet(raw string) map[string]bool {
-	set := make(map[string]bool)
-	for _, ext := range strings.Split(raw, ",") {
-		ext = strings.ToLower(strings.TrimSpace(ext))
-		if ext == "" {
-			continue
-		}
-		if !strings.HasPrefix(ext, ".") {
-			ext = "." + ext
-		}
-		set[ext] = true
-	}
-	return set
 }

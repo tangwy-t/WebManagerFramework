@@ -7,13 +7,6 @@ import (
 	"github.com/tangwy-t/webmanager-server/internal/pkg/util"
 )
 
-// round2 把浮点数量化到 2 位小数(委托 util.Round2,全仓统一精度约定)。
-// 采样点已在采集端量化,但求平均会重新带出长尾小数(如 1.2333333),
-// 聚合输出前必须再量化一次,保证 /history 响应字段始终是干净的 2 位小数。
-func round2(v float64) float64 {
-	return util.Round2(v)
-}
-
 // bucketAcc 聚合单个时间桶的中间状态。
 type bucketAcc struct {
 	cpuSum, cpuN     float64
@@ -89,28 +82,28 @@ func aggregate(points []Point, b metricshistory.Buckets) (*Snapshot, error) {
 			Timestamp: util.JSONTime(b.Timestamp(i)),
 		}
 		if a.cpuN > 0 {
-			bk.CPU = f64(round2(a.cpuSum / a.cpuN))
+			bk.CPU = f64(util.Round2(a.cpuSum / a.cpuN))
 		}
 		if a.memN > 0 {
-			bk.MemSys = f64(round2(a.memSum / a.memN))
+			bk.MemSys = f64(util.Round2(a.memSum / a.memN))
 		}
 		if a.heapN > 0 {
-			bk.HeapAlloc = f64(round2(a.heapSum / a.heapN))
+			bk.HeapAlloc = f64(util.Round2(a.heapSum / a.heapN))
 		}
 		if a.sysN > 0 {
-			bk.SysMem = f64(round2(a.sysSum / a.sysN))
+			bk.SysMem = f64(util.Round2(a.sysSum / a.sysN))
 		}
 		if a.gorN > 0 {
-			bk.Goroutines = f64(round2(a.gorSum / a.gorN))
+			bk.Goroutines = f64(util.Round2(a.gorSum / a.gorN))
 		}
 		if a.pauseN > 0 {
-			bk.GCPauseMs = f64(round2(a.pauseSum / a.pauseN))
+			bk.GCPauseMs = f64(util.Round2(a.pauseSum / a.pauseN))
 		}
 		if a.diskN > 0 {
-			bk.Disk = f64(round2(a.diskSum / a.diskN))
+			bk.Disk = f64(util.Round2(a.diskSum / a.diskN))
 		}
 		if a.loadN > 0 {
-			bk.Load1 = f64(round2(a.loadSum / a.loadN))
+			bk.Load1 = f64(util.Round2(a.loadSum / a.loadN))
 		}
 		gc := a.gcNumLast
 		up := a.uptimeLast

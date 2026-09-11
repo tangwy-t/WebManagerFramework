@@ -176,37 +176,10 @@ func (s *NoticeService) targetDesc(notice *entity.SysNotice) string {
 	if *notice.TargetType == entity.NoticeTargetTypeAll {
 		return name
 	}
-	if n := csvIDCount(notice.TargetIDs); n > 0 {
+	if n := util.CSVUint64Count(notice.TargetIDs); n > 0 {
 		return fmt.Sprintf("%s（%d个）", name, n)
 	}
 	return name
-}
-
-// parseCSVIDs 解析逗号分隔的 ID 串,过滤空项与非法值。
-func parseCSVIDs(raw string) ([]uint64, bool) {
-	raw = strings.TrimSpace(raw)
-	if raw == "" {
-		return nil, true
-	}
-	parts := strings.Split(raw, ",")
-	ids := make([]uint64, 0, len(parts))
-	for _, p := range parts {
-		p = strings.TrimSpace(p)
-		if p == "" {
-			continue
-		}
-		v, err := strconv.ParseUint(p, 10, 64)
-		if err != nil || v == 0 {
-			return nil, false
-		}
-		ids = append(ids, v)
-	}
-	return ids, true
-}
-
-func csvIDCount(raw string) int {
-	ids, _ := parseCSVIDs(raw)
-	return len(ids)
 }
 
 // applyTargetScope 校验接收范围并据其派生发布方式:
@@ -220,7 +193,7 @@ func (s *NoticeService) applyTargetScope(notice *entity.SysNotice, targetType *i
 	}
 	trimmed := strings.TrimSpace(targetIDs)
 	if *targetType != entity.NoticeTargetTypeAll {
-		ids, ok := parseCSVIDs(trimmed)
+		ids, ok := util.ParseCSVUint64s(trimmed)
 		if !ok {
 			return apperror.BadRequest("接收对象 ID 参数错误")
 		}
@@ -322,7 +295,7 @@ func (s *NoticeService) Publish(ctx context.Context, id uint64, req *request.Pub
 		// 请求未显式指定收件人时,回退到创建/编辑时保存的接收范围(TargetType/TargetIDs)。
 		if len(req.UserIDs) == 0 && len(req.RoleIDs) == 0 && len(req.DeptIDs) == 0 {
 			if notice.TargetType != nil {
-				ids, ok := parseCSVIDs(notice.TargetIDs)
+				ids, ok := util.ParseCSVUint64s(notice.TargetIDs)
 				if !ok {
 					return apperror.BadRequest("接收对象 ID 参数错误")
 				}
@@ -484,7 +457,7 @@ func (s *NoticeService) FindReadUsers(ctx context.Context, noticeID uint64, quer
 
 // FindTargetUsers 按 ID 反查指定个人(接收范围回显)。
 func (s *NoticeService) FindTargetUsers(ctx context.Context, idsCSV string) ([]response.NoticeTargetUserResp, error) {
-	ids, ok := parseCSVIDs(idsCSV)
+	ids, ok := util.ParseCSVUint64s(idsCSV)
 	if !ok {
 		return nil, apperror.BadRequest("参数错误")
 	}
