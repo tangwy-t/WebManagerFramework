@@ -254,7 +254,7 @@ Frontend dynamic routes are generated from backend-delivered menus + permission 
 | 定时任务 / Jobs | `system-job` | Cron 任务、执行日志 / cron jobs & logs |
 | 日志管理 / Logs | `system-log` | 登录日志 / 操作日志 / login & operation logs |
 | 通知公告 / Notices | `system-notice` | 公告发布、已读聚合 / announces & read aggregation |
-| 系统监控 / Monitor | `system-monitor` | 服务端 / SQL / Redis 缓存 / pprof / server, SQL, Redis, pprof |
+| 系统监控 / Monitor | `system-monitor` | 服务端 / SQL / Redis 缓存 / pprof / 在线用户 / server, SQL, Redis, pprof, online users |
 | 个人中心 / Profile | `system-user-center` | 账号设置、登录活动 / account settings, login activity |
 
 ---
