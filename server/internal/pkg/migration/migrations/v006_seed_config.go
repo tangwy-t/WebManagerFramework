@@ -57,6 +57,9 @@ var configDefinitions = []configDef{
 	{Key: "sys.auth.captchaExpireSeconds", Value: "300", Type: "N", Name: "验证码有效期", Remark: "验证码有效期(秒)", Enabled: true},
 	{Key: "sys.auth.captchaFailWindowSeconds", Value: "900", Type: "N", Name: "失败计数窗口", Remark: "已废弃: 被 sys.auth.lockWindow 替代 (单位已改为分钟)", Enabled: true},
 	{Key: "sys.auth.captchaRateLimitPerMinute", Value: "10", Type: "N", Name: "验证码获取限流", Remark: "同IP每分钟最大验证码获取次数", Enabled: true},
+	{Key: "sys.auth.password.minLength", Value: "8", Type: "N", Name: "密码最小长度", Remark: "用户密码最小超度", Enabled: true},
+	{Key: "sys.auth.password.minCategories", Value: "8", Type: "N", Name: "密码最少组合", Remark: "用户密码种类最少组合", Enabled: true},
+	{Key: "sys.auth.password.forbidContainingUsername", Value: "true", Type: "B", Name: "密码是否禁止包含用户名", Remark: "用户密码是否禁止包含用户名", Enabled: true},
 
 	// 账号锁定（历史 v009）
 	{Key: "sys.auth.lockThreshold", Value: "10", Type: "N", Name: "锁定失败次数阈值", Remark: "触发账号锁定的连续登录失败次数", Enabled: true},
