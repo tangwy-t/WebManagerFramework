@@ -347,6 +347,13 @@ func (s *AuthService) Login(ctx context.Context, req *request.LoginReq, ip, user
 		return nil, apperror.Internal("生成 token 失败")
 	}
 
+	// 硬顶号:同一账号在新设备登录时,吊销既有全部会话(access+refresh+perms),
+	// 使旧设备立即失效,而非仅靠刷新槽覆盖成"软顶号"(旧 access 仍可用到过期)。
+	// best-effort:清理失败不阻断登录,仅降级为旧的软顶号行为。
+	if err := s.sessionStore.RevokeAll(ctx, user.ID, ""); err != nil {
+		s.logger.Warn("login: 清理旧会话失败", zap.Uint64("userId", user.ID), zap.Error(err))
+	}
+
 	// Store session data in Redis
 	if err := s.storeSession(ctx, user.ID, accessToken, refreshToken, perms); err != nil {
 		return nil, apperror.Internal("会话存储失败", err)
