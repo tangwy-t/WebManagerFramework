@@ -32,6 +32,7 @@ declare namespace Api {
       deptId: string
       roles: string[]
       permissions: string[]
+      mustChangePassword: boolean
     }
 
     interface RoleBriefResp {

@@ -44,6 +44,9 @@ func (s *AuthService) GetUserInfo(ctx context.Context) (*response.UserInfoResp, 
 	util.CopyEntity(resp, user, s.logger)
 	resp.Permissions = perms
 	resp.Roles = roleCodes
+	if user.MustChangePassword != nil {
+		resp.MustChangePassword = *user.MustChangePassword
+	}
 
 	// 授权上下文收敛:范围口径唯一来源是 ScopeContext(ScopeResolverHandler
 	// 注入,与查询过滤同源)。旧实现在此无条件用 contextkeys.DataScope/DeptID

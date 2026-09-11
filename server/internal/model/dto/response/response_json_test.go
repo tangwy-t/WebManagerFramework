@@ -50,7 +50,7 @@ func TestAllSnowflakeIDFieldsSerializeAsString(t *testing.T) {
 	expectJSON(t, NoticeResp{ID: bigID, CreatedAt: at, UpdatedAt: at},
 		`{"id":"9223372036854775808","title":"","content":"","noticeType":0,"status":0,"priority":0,"publishType":0,"targetType":0,"targetIds":"","targetDesc":"","createBy":"","publishTime":null,"createdAt":"0001-01-01 00:00:00","updatedAt":"0001-01-01 00:00:00"}`)
 	expectJSON(t, UserInfoResp{ID: bigID, DeptID: bigID},
-		`{"id":"9223372036854775808","username":"","realName":"","avatar":"","email":"","phone":"","dataScope":0,"deptId":"9223372036854775808","roles":null,"permissions":null}`)
+		`{"id":"9223372036854775808","username":"","realName":"","avatar":"","email":"","phone":"","dataScope":0,"deptId":"9223372036854775808","roles":null,"permissions":null,"mustChangePassword":false}`)
 	expectJSON(t, JobResp{ID: bigID, CreatedAt: at, UpdatedAt: at},
 		`{"id":"9223372036854775808","name":"","jobGroup":"","cronExpression":"","invokeTarget":"","invokeParams":"","concurrent":0,"retryCount":0,"retryInterval":0,"status":0,"runAtStartup":0,"remark":"","nextRunTime":null,"createdAt":"0001-01-01 00:00:00","updatedAt":"0001-01-01 00:00:00"}`)
 	expectJSON(t, JobLogResp{ID: bigID, JobID: bigID, StartTime: at},

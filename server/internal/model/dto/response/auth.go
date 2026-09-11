@@ -26,16 +26,17 @@ type AvatarUploadResp struct {
 
 // UserInfoResp contains the current user's profile, roles, and permissions.
 type UserInfoResp struct {
-	ID          uint64   `json:"id,string"`
-	Username    string   `json:"username"`
-	RealName    string   `json:"realName"`
-	Avatar      string   `json:"avatar"`
-	Email       string   `json:"email"`
-	Phone       string   `json:"phone"`
-	DataScope   int8     `json:"dataScope"`     // 新增
-	DeptID      uint64   `json:"deptId,string"` // 新增
-	Roles       []string `json:"roles"`
-	Permissions []string `json:"permissions"`
+	ID                 uint64   `json:"id,string"`
+	Username           string   `json:"username"`
+	RealName           string   `json:"realName"`
+	Avatar             string   `json:"avatar"`
+	Email              string   `json:"email"`
+	Phone              string   `json:"phone"`
+	DataScope          int8     `json:"dataScope"`     // 新增
+	DeptID             uint64   `json:"deptId,string"` // 新增
+	Roles              []string `json:"roles"`
+	Permissions        []string `json:"permissions"`
+	MustChangePassword bool     `json:"mustChangePassword"`
 }
 
 // RoleBriefResp is a role's code + display name pair (个人中心用名称展示,code 供前端权限判断)。
