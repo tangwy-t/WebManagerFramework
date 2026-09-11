@@ -46,6 +46,23 @@ func TestRoleResolver_UnknownLevelFailsClosed(t *testing.T) {
 
 // TestRoleResolver_KnownLevelsUnchanged ScopeAll → nil(全量),
 // ScopeCustom → 仓库返回的角色菜单集合。行为不得被 fail-closed 改动影响。
+// TestRoleResolver_CustomEmptyFailsClosed 自定义范围未分配任何菜单时仓库返回 nil,
+// 必须归一为空集(fail-closed)。nil 在 plugin.scopeCallback 中 = 授权全部菜单。
+func TestRoleResolver_CustomEmptyFailsClosed(t *testing.T) {
+	r := datascope.NewRoleDimensionResolver(stubRoleMenuRepo{ids: nil})
+
+	dim, err := r.Resolve(context.Background(), datascope.ScopeCustom, 0, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if dim.AllowedIDs == nil {
+		t.Fatalf("ScopeCustom(空) AllowedIDs = nil(全量可见), want 空集(fail-closed)")
+	}
+	if len(dim.AllowedIDs) != 0 {
+		t.Fatalf("ScopeCustom(空) AllowedIDs = %v, want 空集", dim.AllowedIDs)
+	}
+}
+
 func TestRoleResolver_KnownLevelsUnchanged(t *testing.T) {
 	r := datascope.NewRoleDimensionResolver(stubRoleMenuRepo{ids: []uint64{5, 6}})
 

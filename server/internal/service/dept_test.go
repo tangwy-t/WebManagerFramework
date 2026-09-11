@@ -233,3 +233,29 @@ func TestDeptFindTree_NoFilterReturnsFullTree(t *testing.T) {
 		t.Fatalf("root count = %d, want 2", len(tree))
 	}
 }
+
+// TestDeptFindTree_PartialListBuildsLocalRoot 数据范围过滤只会返回「部门 + 其子孙」
+// 的子树、不含祖先链,建树时必须把父节点被裁剪掉的部门作为局部根,否则
+// 非根部门用户(如「本部门及以下」)会得到空树。
+func TestDeptFindTree_PartialListBuildsLocalRoot(t *testing.T) {
+	repo := newStubDeptRepo([]entity.SysDept{
+		{BaseEntity: entity.BaseEntity{ID: 2}, ParentID: util.Ptr(uint64(1)), Name: "研发部"},
+		{BaseEntity: entity.BaseEntity{ID: 3}, ParentID: util.Ptr(uint64(2)), Name: "前端组"},
+	})
+	svc := newTestDeptService(repo)
+
+	tree, err := svc.FindTree(context.Background(), request.DeptQuery{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(tree) != 1 {
+		t.Fatalf("root count = %d, want 1 (研发部 作为局部根)", len(tree))
+	}
+	dev := tree[0]
+	if dev.ID != 2 || dev.Name != "研发部" {
+		t.Fatalf("root = %+v, want 研发部", dev)
+	}
+	if len(dev.Children) != 1 || dev.Children[0].ID != 3 || dev.Children[0].Name != "前端组" {
+		t.Fatalf("children of 研发部 = %+v, want [前端组]", dev.Children)
+	}
+}

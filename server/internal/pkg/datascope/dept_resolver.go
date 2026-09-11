@@ -29,6 +29,12 @@ func (r *DeptDimensionResolver) Resolve(ctx context.Context, level int8, selfID 
 		if err != nil {
 			return nil, err
 		}
+		// 自定义范围 =「仅这些部门」。未勾选任何部门时仓库返回 nil,而
+		// plugin.scopeCallback 把 nil 读作「授权全部」、空集才表示「无可见项」。
+		// 这里把 nil 归一为空集,防止自定义范围未配置部门时 fail-open 放大为全量。
+		if ids == nil {
+			ids = []uint64{}
+		}
 		dim.AllowedIDs = ids
 	case ScopeDept:
 		dim.AllowedIDs = []uint64{selfID}

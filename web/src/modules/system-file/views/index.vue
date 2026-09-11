@@ -168,9 +168,10 @@
 
       <!-- 内容区 -->
       <div class="panel-body">
-        <!-- 骨架屏 -->
-        <div v-if="loading && !files.length" class="file-grid">
-          <div v-for="i in 12" :key="i" class="skeleton-card" />
+        <!-- 加载状态 -->
+        <div v-if="bodyLoading" class="panel-loading">
+          <ArtSvgIcon icon="ri:loader-4-line" class="loading-spin" />
+          <span class="loading-text">加载中…</span>
         </div>
 
         <!-- 空状态 -->
@@ -208,7 +209,7 @@
         </div>
 
         <!-- 网格视图 -->
-        <div v-else-if="viewMode === 'grid'" class="file-grid" :class="{ 'is-dim': loading }">
+        <div v-else-if="viewMode === 'grid'" class="file-grid">
           <article
             v-for="(entry, index) in displayFiles"
             :key="entry.file.id"
@@ -286,10 +287,9 @@
         </div>
 
         <!-- 列表视图 -->
-        <div v-else class="list-view" :class="{ 'is-dim': loading }">
+        <div v-else class="list-view">
           <ArtTable
             ref="tableRef"
-            :loading="loading"
             :data="files"
             :columns="columns"
             row-key="id"
@@ -497,6 +497,9 @@
     if (activeCategory.value === category) return
     activeCategory.value = category
     pagination.current = 1
+    // 切换分类是「结果集整体切换」:先清空列表让下方加载状态接管,否则上一个
+    // 分类的旧卡片会在请求期间残留一闪、再被新结果(或空态)替换。
+    files.value = []
     loadFiles()
   }
 
@@ -504,10 +507,15 @@
     keyword.value = ''
     activeCategory.value = ''
     pagination.current = 1
+    files.value = []
     loadFiles()
   }
 
   const isFiltering = computed(() => !!keyword.value.trim() || !!activeCategory.value)
+
+  // 下方内容区加载状态:仅在「加载中且尚无内容」时展示(首次加载 / 切换分类清空后)。
+  // 刷新(已有内容)时保留旧内容原地替换,由顶部刷新按钮旋转提示,避免整区闪烁。
+  const bodyLoading = computed(() => loading.value && files.value.length === 0)
 
   // ── 展示数据(预计算元数据,避免模板重复推导) ────────────────────────
   const displayFiles = computed(() => files.value.map((file) => ({ file, meta: fileMetaOf(file) })))
@@ -1224,12 +1232,6 @@
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(186px, 1fr));
     gap: 12px;
-    transition: opacity 0.2s ease;
-  }
-
-  .file-grid.is-dim,
-  .list-view.is-dim {
-    opacity: 0.55;
   }
 
   .file-card {
@@ -1409,22 +1411,25 @@
     white-space: nowrap;
   }
 
-  /* ── 骨架屏 ── */
-  .skeleton-card {
-    height: 188px;
-    border-radius: 12px;
-    background: var(--art-gray-200);
-    animation: pulse 1.4s ease-in-out infinite;
+  /* ── 加载状态 ── */
+  .panel-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 320px;
+    gap: 12px;
   }
 
-  @keyframes pulse {
-    0%,
-    100% {
-      opacity: 1;
-    }
-    50% {
-      opacity: 0.45;
-    }
+  .loading-spin {
+    font-size: 30px;
+    color: var(--theme-color);
+    animation: spin 0.8s linear infinite;
+  }
+
+  .loading-text {
+    font-size: 13px;
+    color: var(--art-gray-500);
   }
 
   /* ── 空状态 ── */
@@ -1600,7 +1605,6 @@
 
   @media (prefers-reduced-motion: reduce) {
     .file-card,
-    .skeleton-card,
     .card-thumb {
       animation: none;
     }

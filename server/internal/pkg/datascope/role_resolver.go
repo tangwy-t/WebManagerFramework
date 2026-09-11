@@ -37,6 +37,11 @@ func (r *RoleDimensionResolver) Resolve(ctx context.Context, level int8, selfID 
 		if err != nil {
 			return nil, err
 		}
+		// 与 DeptDimensionResolver 同理:自定义 =「仅这些菜单」,仓库返回 nil
+		// (未分配任何菜单)时必须归一为空集,避免 plugin 把 nil 放大为「全量菜单」。
+		if ids == nil {
+			ids = []uint64{}
+		}
 		dim.AllowedIDs = ids
 	default:
 		dim.AllowedIDs = []uint64{} // 未知 level → 无可见菜单,不放大为全量

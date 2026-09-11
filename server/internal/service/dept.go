@@ -279,9 +279,11 @@ func (s *DeptService) buildDeptTree(depts []entity.SysDept) []response.DeptResp 
 		list = append(list, util.MapEntity[response.DeptResp](&depts[i], s.logger))
 	}
 
-	// 2. Group by parentID.
+	// 2. Group by parentID,并记录可见 ID 集合用于识别「局部根」。
 	childrenMap := make(map[uint64][]response.DeptResp)
+	idSet := make(map[uint64]bool, len(list))
 	for _, item := range list {
+		idSet[item.ID] = true
 		childrenMap[item.ParentID] = append(childrenMap[item.ParentID], item)
 	}
 
@@ -303,11 +305,27 @@ func (s *DeptService) buildDeptTree(depts []entity.SysDept) []response.DeptResp 
 		return result
 	}
 
+	// 4. 顶层节点 = ParentID==0 的真正根,或父节点不在可见集合内(被数据范围
+	// 裁剪)的节点。datascope 只会返回「某部门 + 其子孙」的子树、不含祖先链,
+	// 若仍只从 build(0) 起建树,非根部门用户将得到空树。父节点被裁剪掉的节点
+	// 作为该子树的局部根,让「本部门/本部门及以下/自定义/仅本人」等范围的用户
+	// 也能看到自己的部门及其下级。
+	roots := make([]response.DeptResp, 0)
+	for _, item := range list {
+		if item.ParentID == 0 || !idSet[item.ParentID] {
+			child := item
+			child.Children = build(child.ID)
+			if child.Children == nil {
+				child.Children = []response.DeptResp{}
+			}
+			roots = append(roots, child)
+		}
+	}
+
 	// 顶层兜底：空树返回 [] 而非 nil，避免 Go 将 nil slice 序列化为 JSON null，
 	// 导致前端消费方（如通知公告的部门下拉）对 null 调 .map 崩溃。
-	root := build(0)
-	if root == nil {
+	if len(roots) == 0 {
 		return []response.DeptResp{}
 	}
-	return root
+	return roots
 }
