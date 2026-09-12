@@ -221,6 +221,8 @@ func (h *FileHandler) Download(c *gin.Context) {
 		mimeType = "application/octet-stream"
 	}
 	c.Header("Content-Type", mimeType)
+	// 内容不可变(随机键、重命名不动内容):长缓存安全,与缩略图一致。
+	c.Header("Cache-Control", "public, max-age=86400")
 	// RFC 5987 UTF-8 文件名转义(与 FileAttachment 等效)。
 	c.Header("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": file.Name}))
 	http.ServeContent(c.Writer, c.Request, file.Name, file.CreatedAt, reader)
@@ -259,6 +261,8 @@ func (h *FileHandler) Preview(c *gin.Context) {
 	//     绝不内联渲染。
 	c.Header("X-Content-Type-Options", "nosniff")
 	c.Header("Content-Security-Policy", "default-src 'none'; sandbox")
+	// 内容不可变(随机键、重命名不动内容):长缓存安全,与缩略图一致。
+	c.Header("Cache-Control", "public, max-age=86400")
 
 	mimeType := ""
 	if file.MimeType != nil {

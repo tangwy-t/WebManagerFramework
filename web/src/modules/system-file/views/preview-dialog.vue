@@ -211,18 +211,58 @@
     const idx = items.value.findIndex((i) => i.id === item.id)
     index.value = idx < 0 ? 0 : idx
     visible.value = true
+    // 显式触发加载:同一文件重复打开时 current 引用不变,watch(current) 不会
+    // 触发,而 close 已把 blobUrl revoke 清零,故必须在此主动重载。
+    loadCurrent()
   }
 
   function step(delta: number) {
     const next = index.value + delta
     if (next < 0 || next >= items.value.length) return
     index.value = next
+    loadCurrent()
   }
 
   function revokeBlob() {
     if (blobUrl.value) {
       URL.revokeObjectURL(blobUrl.value)
       blobUrl.value = ''
+    }
+  }
+
+  // —— 预览内容内存缓存 ——
+  // 按文件 id 缓存已拉取的 Blob,重复打开秒开、零网络(HTTP 层另有
+  // Cache-Control: max-age 兜底覆盖未命中/超限场景)。按 LRU + 总字节上限
+  // 淘汰,避免长时间预览大文件把内存撑爆。
+  const previewCache = new Map<string, Blob>()
+  const PREVIEW_CACHE_MAX_BLOB = 20 * 1024 * 1024 // 单文件 >20MB 不进缓存
+  const PREVIEW_CACHE_MAX_BYTES = 64 * 1024 * 1024 // 缓存总字节上限
+  let previewCacheBytes = 0
+
+  function cacheGet(id: string): Blob | undefined {
+    const blob = previewCache.get(id)
+    if (blob) {
+      previewCache.delete(id)
+      previewCache.set(id, blob) // LRU 触达,移到队尾
+    }
+    return blob
+  }
+
+  function cachePut(id: string, blob: Blob) {
+    if (!blob || blob.size > PREVIEW_CACHE_MAX_BLOB) return
+    const prev = previewCache.get(id)
+    if (prev) {
+      previewCache.delete(id)
+      previewCacheBytes -= prev.size
+    }
+    previewCache.set(id, blob)
+    previewCacheBytes += blob.size
+    while (previewCacheBytes > PREVIEW_CACHE_MAX_BYTES && previewCache.size > 1) {
+      const oldestId = previewCache.keys().next().value
+      if (oldestId === undefined) break
+      const oldest = previewCache.get(oldestId)
+      previewCache.delete(oldestId)
+      if (oldest) previewCacheBytes -= oldest.size
     }
   }
 
@@ -236,7 +276,12 @@
     revokeBlob()
 
     try {
-      const blob = await fetchFileContent(item.id)
+      // 优先命中内存缓存;未命中才走网络并回填缓存
+      let blob = cacheGet(item.id)
+      if (!blob) {
+        blob = await fetchFileContent(item.id)
+        cachePut(item.id, blob)
+      }
 
       // 视频/音频在线预览有体积上限,首次命中引导下载;用户强制仍然预览
       if (
@@ -297,11 +342,6 @@
   watch(visible, (val) => {
     if (val) document.addEventListener('keydown', onKeydown, true)
     else document.removeEventListener('keydown', onKeydown, true)
-  })
-
-  // 切换当前文件自动加载;首次打开经 open() 的 index 变化触发
-  watch(current, () => {
-    if (visible.value) loadCurrent()
   })
 
   function onClosed() {
