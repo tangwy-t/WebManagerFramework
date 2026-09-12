@@ -6,6 +6,16 @@
       <el-form-item label="姓名" prop="realName">
         <el-input v-model="form.realName" placeholder="请输入真实姓名" maxlength="64" />
       </el-form-item>
+      <el-form-item label="昵称" prop="nickname">
+        <el-input v-model="form.nickname" placeholder="请输入昵称" maxlength="64" />
+      </el-form-item>
+      <el-form-item label="性别">
+        <el-radio-group v-model="form.gender">
+          <el-radio v-for="opt in genderOptions" :key="opt.value" :value="opt.value">
+            {{ opt.label }}
+          </el-radio>
+        </el-radio-group>
+      </el-form-item>
       <el-form-item label="手机号" prop="phone">
         <el-input v-model="form.phone" placeholder="请输入手机号" maxlength="11" />
       </el-form-item>
@@ -113,6 +123,7 @@
   const { ensure: ensureStatus, options: statusOptions } = useDict('sys_normal_disable', {
     numeric: true
   })
+  const { ensure: ensureGender, options: genderOptions } = useDict('sys_user_gender')
 
   const visible = ref(false)
   const formRef = ref<FormInstance>()
@@ -123,6 +134,8 @@
     username: '',
     password: '',
     realName: '',
+    nickname: '',
+    gender: '',
     email: '',
     phone: '',
     deptId: undefined,
@@ -157,6 +170,7 @@
 
   async function open(row?: Api.System.User) {
     await ensureStatus()
+    await ensureGender()
     const [deptList, roleList] = await Promise.all([fetchDepts(), fetchAllRoles()])
     depts.value = deptList
     roles.value = roleList
@@ -167,6 +181,8 @@
         username: '',
         password: '',
         realName: '',
+        nickname: '',
+        gender: '',
         email: '',
         phone: '',
         deptId: undefined,
@@ -190,6 +206,8 @@
     if (form.id) {
       await updateUser(form.id, {
         realName: form.realName,
+        nickname: strip(form.nickname),
+        gender: form.gender || undefined,
         email: strip(form.email),
         phone: strip(form.phone),
         deptId: form.deptId || undefined,
@@ -199,6 +217,8 @@
       await createUser({
         ...form,
         realName: form.realName,
+        nickname: strip(form.nickname),
+        gender: form.gender || undefined,
         email: strip(form.email),
         phone: strip(form.phone),
         deptId: form.deptId || undefined,
