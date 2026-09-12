@@ -5,12 +5,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
 	"sync"
 
 	"github.com/tangwy-t/webmanager-server/internal/model/entity"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/apperror"
+	"github.com/tangwy-t/webmanager-server/internal/pkg/storage"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/thumb"
 )
 
@@ -97,9 +96,6 @@ func (s *FileService) Thumb(ctx context.Context, id uint64, width int) ([]byte, 
 	if file == nil {
 		return nil, "", apperror.NotFound("文件不存在")
 	}
-	if file.StorageType != "local" {
-		return nil, "", apperror.BadRequest("该存储类型不支持缩略图")
-	}
 	ext := ""
 	if file.Ext != nil {
 		ext = *file.Ext
@@ -108,18 +104,20 @@ func (s *FileService) Thumb(ctx context.Context, id uint64, width int) ([]byte, 
 		return nil, "", apperror.BadRequest("非图片文件不支持缩略图")
 	}
 
-	basePath := s.cfg.GetString(ctx, "sys.file.upload.path", defaultFileUploadPath)
-	fullPath := filepath.Join(basePath, file.Path)
-	src, err := os.Open(fullPath)
+	backend, err := s.backendFor(file.StorageType)
 	if err != nil {
-		if os.IsNotExist(err) {
+		return nil, "", err
+	}
+	reader, err := backend.Open(ctx, s.resolveKey(ctx, file))
+	if err != nil {
+		if errors.Is(err, storage.ErrNotFound) {
 			return nil, "", apperror.NotFound("文件已丢失")
 		}
 		return nil, "", err
 	}
-	defer src.Close()
+	defer reader.Close()
 
-	data, err := thumb.Generate(src, width)
+	data, err := thumb.Generate(reader, width)
 	if err != nil {
 		var invalid thumb.Invalid
 		if errors.As(err, &invalid) {

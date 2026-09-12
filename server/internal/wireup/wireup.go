@@ -20,6 +20,7 @@ import (
 	"github.com/tangwy-t/webmanager-server/internal/pkg/serverstats"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/session"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/sqlhistory"
+	"github.com/tangwy-t/webmanager-server/internal/pkg/storage"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/tracing"
 	wsPkg "github.com/tangwy-t/webmanager-server/internal/pkg/ws"
 	"github.com/tangwy-t/webmanager-server/internal/repository"
@@ -120,7 +121,24 @@ func Init(db *gorm.DB, sqlStats *database.SQLStats, redis goredis.UniversalClien
 
 	// ── File Service ────────────────────────────────────────────────────
 	// sys.file.upload.* 配置经 ConfigService 读取,支持运行期热更。
+	// 存储后端默认本地盘;配置 storage.backend=s3 时构造 S3 兼容后端(新上传走
+	// 对象存储,历史 local 文件仍按 StorageType 路由到本地盘读取)。
 	fileSvc := service.NewFileService(fileRepo, configSvc, log)
+	if cfg.Storage.Backend == "s3" {
+		s3Backend, err := storage.NewS3(storage.S3Options{
+			Endpoint:  cfg.Storage.S3.Endpoint,
+			AccessKey: cfg.Storage.S3.AccessKey,
+			SecretKey: cfg.Storage.S3.SecretKey,
+			Bucket:    cfg.Storage.S3.Bucket,
+			Region:    cfg.Storage.S3.Region,
+			UseSSL:    cfg.Storage.S3.UseSSL,
+			PathStyle: cfg.Storage.S3.PathStyle,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("wireup: init storage backend: %w", err)
+		}
+		fileSvc = service.NewFileServiceWithRemoteS3(fileRepo, configSvc, log, s3Backend)
+	}
 
 	// ── Task Registry ──────────────────────────────────────────────────
 	// 任务清单由 tasks.All 维护(与任务实现同包),此处只提供依赖。

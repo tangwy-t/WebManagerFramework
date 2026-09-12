@@ -13,7 +13,26 @@ type Config struct {
 	Redis         RedisConfig         `mapstructure:"redis"`
 	Snowflake     SnowflakeConfig     `mapstructure:"snowflake"`
 	Log           LogConfig           `mapstructure:"log"`
+	Storage       StorageConfig       `mapstructure:"storage"`
 	Observability ObservabilityConfig `mapstructure:"observability"`
+}
+
+// StorageConfig 文件对象存储后端配置（静态配置；S3 等凭据建议走环境变量注入，
+// 避免明文落盘或写入数据库热配置）。
+type StorageConfig struct {
+	Backend string   `mapstructure:"backend"` // local（本地盘，默认） | s3（S3 兼容）
+	S3      S3Config `mapstructure:"s3"`
+}
+
+// S3Config S3 兼容对象存储连接参数。
+type S3Config struct {
+	Endpoint  string `mapstructure:"endpoint"`
+	AccessKey string `mapstructure:"accessKey"`
+	SecretKey string `mapstructure:"secretKey"`
+	Bucket    string `mapstructure:"bucket"`
+	Region    string `mapstructure:"region"`
+	UseSSL    bool   `mapstructure:"useSSL"`
+	PathStyle bool   `mapstructure:"pathStyle"`
 }
 
 type ServerConfig struct {

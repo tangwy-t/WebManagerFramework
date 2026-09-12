@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"mime"
@@ -18,6 +19,7 @@ import (
 	"github.com/tangwy-t/webmanager-server/internal/pkg/app"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/apperror"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/logger"
+	"github.com/tangwy-t/webmanager-server/internal/pkg/storage"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/util"
 
 	"go.uber.org/zap"
@@ -46,17 +48,39 @@ type FileConfigProvider interface {
 	GetInt(ctx context.Context, key string, defaultVal int) int
 }
 
-// FileService 文件管理服务:元数据 CRUD + 本地存储读写。
+// FileService 文件管理服务:元数据 CRUD + 存储后端的读写路由。
 type FileService struct {
-	repo       FileRepositoryInterface
-	cfg        FileConfigProvider
-	logger     logger.LoggerInterface
-	thumbCache *thumbLRU
+	repo        FileRepositoryInterface
+	cfg         FileConfigProvider
+	logger      logger.LoggerInterface
+	thumbCache  *thumbLRU
+	local       storage.Backend // 本地盘后端,恒存在
+	remote      storage.Backend // S3 兼容对象存储后端,未配置时为 nil
+	defaultType string          // 新上传默认存储类型: local | s3
 }
 
 // NewFileService constructs a FileService with the given dependencies.
+// 默认使用本地盘后端(向后兼容);对象存储见 NewFileServiceWithRemoteS3。
 func NewFileService(repo FileRepositoryInterface, cfg FileConfigProvider, logger logger.LoggerInterface) *FileService {
-	return &FileService{repo: repo, cfg: cfg, logger: logger, thumbCache: newThumbLRU()}
+	return newFileService(repo, cfg, logger, nil, "local")
+}
+
+// NewFileServiceWithRemoteS3 构造以 S3 兼容对象存储为默认后端的文件服务。
+// 本地盘后端仍保留,用于读取历史 StorageType=local 的文件(混合存储切换期间)。
+func NewFileServiceWithRemoteS3(repo FileRepositoryInterface, cfg FileConfigProvider, logger logger.LoggerInterface, remote storage.Backend) *FileService {
+	return newFileService(repo, cfg, logger, remote, "s3")
+}
+
+func newFileService(repo FileRepositoryInterface, cfg FileConfigProvider, logger logger.LoggerInterface, remote storage.Backend, defaultType string) *FileService {
+	return &FileService{
+		repo:        repo,
+		cfg:         cfg,
+		logger:      logger,
+		thumbCache:  newThumbLRU(),
+		local:       storage.NewLocal(),
+		remote:      remote,
+		defaultType: defaultType,
+	}
 }
 
 // List 分页查询文件列表。
@@ -115,35 +139,48 @@ func (s *FileService) Upload(ctx context.Context, headers []*multipart.FileHeade
 		pending = append(pending, pendingFile{header: h, ext: ext, mime: detectFileMime(h)})
 	}
 
-	if err := os.MkdirAll(basePath, 0o755); err != nil {
-		s.logger.Error("create upload dir failed", zap.String("path", basePath), zap.Error(err))
-		return nil, apperror.Internal("创建上传目录失败", err)
+	// 选择本次上传使用的后端与存储类型:默认本地盘,配置为 s3 时切对象存储。
+	backend := s.local
+	storageType := "local"
+	if s.defaultType == "s3" && s.remote != nil {
+		backend = s.remote
+		storageType = "s3"
 	}
 
 	dateDir := time.Now().Format("2006/01")
 	savedKeys := make([]string, 0, len(pending))
 	rollback := func() {
-		for _, rel := range savedKeys {
-			_ = os.Remove(filepath.Join(basePath, rel))
+		for _, key := range savedKeys {
+			_ = backend.Delete(ctx, key)
 		}
 	}
 
 	files := make([]*entity.SysFile, 0, len(pending))
 	for _, p := range pending {
 		relKey := filepath.Join(dateDir, randomFileKey()+p.ext)
-		fullPath := filepath.Join(basePath, relKey)
-		if err := os.MkdirAll(filepath.Dir(fullPath), 0o755); err != nil {
-			rollback()
-			return nil, apperror.Internal("创建上传目录失败", err)
+		// 后端相关定位键:local 用绝对路径,s3 用对象键。
+		key := relKey
+		if storageType == "local" {
+			key = filepath.Join(basePath, relKey)
 		}
 
-		n, err := saveMultipart(p.header, fullPath, int64(maxSize))
+		src, err := p.header.Open()
 		if err != nil {
 			rollback()
-			return nil, err
+			return nil, apperror.BadRequest("读取上传文件失败")
+		}
+		n, err := backend.Put(ctx, key, src, int64(maxSize))
+		_ = src.Close()
+		if err != nil {
+			rollback()
+			if errors.Is(err, storage.ErrTooLarge) {
+				return nil, apperror.BadRequest(fmt.Sprintf("%s 超过上传大小限制(%s)", p.header.Filename, util.FormatBytes(int64(maxSize))))
+			}
+			s.logger.Warn("failed to store upload", zap.String("filename", p.header.Filename), zap.Error(err))
+			return nil, apperror.Internal("写入上传文件失败", err)
 		}
 
-		savedKeys = append(savedKeys, relKey)
+		savedKeys = append(savedKeys, key)
 		files = append(files, &entity.SysFile{
 			Name:         p.header.Filename,
 			OriginalName: p.header.Filename,
@@ -151,7 +188,7 @@ func (s *FileService) Upload(ctx context.Context, headers []*multipart.FileHeade
 			Size:         util.Ptr(n),
 			MimeType:     util.Ptr(p.mime),
 			Ext:          util.Ptr(p.ext),
-			StorageType:  "local",
+			StorageType:  storageType,
 		})
 	}
 
@@ -202,42 +239,73 @@ func (s *FileService) DeleteMany(ctx context.Context, ids []uint64) error {
 		return apperror.NotFound("文件不存在")
 	}
 
-	// 先删元数据（真相源），成功后再清理物理文件。
+	// 先删元数据（真相源），成功后再清理物理对象（本地盘/对象存储）。
 	if err := s.repo.DeleteByIDs(ctx, ids); err != nil {
 		s.logger.Warn("delete file metadata failed", zap.Int("count", len(files)), zap.Error(err))
 		return err
 	}
 
-	basePath := s.cfg.GetString(ctx, "sys.file.upload.path", defaultFileUploadPath)
-	for _, f := range files {
-		if f.StorageType != "local" {
+	for i := range files {
+		f := &files[i]
+		backend, err := s.backendFor(f.StorageType)
+		if err != nil {
+			s.logger.Warn("skip removing file (unsupported backend)",
+				zap.Uint64("fileId", f.ID), zap.Error(err))
 			continue
 		}
-		if err := os.Remove(filepath.Join(basePath, f.Path)); err != nil && !os.IsNotExist(err) {
+		if err := backend.Delete(ctx, s.resolveKey(ctx, f)); err != nil {
 			s.logger.Warn("remove file failed", zap.String("path", f.Path), zap.Error(err))
 		}
 	}
 	return nil
 }
 
-// OpenFile 打开文件用于下载/预览,返回实体与磁盘绝对路径。
-func (s *FileService) OpenFile(ctx context.Context, id uint64) (*entity.SysFile, string, error) {
+// OpenFile 打开文件用于下载/预览,返回实体与可随机读取的内容句柄。
+// 依文件 StorageType 路由到本地盘或对象存储后端;对象缺失映射为 404。
+func (s *FileService) OpenFile(ctx context.Context, id uint64) (*entity.SysFile, io.ReadSeekCloser, error) {
 	file, err := s.repo.FindByID(ctx, id)
 	if err != nil {
-		return nil, "", err
+		return nil, nil, err
 	}
 	if file == nil {
-		return nil, "", apperror.NotFound("文件不存在")
+		return nil, nil, apperror.NotFound("文件不存在")
 	}
-	if file.StorageType != "local" {
-		return nil, "", apperror.Internal(fmt.Sprintf("存储类型 %s 暂不支持在线访问", file.StorageType))
+	backend, err := s.backendFor(file.StorageType)
+	if err != nil {
+		return nil, nil, err
 	}
-	basePath := s.cfg.GetString(ctx, "sys.file.upload.path", defaultFileUploadPath)
-	fullPath := filepath.Join(basePath, file.Path)
-	if _, err := os.Stat(fullPath); err != nil {
-		return nil, "", apperror.NotFound("文件已丢失")
+	reader, err := backend.Open(ctx, s.resolveKey(ctx, file))
+	if err != nil {
+		if errors.Is(err, storage.ErrNotFound) {
+			return nil, nil, apperror.NotFound("文件已丢失")
+		}
+		return nil, nil, err
 	}
-	return file, fullPath, nil
+	return file, reader, nil
+}
+
+// backendFor 依据文件存储类型返回对应后端。
+func (s *FileService) backendFor(storageType string) (storage.Backend, error) {
+	switch storageType {
+	case "", "local":
+		return s.local, nil
+	case "s3":
+		if s.remote == nil {
+			return nil, apperror.Internal("对象存储后端未配置")
+		}
+		return s.remote, nil
+	default:
+		return nil, apperror.Internal(fmt.Sprintf("存储类型 %s 暂不支持在线访问", storageType))
+	}
+}
+
+// resolveKey 返回给定文件在其所属后端的定位键:
+// local → 上传根目录下的绝对路径;s3 → bucket 内对象键。
+func (s *FileService) resolveKey(ctx context.Context, file *entity.SysFile) string {
+	if file.StorageType == "s3" {
+		return file.Path
+	}
+	return filepath.Join(s.cfg.GetString(ctx, "sys.file.upload.path", defaultFileUploadPath), file.Path)
 }
 
 // ── 工具函数 ──────────────────────────────────────────────────────────

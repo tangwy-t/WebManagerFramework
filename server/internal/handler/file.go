@@ -3,6 +3,8 @@ package handler
 import (
 	"context"
 	"fmt"
+	"io"
+	"mime"
 	"mime/multipart"
 	"net/http"
 	"strconv"
@@ -24,7 +26,7 @@ type FileServiceInterface interface {
 	Upload(ctx context.Context, headers []*multipart.FileHeader) ([]response.FileResp, error)
 	Rename(ctx context.Context, id uint64, name string) error
 	DeleteMany(ctx context.Context, ids []uint64) error
-	OpenFile(ctx context.Context, id uint64) (*entity.SysFile, string, error)
+	OpenFile(ctx context.Context, id uint64) (*entity.SysFile, io.ReadSeekCloser, error)
 	Thumb(ctx context.Context, id uint64, width int) ([]byte, string, error)
 }
 
@@ -204,13 +206,24 @@ func (h *FileHandler) Download(c *gin.Context) {
 	if !ok {
 		return
 	}
-	file, fullPath, err := h.svc.OpenFile(c.Request.Context(), id)
+	file, reader, err := h.svc.OpenFile(c.Request.Context(), id)
 	if err != nil {
 		app.Error(c, err)
 		return
 	}
-	// FileAttachment 已处理 UTF-8 文件名转义(RFC 5987)。
-	c.FileAttachment(fullPath, file.Name)
+	defer reader.Close()
+
+	mimeType := ""
+	if file.MimeType != nil {
+		mimeType = *file.MimeType
+	}
+	if mimeType == "" {
+		mimeType = "application/octet-stream"
+	}
+	c.Header("Content-Type", mimeType)
+	// RFC 5987 UTF-8 文件名转义(与 FileAttachment 等效)。
+	c.Header("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": file.Name}))
+	http.ServeContent(c.Writer, c.Request, file.Name, file.CreatedAt, reader)
 }
 
 // Preview handles GET /api/v1/files/:id/preview — inline content streaming.
@@ -228,11 +241,12 @@ func (h *FileHandler) Preview(c *gin.Context) {
 	if !ok {
 		return
 	}
-	file, fullPath, err := h.svc.OpenFile(c.Request.Context(), id)
+	file, reader, err := h.svc.OpenFile(c.Request.Context(), id)
 	if err != nil {
 		app.Error(c, err)
 		return
 	}
+	defer reader.Close()
 
 	// 安全修复（存储型 XSS 纵深防御）：
 	//  1. 恒加 X-Content-Type-Options: nosniff —— 阻止浏览器按内容二次嗅探
@@ -254,11 +268,11 @@ func (h *FileHandler) Preview(c *gin.Context) {
 		// 活动内容/未知类型：强制下载，禁止内联执行。
 		c.Header("Content-Type", "application/octet-stream")
 		c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, util.SanitizeFilename(file.Name)))
-		http.ServeFile(c.Writer, c.Request, fullPath)
+		http.ServeContent(c.Writer, c.Request, file.Name, file.CreatedAt, reader)
 		return
 	}
 
 	// 安全类型（图片/视频/文档等）内联渲染，但仍带 nosniff + CSP。
 	c.Header("Content-Type", mimeType)
-	http.ServeFile(c.Writer, c.Request, fullPath)
+	http.ServeContent(c.Writer, c.Request, file.Name, file.CreatedAt, reader)
 }
