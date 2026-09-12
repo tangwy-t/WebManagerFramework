@@ -15,7 +15,8 @@
           ref="profileFormRef"
           :model="profileForm"
           :rules="profileRules"
-          label-position="top"
+          label-position="right"
+          label-width="70px"
         >
           <ElFormItem label="姓名" prop="realName">
             <ElInput
@@ -87,7 +88,13 @@
         <p class="mb-4 text-xs text-g-500">{{
           '修改成功后所有会话立即失效，请用新密码重新登录'
         }}</p>
-        <ElForm ref="pwdFormRef" :model="pwdForm" :rules="pwdRules" label-position="top">
+        <ElForm
+          ref="pwdFormRef"
+          :model="pwdForm"
+          :rules="pwdRules"
+          label-position="right"
+          label-width="110px"
+        >
           <ElFormItem label="当前密码" prop="oldPassword">
             <ElInput
               v-model="pwdForm.oldPassword"

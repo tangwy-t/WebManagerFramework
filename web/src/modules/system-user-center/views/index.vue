@@ -80,6 +80,16 @@
                   </dd>
                 </div>
                 <div class="min-w-0">
+                  <dt class="uc-meta-label">{{ '昵称' }}</dt>
+                  <dd class="uc-meta-value" :title="nickname">
+                    {{ nickname || '未设置' }}
+                  </dd>
+                </div>
+                <div class="min-w-0">
+                  <dt class="uc-meta-label">{{ '性别' }}</dt>
+                  <dd class="uc-meta-value" :title="genderText">{{ genderText }}</dd>
+                </div>
+                <div class="min-w-0">
                   <dt class="uc-meta-label">{{ '用户 ID' }}</dt>
                   <dd class="uc-meta-value uc-mono" :title="userId">{{ userId }}</dd>
                 </div>
@@ -145,6 +155,7 @@
   import { computed, onMounted, ref, watch } from 'vue'
   import { ElMessage } from 'element-plus'
   import { useUserStore } from '@/store/modules/user'
+  import { useDict } from '@/hooks/core/useDict'
   import { resolveAvatar } from '@/utils/avatar'
   import { fetchMyOverview, fetchMyProfile, uploadMyAvatar } from '../api'
   import ActivityPulse from './components/ActivityPulse.vue'
@@ -165,7 +176,7 @@
   const loadAll = async () => {
     pageLoading.value = true
     try {
-      const [fresh, ov] = await Promise.all([fetchMyProfile(), fetchMyOverview()])
+      const [fresh, ov] = await Promise.all([fetchMyProfile(), fetchMyOverview(), ensureGender()])
       userStore.setUserInfo(fresh)
       overview.value = ov
     } finally {
@@ -185,6 +196,12 @@
   const username = computed(() => overview.value?.username || userInfo.value.username || '')
   const email = computed(() => userInfo.value.email || '')
   const phone = computed(() => userInfo.value.phone || '')
+  const nickname = computed(() => userInfo.value.nickname || '')
+  const { ensure: ensureGender, labelOf: genderLabelOf } = useDict('sys_user_gender')
+  const genderText = computed(() => {
+    const g = userInfo.value.gender
+    return g ? genderLabelOf(g) : '未设置'
+  })
   const userId = computed(() => userInfo.value.id || overview.value?.id || '—')
   const deptName = computed(() => overview.value?.deptName || '')
   const roleBriefs = computed<Api.Auth.RoleBrief[]>(() => overview.value?.roles ?? [])

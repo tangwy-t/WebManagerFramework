@@ -6,7 +6,6 @@
  * ## 主要功能
  *
  * - 状态类型（启用/禁用）
- * - 性别类型
  * - 排序方向类型
  * - 操作类型（增删改查）
  * - 记录类型（键值对）
@@ -32,9 +31,6 @@ export * from './response'
 
 // 状态类型
 export type Status = 0 | 1 // 0: 禁用, 1: 启用
-
-// 性别类型
-export type Gender = 'male' | 'female' | 'unknown'
 
 // 排序方向
 export type SortOrder = 'ascending' | 'descending'

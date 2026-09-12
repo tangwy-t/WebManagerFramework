@@ -24,6 +24,8 @@
 
       <ElDescriptions :column="1" class="profile-desc" label-width="76px">
         <ElDescriptionsItem label="用户账号">{{ user.username }}</ElDescriptionsItem>
+        <ElDescriptionsItem label="昵称">{{ user.nickname || '—' }}</ElDescriptionsItem>
+        <ElDescriptionsItem label="性别">{{ genderLabel }}</ElDescriptionsItem>
         <ElDescriptionsItem label="手机号码">{{ user.phone || '—' }}</ElDescriptionsItem>
         <ElDescriptionsItem label="邮箱">{{ user.email || '—' }}</ElDescriptionsItem>
         <ElDescriptionsItem label="归属部门">{{ user.deptName || '—' }}</ElDescriptionsItem>
@@ -95,6 +97,12 @@
     const label = dictStore.items['sys_normal_disable']?.find((i) => i.value === String(s))?.label
     return label ?? (s === 1 ? '正常' : '停用')
   })
+  const genderLabel = computed(() => {
+    const g = user.value?.gender
+    if (!g) return '—'
+    const label = dictStore.items['sys_user_gender']?.find((i) => i.value === String(g))?.label
+    return label ?? '—'
+  })
   const statusTagType = computed<'primary' | 'success' | 'warning' | 'info' | 'danger'>(() => {
     const s = user.value?.status
     const cls = dictStore.items['sys_normal_disable']?.find(
@@ -115,6 +123,7 @@
 
   function open(row: Api.System.User) {
     dictStore.load('sys_normal_disable') // 预热;未加载时回退文案与字典 label 相同,视觉不变
+    dictStore.load('sys_user_gender') // 预热性别字典,渲染中文标签
     user.value = row
     visible.value = true
   }
