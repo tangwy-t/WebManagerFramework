@@ -47,6 +47,8 @@ declare namespace Api {
       realName: string
       email: string
       phone: string
+      nickname?: string
+      gender?: string
     }
 
     /** 别名桥 → api.generated.d.ts(响应字段唯一事实源) */
@@ -106,6 +108,8 @@ declare namespace Api {
       roleIds?: string[]
       status?: number
       remark?: string
+      nickname?: string
+      gender?: string
     }
 
     interface RoleQuery extends Api.PageParams {

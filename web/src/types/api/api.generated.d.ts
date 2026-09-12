@@ -25,6 +25,8 @@ declare namespace Api {
       id: string
       username: string
       realName: string
+      nickname: string
+      gender: string
       avatar: string
       email: string
       phone: string
@@ -173,6 +175,8 @@ declare namespace Api {
       id: string
       username: string
       realName: string
+      nickname: string
+      gender: string
       email: string
       phone: string
       avatar: string
