@@ -61,13 +61,16 @@ services:
       # 单容器反向代理场景填 nginx 所在网段（见 .env.example），由 env 注入。
       SERVER_TRUSTEDPROXIES: ${SERVER_TRUSTEDPROXIES:-}
 
-      # ── MySQL ──
+      # ── 关系数据库（MySQL / PostgreSQL）──
+      DATABASE_DRIVER: ${DATABASE_DRIVER:-mysql}   # mysql | postgres
       DATABASE_HOST: ${DATABASE_HOST:-host.docker.internal}
       DATABASE_PORT: ${DATABASE_PORT:-3306}
       DATABASE_USER: ${DATABASE_USER:?生产环境必须设置 DATABASE_USER}
       DATABASE_PASSWORD: ${DATABASE_PASSWORD:?生产环境必须设置 DATABASE_PASSWORD}
       DATABASE_DBNAME: ${DATABASE_DBNAME:-web_manager_framework}
       DATABASE_CHARSET: ${DATABASE_CHARSET:-utf8mb4}
+      DATABASE_SSLMODE: ${DATABASE_SSLMODE:-disable}   # 仅 postgres 使用
+      DATABASE_SCHEMA: ${DATABASE_SCHEMA:-}            # 仅 postgres 使用（默认 public）
       DATABASE_MAXIDLECONNS: ${DATABASE_MAXIDLECONNS:-10}
       DATABASE_MAXOPENCONNS: ${DATABASE_MAXOPENCONNS:-100}
       DATABASE_MAXLIFETIME: ${DATABASE_MAXLIFETIME:-3600}

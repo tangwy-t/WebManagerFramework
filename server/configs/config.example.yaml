@@ -24,12 +24,15 @@ server:
 
 # 数据库配置
 database:
-  host: 127.0.0.1        # MySQL 主机地址
-  port: 3306             # MySQL 端口
+  driver: mysql          # 数据库驱动: mysql | postgres（切 postgres 时同步改 port/sslmode，charset 忽略）
+  host: 127.0.0.1        # 数据库主机地址
+  port: 3306             # MySQL 默认 3306；PostgreSQL 默认 5432
   user: root             # 数据库用户名
   password: "请填写数据库密码"   # ⚠️ 请替换为真实密码，或通过环境变量 DATABASE_PASSWORD 注入（推荐）
   dbname: web_manager_framework   # 数据库名称
-  charset: utf8mb4       # 字符集
+  charset: utf8mb4       # 字符集（仅 MySQL 使用）
+  sslmode: disable       # PostgreSQL 连接 SSL 模式: disable|require|verify-ca|verify-full（MySQL 忽略）
+  schema: ""             # PostgreSQL 目标 schema/search_path（默认 public，可逗号分隔多个；MySQL 忽略）
   maxIdleConns: 10       # 最大空闲连接数
   maxOpenConns: 100      # 最大打开连接数
   maxLifetime: 3600      # 连接最大存活时间（秒）

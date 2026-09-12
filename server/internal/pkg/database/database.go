@@ -1,4 +1,5 @@
-// Package database provides MySQL connection initialization and context propagation helpers.
+// Package database provides database connection initialization (MySQL / PostgreSQL)
+// and context propagation helpers.
 package database
 
 import (
@@ -12,11 +13,25 @@ import (
 
 	"go.uber.org/zap"
 	"gorm.io/driver/mysql"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	gormlogger "gorm.io/gorm/logger"
 )
 
-// New opens a MySQL connection via GORM, configures the connection pool, and
+// openDialector 依据配置的驱动返回对应的 GORM Dialector。
+// 未配置驱动（空串）时 DriverName() 归一为 mysql，兼容既有部署。
+func openDialector(cfg *config.DatabaseConfig) (gorm.Dialector, error) {
+	switch cfg.DriverName() {
+	case "mysql":
+		return mysql.Open(cfg.DSN()), nil
+	case "postgres":
+		return postgres.Open(cfg.DSN()), nil
+	default:
+		return nil, fmt.Errorf("unsupported database driver %q (supported: mysql, postgres)", cfg.Driver)
+	}
+}
+
+// New opens a database connection via GORM (driver selected by cfg.Driver), configures the connection pool, and
 // starts a background goroutine that logs pool stats every 30 seconds. The
 // pool monitor and the database close are registered with the provided
 // lifecycle manager as "db-pool-monitor" and "database" respectively, so LIFO
@@ -60,7 +75,13 @@ func New(cfg *config.DatabaseConfig, sfNode *sf.Node, log logger.LoggerInterface
 	zapGormLogger := NewZapGormLogger(zapLogger.GetZap(), slowThreshold, cfg.SlowQueryLogEnabled, stats).
 		LogMode(logLevel).(*ZapGormLogger)
 
-	db, err := gorm.Open(mysql.Open(cfg.DSN()), &gorm.Config{
+	dialector, err := openDialector(cfg)
+	if err != nil {
+		log.Error("unsupported database driver", zap.String("driver", cfg.Driver))
+		return nil, nil, err
+	}
+
+	db, err := gorm.Open(dialector, &gorm.Config{
 		Logger: zapGormLogger,
 	})
 	if err != nil {
@@ -77,7 +98,8 @@ func New(cfg *config.DatabaseConfig, sfNode *sf.Node, log logger.LoggerInterface
 	sqlDB.SetMaxOpenConns(cfg.MaxOpenConns)
 	sqlDB.SetConnMaxLifetime(time.Duration(cfg.MaxLifetime) * time.Second)
 
-	log.Info("MySQL connected",
+	log.Info("database connected",
+		zap.String("driver", cfg.DriverName()),
 		zap.Int("maxIdleConns", cfg.MaxIdleConns),
 		zap.Int("maxOpenConns", cfg.MaxOpenConns))
 

@@ -2,6 +2,9 @@ package config
 
 import (
 	"fmt"
+	"net"
+	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/viper"
@@ -52,12 +55,15 @@ type ServerConfig struct {
 }
 
 type DatabaseConfig struct {
+	Driver              string `mapstructure:"driver"` // mysql（默认） | postgres
 	Host                string `mapstructure:"host"`
 	Port                int    `mapstructure:"port"`
 	User                string `mapstructure:"user"`
 	Password            string `mapstructure:"password"`
 	DBName              string `mapstructure:"dbname"`
 	Charset             string `mapstructure:"charset"`
+	SSLMode             string `mapstructure:"sslmode"` // postgres: disable|require|verify-ca|verify-full
+	Schema              string `mapstructure:"schema"`  // postgres: 目标 schema/search_path（默认 public，可逗号分隔多个；MySQL 忽略）
 	MaxIdleConns        int    `mapstructure:"maxIdleConns"`
 	MaxOpenConns        int    `mapstructure:"maxOpenConns"`
 	MaxLifetime         int    `mapstructure:"maxLifetime"`
@@ -136,7 +142,57 @@ func Load() (*Config, error) {
 	return &cfg, nil
 }
 
+// DriverName 归一化驱动名：未配置（空串）视为 mysql 以兼容既有部署。
+// postgres 的别名 postgresql / pg 一并归一为 postgres；其余原样返回，
+// 由调用方显式报错，避免静默回退到错误的驱动。
+func (d DatabaseConfig) DriverName() string {
+	switch strings.ToLower(strings.TrimSpace(d.Driver)) {
+	case "", "mysql":
+		return "mysql"
+	case "postgres", "postgresql", "pg":
+		return "postgres"
+	default:
+		return strings.ToLower(strings.TrimSpace(d.Driver))
+	}
+}
+
+// DSN 依据 DriverName 返回对应驱动的连接串。
 func (d DatabaseConfig) DSN() string {
+	if d.DriverName() == "postgres" {
+		return d.postgresDSN()
+	}
+	return d.mysqlDSN()
+}
+
+// mysqlDSN 返回 go-sql-driver/mysql 格式的 DSN。
+// sql_mode=PIPES_AS_CONCAT 让 MySQL 的 || 表现为标准 SQL 的字符串拼接，
+// 与 PostgreSQL / SQLite 原生行为对齐（见 repository/dept.go、user.go 的 ancestors 查询）。
+func (d DatabaseConfig) mysqlDSN() string {
 	return fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=%s&parseTime=True&loc=Local&sql_mode=PIPES_AS_CONCAT",
 		d.User, d.Password, d.Host, d.Port, d.DBName, d.Charset)
+}
+
+// postgresDSN 返回 pgx 可解析的 URL 形式连接串。
+// 用 url.URL 组装以保证密码含空格 / @ / : 等特殊字符时被正确转义，
+// 避免手拼 key=value 时值被空白或引号截断。sslmode 默认 disable（本地/内网免证书）。
+func (d DatabaseConfig) postgresDSN() string {
+	sslmode := "disable"
+	if strings.TrimSpace(d.SSLMode) != "" {
+		sslmode = strings.TrimSpace(d.SSLMode)
+	}
+	u := url.URL{
+		Scheme: "postgres",
+		User:   url.UserPassword(d.User, d.Password),
+		Host:   net.JoinHostPort(d.Host, strconv.Itoa(d.Port)),
+		Path:   "/" + d.DBName,
+	}
+	q := u.Query()
+	q.Set("sslmode", sslmode)
+	if strings.TrimSpace(d.Schema) != "" {
+		// search_path 决定 GORM AutoMigrate / 查询落在哪个 schema，等价于 SET search_path。
+		// 与 DSN 顶层的 schema 无关，pgx 会把未知 query 参数作为连接 startup 参数发送。
+		q.Set("search_path", strings.TrimSpace(d.Schema))
+	}
+	u.RawQuery = q.Encode()
+	return u.String()
 }
