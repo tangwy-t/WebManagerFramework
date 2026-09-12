@@ -34,7 +34,7 @@ func TestAllSnowflakeIDFieldsSerializeAsString(t *testing.T) {
 	expectJSON(t, OperationLogResp{ID: bigID, UserID: bigID, OperTime: at},
 		`{"id":"9223372036854775808","userId":"9223372036854775808","username":"","module":"","operationType":"","requestMethod":"","requestUrl":"","requestParams":"","responseResult":"","costTime":0,"ip":"","code":0,"errorMsg":"","operTime":"0001-01-01 00:00:00"}`)
 	expectJSON(t, UserResp{ID: bigID, DeptID: bigID, CreatedAt: at},
-		`{"id":"9223372036854775808","username":"","realName":"","email":"","phone":"","avatar":"","deptId":"9223372036854775808","deptName":"","status":0,"remark":"","lastLoginTime":null,"createdAt":"0001-01-01 00:00:00","roleNames":null,"roleIds":null}`)
+		`{"id":"9223372036854775808","username":"","realName":"","nickname":"","gender":"","email":"","phone":"","avatar":"","deptId":"9223372036854775808","deptName":"","status":0,"remark":"","lastLoginTime":null,"createdAt":"0001-01-01 00:00:00","roleNames":null,"roleIds":null}`)
 	expectJSON(t, RoleResp{ID: bigID, CreatedAt: at},
 		fmt.Sprintf(`{"id":"9223372036854775808","name":"","code":"","dataScope":0,"sort":0,"status":0,"remark":"","menuIds":%s,"deptIds":%s,"createdAt":"0001-01-01 00:00:00"}`, "null", "null"))
 	expectJSON(t, DeptResp{ID: bigID, ParentID: bigID, CreatedAt: at},
@@ -50,7 +50,7 @@ func TestAllSnowflakeIDFieldsSerializeAsString(t *testing.T) {
 	expectJSON(t, NoticeResp{ID: bigID, CreatedAt: at, UpdatedAt: at},
 		`{"id":"9223372036854775808","title":"","content":"","noticeType":0,"status":0,"priority":0,"publishType":0,"targetType":0,"targetIds":"","targetDesc":"","createBy":"","publishTime":null,"createdAt":"0001-01-01 00:00:00","updatedAt":"0001-01-01 00:00:00"}`)
 	expectJSON(t, UserInfoResp{ID: bigID, DeptID: bigID},
-		`{"id":"9223372036854775808","username":"","realName":"","avatar":"","email":"","phone":"","dataScope":0,"deptId":"9223372036854775808","roles":null,"permissions":null,"mustChangePassword":false}`)
+		`{"id":"9223372036854775808","username":"","realName":"","nickname":"","gender":"","avatar":"","email":"","phone":"","dataScope":0,"deptId":"9223372036854775808","roles":null,"permissions":null,"mustChangePassword":false}`)
 	expectJSON(t, JobResp{ID: bigID, CreatedAt: at, UpdatedAt: at},
 		`{"id":"9223372036854775808","name":"","jobGroup":"","cronExpression":"","invokeTarget":"","invokeParams":"","concurrent":0,"retryCount":0,"retryInterval":0,"status":0,"runAtStartup":0,"remark":"","nextRunTime":null,"createdAt":"0001-01-01 00:00:00","updatedAt":"0001-01-01 00:00:00"}`)
 	expectJSON(t, JobLogResp{ID: bigID, JobID: bigID, StartTime: at},

@@ -37,6 +37,8 @@ type CreateUserReq struct {
 	RoleIDs  util.JsonUint64Slice `json:"roleIds"`
 	Status   *int8                `json:"status"`
 	Remark   *string              `json:"remark"`
+	Nickname *string              `json:"nickname"`
+	Gender   *string              `json:"gender"`
 }
 
 // UpdateUserReq is the request payload for updating an existing user's basic info.
@@ -47,6 +49,8 @@ type UpdateUserReq struct {
 	Phone    *string          `json:"phone" binding:"omitempty,min=7,max=20"`
 	DeptID   *util.JsonUint64 `json:"deptId"`
 	Remark   *string          `json:"remark"`
+	Nickname *string          `json:"nickname"`
+	Gender   *string          `json:"gender"`
 }
 
 // UnmarshalJSON runs before gin's binding validation: pointers to empty

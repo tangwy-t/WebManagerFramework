@@ -9,6 +9,8 @@ type UserResp struct {
 	ID            uint64         `json:"id,string"`
 	Username      string         `json:"username"`
 	RealName      string         `json:"realName"`
+	Nickname      string         `json:"nickname"`
+	Gender        string         `json:"gender"`
 	Email         string         `json:"email"`
 	Phone         string         `json:"phone"`
 	Avatar        string         `json:"avatar"`

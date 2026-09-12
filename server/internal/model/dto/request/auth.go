@@ -10,8 +10,10 @@ import (
 // roles, dept, status and other fields are explicitly out of scope here.
 type UpdateProfileReq struct {
 	RealName *string `json:"realName" binding:"omitempty,max=64"`
+	Nickname *string `json:"nickname" binding:"omitempty,max=64"`
 	Email    *string `json:"email" binding:"omitempty,email"`
 	Phone    *string `json:"phone" binding:"omitempty,min=7,max=20"`
+	Gender   *string `json:"gender"`
 }
 
 // UnmarshalJSON normalizes empty strings to nil before gin's binding
@@ -29,6 +31,8 @@ func (u *UpdateProfileReq) UnmarshalJSON(data []byte) error {
 		}
 		return s
 	}
+	a.Nickname = trimToNil(a.Nickname)
+	a.Gender = trimToNil(a.Gender)
 	a.Email = trimToNil(a.Email)
 	a.Phone = trimToNil(a.Phone)
 	*u = UpdateProfileReq(a)
