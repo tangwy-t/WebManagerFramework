@@ -75,14 +75,14 @@ func (r *AuthRepo) SetMustChangePassword(ctx context.Context, userID uint64, mus
 // nickname, email, phone, gender) — explicit column list, no mass assignment.
 // A nil pointer writes SQL NULL ("clear the field"), mirroring the semantics
 // of request.UpdateProfileReq where an empty string means "clear".
-func (r *AuthRepo) UpdateProfile(ctx context.Context, userID uint64, realName, nickname, email, phone, gender *string) error {
+func (r *AuthRepo) UpdateProfile(ctx context.Context, userID uint64, user *entity.SysUser) error {
 	return r.db.WithContext(ctx).Model(&entity.SysUser{}).Where("id = ?", userID).
 		Updates(map[string]interface{}{
-			"real_name": realName,
-			"nickname":  nickname,
-			"email":     email,
-			"phone":     phone,
-			"gender":    gender,
+			"real_name": user.RealName,
+			"nickname":  user.Nickname,
+			"email":     user.Email,
+			"phone":     user.Phone,
+			"gender":    user.Gender,
 		}).Error
 }
 

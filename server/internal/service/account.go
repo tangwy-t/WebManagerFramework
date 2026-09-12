@@ -11,6 +11,7 @@ import (
 
 	"github.com/tangwy-t/webmanager-server/internal/model/dto/request"
 	"github.com/tangwy-t/webmanager-server/internal/model/dto/response"
+	"github.com/tangwy-t/webmanager-server/internal/model/entity"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/apperror"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/contextkeys"
 	"github.com/tangwy-t/webmanager-server/internal/pkg/datascope"
@@ -89,7 +90,12 @@ func (s *AuthService) UpdateProfile(ctx context.Context, req *request.UpdateProf
 	if _, err := s.repo.FindByID(ctx, userID); err != nil {
 		return translateNotFound(err, "用户不存在")
 	}
-	if err := s.repo.UpdateProfile(ctx, userID, req.RealName, req.Nickname, req.Email, req.Phone, req.Gender); err != nil {
+	// UpdateProfileReq 与 SysUser 个人资料字段同名同构:DTO → CopyEntity →
+	// entity,与 UserService.UpdateUserInfo 一致。nil 指针表示"清空该字段",
+	// 由 repo 的显式列更新落为 SQL NULL(不再逐个透传标量)。
+	user := &entity.SysUser{}
+	util.CopyEntity(user, req, s.logger)
+	if err := s.repo.UpdateProfile(ctx, userID, user); err != nil {
 		s.logger.Warn("failed to update profile", zap.Uint64("userId", userID), zap.Error(err))
 		return err
 	}

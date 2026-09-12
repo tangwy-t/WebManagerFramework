@@ -269,16 +269,10 @@ func (s *DictService) CreateType(ctx context.Context, req *request.CreateDictTyp
 		return 0, apperror.Conflict(fmt.Sprintf("字典类型编码 %s 已存在", req.Code))
 	}
 
-	dt := &entity.SysDictType{
-		Code: req.Code,
-		Name: req.Name,
-	}
-	if req.Status != nil {
-		dt.Status = req.Status
-	}
-	if req.Remark != nil {
-		dt.Remark = req.Remark
-	}
+	// CreateDictTypeReq 与 SysDictType 字段同名同构:一次 CopyEntity 拷贝
+	// (Code/Name 必填,Status/Remark 指针 nil 即不设置),与 UpdateType 对齐。
+	dt := &entity.SysDictType{}
+	util.CopyEntity(dt, req, s.logger)
 	if err := s.typeRepo.Create(ctx, dt); err != nil {
 		return 0, err
 	}
@@ -371,26 +365,11 @@ func (s *DictService) CreateData(ctx context.Context, typeID uint64, req *reques
 		return 0, translateNotFound(err, "字典类型不存在")
 	}
 
-	dd := &entity.SysDictData{
-		TypeID: typeID,
-		Label:  req.Label,
-		Value:  req.Value,
-	}
-	if req.IsDefault != nil {
-		dd.IsDefault = req.IsDefault
-	}
-	if req.Sort != nil {
-		dd.Sort = req.Sort
-	}
-	if req.Status != nil {
-		dd.Status = req.Status
-	}
-	if req.Remark != nil {
-		dd.Remark = req.Remark
-	}
-	if req.ListClass != nil {
-		dd.ListClass = req.ListClass
-	}
+	// CreateDictDataReq 与 SysDictData 字段同名同构:一次 CopyEntity 拷贝,
+	// TypeID 不在请求内单独补上(与 UpdateData 的合并语义对齐)。
+	dd := &entity.SysDictData{}
+	util.CopyEntity(dd, req, s.logger)
+	dd.TypeID = typeID
 
 	if dd.IsDefault != nil && *dd.IsDefault == entity.DictDataDefaultYes {
 		// 事务保证 Clear+Create 原子:Clear 成功而 Create 失败会
