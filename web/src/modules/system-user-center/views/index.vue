@@ -192,11 +192,13 @@
 
   const profileSnapshot = computed(() => {
     const ov = overview.value
-    if (ov) return { realName: ov.realName, email: ov.email, phone: ov.phone }
+    const u = userInfo.value
     return {
-      realName: userInfo.value.realName ?? '',
-      email: userInfo.value.email ?? '',
-      phone: userInfo.value.phone ?? ''
+      realName: ov?.realName ?? u.realName ?? '',
+      nickname: u.nickname ?? '',
+      email: ov?.email ?? u.email ?? '',
+      phone: ov?.phone ?? u.phone ?? '',
+      gender: u.gender ?? ''
     }
   })
 

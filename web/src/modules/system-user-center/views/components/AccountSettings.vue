@@ -25,6 +25,21 @@
               clearable
             />
           </ElFormItem>
+          <ElFormItem label="昵称" prop="nickname">
+            <ElInput
+              v-model="profileForm.nickname"
+              :placeholder="'请输入昵称'"
+              :maxlength="64"
+              clearable
+            />
+          </ElFormItem>
+          <ElFormItem label="性别">
+            <ElRadioGroup v-model="profileForm.gender">
+              <ElRadio v-for="opt in genderOptions" :key="opt.value" :value="opt.value">
+                {{ opt.label }}
+              </ElRadio>
+            </ElRadioGroup>
+          </ElFormItem>
           <ElFormItem label="邮箱" prop="email">
             <ElInput
               v-model="profileForm.email"
@@ -122,27 +137,35 @@
 </template>
 
 <script setup lang="ts">
-  import { reactive, ref, watch } from 'vue'
+  import { onMounted, reactive, ref, watch } from 'vue'
   import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
   import { useUserStore } from '@/store/modules/user'
+  import { useDict } from '@/hooks/core/useDict'
   import { fetchMyProfile, updateMyProfile, changeMyPassword } from '../../api'
 
   defineOptions({ name: 'UcAccountSettings' })
 
   const props = defineProps<{
     /** 已保存的资料快照(来自总览接口),作为表单初值与「还原」目标 */
-    profile: { realName: string; email: string; phone: string }
+    profile: { realName: string; nickname: string; email: string; phone: string; gender: string }
   }>()
 
   const emit = defineEmits<{ saved: [] }>()
 
   const userStore = useUserStore()
+  const { ensure: ensureGender, options: genderOptions } = useDict('sys_user_gender')
   const activeTab = ref('basic')
 
   /* ── 基本资料 ───────────────────────────────────── */
   const profileFormRef = ref<FormInstance>()
   const profileSaving = ref(false)
-  const profileForm = reactive<Api.Auth.UpdateProfileParams>({ realName: '', email: '', phone: '' })
+  const profileForm = reactive<Api.Auth.UpdateProfileParams>({
+    realName: '',
+    nickname: '',
+    email: '',
+    phone: '',
+    gender: ''
+  })
 
   const profileRules = reactive<FormRules>({
     realName: [
@@ -161,12 +184,19 @@
 
   const assignProfileForm = () => {
     profileForm.realName = props.profile.realName || ''
+    profileForm.nickname = props.profile.nickname || ''
     profileForm.email = props.profile.email || ''
     profileForm.phone = props.profile.phone || ''
+    profileForm.gender = props.profile.gender || ''
   }
 
   // 总览加载完成/保存后刷新时同步表单初值
   watch(() => props.profile, assignProfileForm, { immediate: true })
+
+  // 性别字典:渲染单选选项
+  onMounted(() => {
+    ensureGender()
+  })
 
   const onResetProfile = async () => {
     try {
@@ -189,8 +219,10 @@
     try {
       await updateMyProfile({
         realName: profileForm.realName.trim(),
+        nickname: (profileForm.nickname || '').trim(),
         email: profileForm.email.trim(),
-        phone: profileForm.phone.trim()
+        phone: profileForm.phone.trim(),
+        gender: profileForm.gender || undefined
       })
       // 回源刷新:同步最新资料到 store(顶部头像菜单即时生效)
       const fresh = await fetchMyProfile()
