@@ -89,7 +89,7 @@ func (s *AuthService) UpdateProfile(ctx context.Context, req *request.UpdateProf
 	if _, err := s.repo.FindByID(ctx, userID); err != nil {
 		return translateNotFound(err, "用户不存在")
 	}
-	if err := s.repo.UpdateProfile(ctx, userID, req.RealName, req.Email, req.Phone); err != nil {
+	if err := s.repo.UpdateProfile(ctx, userID, req.RealName, req.Nickname, req.Email, req.Phone, req.Gender); err != nil {
 		s.logger.Warn("failed to update profile", zap.Uint64("userId", userID), zap.Error(err))
 		return err
 	}

@@ -60,7 +60,7 @@ type AuthRepositoryInterface interface {
 	GetUserRoleScope(ctx context.Context, userID uint64) int8
 	UpdatePassword(ctx context.Context, userID uint64, newPassword string, newSalt *string) error
 	UpdateLoginInfo(ctx context.Context, userID uint64, ip string) error
-	UpdateProfile(ctx context.Context, userID uint64, realName, email, phone *string) error
+	UpdateProfile(ctx context.Context, userID uint64, realName, nickname, email, phone, gender *string) error
 	UpdateAvatar(ctx context.Context, userID uint64, avatar string) error
 	CountUserLogins(ctx context.Context, userID uint64) (int64, error)
 	FindUserLoginLogsSince(ctx context.Context, userID uint64, since time.Time) ([]entity.SysLoginLog, error)

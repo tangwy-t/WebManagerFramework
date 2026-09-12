@@ -58,7 +58,7 @@ func (m *stubAuthRepo) SetMustChangePassword(context.Context, uint64, bool) erro
 	return nil
 }
 func (m *stubAuthRepo) UpdateLoginInfo(context.Context, uint64, string) error { return nil }
-func (m *stubAuthRepo) UpdateProfile(context.Context, uint64, *string, *string, *string) error {
+func (m *stubAuthRepo) UpdateProfile(context.Context, uint64, *string, *string, *string, *string, *string) error {
 	return nil
 }
 func (m *stubAuthRepo) UpdateAvatar(context.Context, uint64, string) error { return nil }
