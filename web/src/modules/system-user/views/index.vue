@@ -174,7 +174,7 @@
 
   /* ── 搜索栏 ─────────────────────────────────────── */
   const statusDict = useDict('sys_normal_disable', { numeric: true })
-  const { labelOf: genderLabel } = useDict('sys_user_gender')
+  const genderDict = useDict('sys_user_gender')
 
   const searchForm = ref<{
     username?: string
@@ -243,7 +243,8 @@
             : {}),
           ...(currentDept.value ? { deptId: currentDept.value.id } : {})
         }),
-        statusDict.ensure()
+        statusDict.ensure(),
+        genderDict.ensure()
       ])
       data.value = res.list
       pagination.total = res.total
@@ -540,7 +541,7 @@
         formatter: (row) => row.email || '—'
       },
       { prop: 'roleNames', label: '角色', minWidth: 150, formatter: (row) => renderRoleTags(row) },
-      { prop: 'gender', label: '性别', width: 80, formatter: (row) => genderLabel(row.gender) },
+      { prop: 'gender', label: '性别', width: 80, formatter: (row) => genderDict.labelOf(row.gender) },
       { prop: 'status', label: '状态', width: 96, formatter: (row) => renderStatus(row) },
       {
         prop: 'lastLoginTime',
