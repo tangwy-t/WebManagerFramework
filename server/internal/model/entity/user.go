@@ -18,6 +18,8 @@ type SysUser struct {
 	DeptID             *uint64    `gorm:"column:dept_id;index:idx_user_dept_id"  json:"deptId,string"`
 	Status             *int8      `gorm:"column:status;default:1"                json:"status"`
 	Remark             *string    `gorm:"column:remark;size:512"                 json:"remark"`
+	Nickname           *string    `gorm:"column:nickname;size:64"                json:"nickname"` // 昵称(可空,非唯一)
+	Gender             *string    `gorm:"column:gender;size:8"                   json:"gender"`   // 性别(字典值 sys_user_gender)
 	LastLoginTime      *time.Time `gorm:"column:last_login_time"                 json:"lastLoginTime"`
 	LastLoginIP        *string    `gorm:"column:last_login_ip;size:64"           json:"lastLoginIp"`
 	MustChangePassword *bool      `gorm:"column:must_change_password;default:0" json:"mustChangePassword"`

@@ -113,6 +113,11 @@ var dictDefinitions = []dictTypeDef{
 		{Label: "启用", Value: "1", Class: "success", Sort: 1, IsDefault: true},
 		{Label: "禁用", Value: "0", Class: "danger", Sort: 2},
 	}},
+	{Code: "sys_user_gender", Name: "用户性别", Data: []dictDataDef{
+		{Label: "未知", Value: "0", Sort: 0, IsDefault: true},
+		{Label: "男", Value: "1", Sort: 1},
+		{Label: "女", Value: "2", Sort: 2},
+	}},
 	{Code: "sys_job_run_at_startup", Name: "任务启动执行", Data: []dictDataDef{
 		{Label: "是", Value: "1", Class: "primary", Sort: 1, IsDefault: true},
 		{Label: "否", Value: "0", Class: "info", Sort: 2},
